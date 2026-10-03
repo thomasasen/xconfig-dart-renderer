@@ -74,7 +74,7 @@ SOURCE_GROUNDED_SPECS = {
             # Retail copy of the official Red Dragon media sheet. It contains one long,
             # clean horizontal assembled dart; the elongated-object gate extracts only
             # that dart and discards the surrounding packaging/component panels.
-            'https://www.flightclub.ie/cdn/shop/files/2823_LUKEH_Prestige22gImage_5.webp?v=1737470308&width=1445',
+            'https://www.reddragondarts.com/cdn/shop/files/2823_LUKEH_Prestige22gImage_5.jpg?v=1734084563&width=2667',
             # Angled fallback. The geometry gate will reject it if it is not sufficiently
             # broadside for component extraction.
             'https://aviddarts.com.au/cdn/shop/files/LukeHumphries-Prestige-3.jpg?v=1734126420&width=1500',
@@ -182,6 +182,30 @@ def _best_elongated_roi(image):
             if left > right*1.15:
                 crop=crop.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
                 cmask,cdist,calpha=_foreground_mask(crop)
+
+            # Product sheets may put spare shafts, barrels or another dart inside the
+            # candidate crop. If all foreground rows are fed into the per-column fill,
+            # separate objects become one large rectangular alpha block. Keep only the
+            # horizontally widest connected dart component before silhouette filling.
+            join_w=max(9,round(crop.width*0.025))
+            joined_primary=cv2.morphologyEx(
+                cmask,cv2.MORPH_CLOSE,np.ones((3,join_w),np.uint8),iterations=2
+            )
+            nlabels,labels,stats,_=cv2.connectedComponentsWithStats(joined_primary,8)
+            ranked=[]
+            for label in range(1,nlabels):
+                cw0=stats[label,cv2.CC_STAT_WIDTH]
+                ch0=stats[label,cv2.CC_STAT_HEIGHT]
+                area0=stats[label,cv2.CC_STAT_AREA]
+                if cw0 < crop.width*.30:
+                    continue
+                score0=cw0*max(1.0,cw0/max(1,ch0))*(.5+area0/max(1,cw0*ch0))
+                ranked.append((score0,label))
+            if ranked:
+                _,primary=max(ranked)
+                component=(labels==primary).astype(np.uint8)*255
+                component=cv2.dilate(component,np.ones((5,5),np.uint8),iterations=1)
+                cmask=np.where(component>0,cmask,0).astype(np.uint8)
 
             silhouette=np.zeros_like(cmask)
             for xcol in range(cmask.shape[1]):
