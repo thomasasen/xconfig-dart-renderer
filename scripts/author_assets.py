@@ -210,6 +210,25 @@ def largest_alpha_component(img:Image.Image, threshold=24):
     rgba[:,:,3]=np.minimum(rgba[:,:,3],keep).astype(np.uint8)
     return trim_alpha(Image.fromarray(rgba,'RGBA'),threshold)
 
+NO2_PROFILE=[[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[1.00,-0.45],[0.90,-0.82],[0.60,-1.00],[0.18,-0.96],[0.06,-0.34]]
+
+def mask_to_flight_profile(image:Image.Image, profile):
+    rgba=image.convert('RGBA')
+    w,h=rgba.size
+    scale=4
+    mask=Image.new('L',(w*scale,h*scale),0)
+    draw=ImageDraw.Draw(mask)
+    pts=[]
+    for u,v in profile:
+        x=float(u)*(w-1)*scale
+        y=(0.5-float(v)*0.5)*(h-1)*scale
+        pts.append((x,y))
+    draw.polygon(pts,fill=255)
+    mask=mask.resize((w,h),Image.Resampling.LANCZOS)
+    arr=np.asarray(rgba).copy()
+    arr[:,:,3]=np.minimum(arr[:,:,3],np.asarray(mask,dtype=np.uint8)).astype(np.uint8)
+    return trim_alpha(Image.fromarray(arr,'RGBA'),3)
+
 def collapse_cross_fin_band(img:Image.Image, half_band_ratio=.022):
     """Remove the edge-on perpendicular fin from an otherwise frontal K-Flex face.
 
@@ -299,7 +318,12 @@ def prepare_dedicated_flight_face(spec):
             raise RuntimeError('dedicated K-Flex source has no broad flight face')
         horizontal=trim_alpha(horizontal.crop((max(0,min(broad)-2),0,horizontal.width,horizontal.height)),3)
 
-    clean,qc=collapse_cross_fin_band(horizontal)
+    # The front-facing product image still contains the perpendicular K-Flex plane
+    # edge-on across the axis. For this exact Mandalorian source that occluder occupies
+    # roughly one fifth of total height, so remove ±10% around the axis. The remaining
+    # upper/lower surfaces are the two source-grounded halves of the same No.2 plane.
+    clean,qc=collapse_cross_fin_band(horizontal,half_band_ratio=.10)
+    clean=mask_to_flight_profile(clean,NO2_PROFILE)
     qc.update({
         'mode':'DEDICATED_FRONTAL_KFLEX_SOURCE',
         'sourceUrl':url,
@@ -307,6 +331,8 @@ def prepare_dedicated_flight_face(spec):
         'sourceImageSize':[raw.width,raw.height],
         'sourceGrounded':True,
         'design':'MANDALORIAN_BLUE_NO2',
+        'canonicalProfile':'NO2',
+        'profileMaskApplied':True,
     })
     save_component(horizontal,SRC/'web-mandalorian-kflex-frontal-source-grounded.png')
     return clean,qc
