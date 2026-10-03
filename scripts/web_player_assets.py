@@ -250,6 +250,73 @@ def _prepare_flat_flight_texture(spec):
     rgba=_mask_to_flight_profile(rgba,spec['profile'])
     return rgba,source_url
 
+def _canonicalize_integrated_flight_face(image):
+    """Remove the already-photographed perpendicular fin from a side-view flight crop.
+
+    The broad face remains source-grounded. Only the narrow centre strip hidden by the
+    perpendicular fin is reconstructed from adjacent source pixels and is explicitly
+    reported as APPROXIMATED-OCCLUSION.
+    """
+    base=image.convert('RGBA')
+    bbox=base.getbbox()
+    if bbox: base=base.crop(bbox)
+    arr=np.asarray(base).copy()
+    alpha=arr[:,:,3]
+    h,w=alpha.shape
+    spans=[]; bounds=[]
+    for x in range(w):
+        ys=np.where(alpha[:,x]>28)[0]
+        if len(ys):
+            y0,y1=int(ys.min()),int(ys.max())
+            spans.append(y1-y0+1); bounds.append((y0,y1))
+        else:
+            spans.append(0); bounds.append(None)
+    max_span=max(spans) if spans else 0
+    if max_span<8:
+        return base,{'mode':'PASSTHROUGH','reason':'flight face too small for de-occlusion'}
+
+    broad_threshold=max(6,int(round(max_span*.30)))
+    broad=[i for i,s in enumerate(spans) if s>=broad_threshold]
+    if not broad:
+        return base,{'mode':'PASSTHROUGH','reason':'no dominant broad face detected'}
+    face_start,face_end=min(broad),max(broad)
+    centres=[(bounds[x][0]+bounds[x][1])/2 for x in broad if bounds[x]]
+    center=int(round(float(np.median(centres)))) if centres else h//2
+
+    envelope=np.zeros_like(alpha)
+    for x,b in enumerate(bounds):
+        if not b: continue
+        y0,y1=b
+        if x<face_start:
+            envelope[y0:y1+1,x]=255
+        elif x<=face_end and spans[x]>=max(3,int(broad_threshold*.55)):
+            envelope[y0:y1+1,x]=255
+    arr[:,:,3]=np.minimum(alpha,envelope).astype(np.uint8)
+
+    band=max(1,int(round(max_span*.035)))
+    approx_pixels=0
+    for x in range(face_start,face_end+1):
+        if spans[x]<broad_threshold: continue
+        y_top=max(0,center-band-2); y_bot=min(h-1,center+band+2)
+        if y_bot<=y_top: continue
+        fill=((arr[y_top,x,:3].astype(np.uint16)+arr[y_bot,x,:3].astype(np.uint16))//2).astype(np.uint8)
+        ya=max(0,center-band); yb=min(h,center+band+1)
+        valid=arr[ya:yb,x,3]>0
+        arr[ya:yb,x,:3][valid]=fill
+        approx_pixels+=int(valid.sum())
+
+    out=Image.fromarray(arr,'RGBA')
+    bbox=out.getbbox()
+    if bbox: out=out.crop(bbox)
+    visible=max(1,int((arr[:,:,3]>3).sum()))
+    return out,{
+        'mode':'PRIMARY_FACE_DEOCCLUDED',
+        'faceStartPx':int(face_start),
+        'faceEndPx':int(face_end),
+        'centreBandHalfWidthPx':int(band),
+        'approximatedPixelFraction':round(approx_pixels/visible,4),
+    }
+
 def _split_source_grounded(key,spec):
     errors=[]
     dart=None
@@ -279,11 +346,15 @@ def _split_source_grounded(key,spec):
         parts[name]=part
 
     flight_texture,flight_source_url=_prepare_flat_flight_texture(spec)
+    flight_qc=None
     if flight_texture is not None:
         parts['flight-plane-a']=flight_texture
+        flight_qc={'mode':'FLAT_FLIGHT_SOURCE','approximatedPixelFraction':0.0}
+    elif spec['integrated']:
+        parts['flight-plane-a'],flight_qc=_canonicalize_integrated_flight_face(parts['flight-plane-a'])
 
-    # Plane B is intentionally only an approximation. Do not mirror source artwork:
-    # mirrored text/logo would falsely imply known reverse-side pixels.
+    # Plane B is intentionally only an approximation. Do not mirror/copy source
+    # artwork: repeated text/logos on a perpendicular fin falsely implies known pixels.
     parts['flight-plane-b-approx']=backface(parts['flight-plane-a'])
 
     d=OUT/key
@@ -315,16 +386,24 @@ def _split_source_grounded(key,spec):
             'alpha silhouette extraction',
             'component crop only; RGB pixels not redrawn',
             'when an exact flat flight source exists, Plane A is replaced by that flat source before 3D mapping',
+            'integrated side-view flights are de-occluded only in the source-hidden centre strip before 3D mapping',
+            'Plane B is a low-frequency approximation with no copied readable logo/text',
         ],
         'splitFractions':spec['splits'],
         'splitsPx':[p1,p2,p3],
         'flightProfile':spec['profile'],
         'rearIntegrated':spec['integrated'],
+        'flightExtractionMode':(flight_qc or {}).get('mode','DIRECT_SOURCE_FACE'),
+        'flightApproximation':flight_qc,
         'componentProvenance':{
             'point':'SOURCE-GROUNDED',
             'barrel':'SOURCE-GROUNDED',
             'rear-shaft' if spec['integrated'] else 'shaft':'SOURCE-GROUNDED',
-            'flight-plane-a':'SOURCE-GROUNDED',
+            'flight-plane-a':(
+                'SOURCE-GROUNDED' if flight_qc and flight_qc.get('mode')=='FLAT_FLIGHT_SOURCE'
+                else 'SOURCE-GROUNDED+APPROXIMATED-OCCLUSION' if flight_qc and flight_qc.get('mode')=='PRIMARY_FACE_DEOCCLUDED'
+                else 'SOURCE-GROUNDED'
+            ),
             'flight-plane-b-approx':'APPROXIMATED',
         },
         'authoringStatus':SOURCE_GROUNDED_WEB,
@@ -489,8 +568,17 @@ def draw_flight(style,shape='No.6'):
     return im
 
 def backface(front):
-    x=ImageEnhance.Color(front).enhance(.35); x=ImageEnhance.Brightness(x).enhance(.62)
-    x.putalpha(front.getchannel('A')); return x
+    # Unknown reverse faces keep only low-frequency colour identity. This avoids the
+    # V1.3 failure where readable front-side logos/text reappeared on Plane B.
+    base=front.convert('RGBA')
+    w,h=base.size
+    sw=max(6,min(18,max(1,w//18))); sh=max(6,min(18,max(1,h//18)))
+    low=base.convert('RGB').resize((sw,sh),Image.Resampling.BOX).resize((w,h),Image.Resampling.BILINEAR)
+    low=ImageEnhance.Color(low).enhance(.45)
+    low=ImageEnhance.Brightness(low).enhance(.68)
+    out=low.convert('RGBA')
+    out.putalpha(base.getchannel('A'))
+    return out
 
 def draw_integrated_shaft(style):
     w,h=500,120; im=canvas(w,h); d=ImageDraw.Draw(im)
