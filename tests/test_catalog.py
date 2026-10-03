@@ -101,7 +101,7 @@ check('gabriel-clemens-95k-steel-tip-dart-sp-03.jpg' in k95_author.get('sourceUr
 # Side-view integrated systems must no longer feed a photographed composite flight
 # directly into a renderer plane. Plane A is de-occluded at the source-hidden cross-fin
 # band; Plane B deliberately suppresses readable front-side artwork.
-for product in ('prodigy','shift','gary','chrono','world','auro','supa','mandalorian','atat'):
+for product in ('prodigy','shift','gary','chrono','world','auro','supa','atat'):
     info=author.get(product,{})
     check(info.get('flightExtractionMode')=='PRIMARY_FACE_DEOCCLUDED',f'{product}: photographed composite flight was not canonicalized')
     check(info.get('flightPlaneAProvenance')=='SOURCE-GROUNDED+APPROXIMATED-OCCLUSION',f'{product}: Plane A provenance does not disclose de-occlusion')
@@ -110,6 +110,14 @@ for product in ('prodigy','shift','gary','chrono','world','auro','supa','mandalo
     check(approx.get('deocclusionMethod')=='STRIP_COLLAPSE_RESAMPLE',f'{product}: wrong de-occlusion method {approx.get("deocclusionMethod")}')
     frac=float(approx.get('approximatedPixelFraction',0))
     check(0 < frac < .45,f'{product}: de-occlusion fraction implausible: {frac}')
+
+mandalorian_author=author.get('mandalorian',{})
+check(mandalorian_author.get('flightExtractionMode')=='DEDICATED_FRONTAL_KFLEX_SOURCE','mandalorian: must use a dedicated frontal K-Flex source instead of the infographic composite crop')
+check((mandalorian_author.get('flightApproximation') or {}).get('deocclusionMethod')=='FRONTAL_RIDGE_STRIP_COLLAPSE','mandalorian: frontal K-Flex ridge removal is not active')
+check('410623_01.jpg' in (mandalorian_author.get('flightSourceUrl') or '') or '410624_01.jpg' in (mandalorian_author.get('flightSourceUrl') or ''),'mandalorian: unexpected dedicated flight source')
+check((ROOT/'assets/source/web-mandalorian-kflex-frontal-source-grounded.png').exists(),'mandalorian: dedicated frontal QA source missing')
+m_frac=float((mandalorian_author.get('flightApproximation') or {}).get('approximatedPixelFraction',0))
+check(0 < m_frac < .18,f'mandalorian: dedicated-source approximation fraction implausible: {m_frac}')
 
 check(k95_author.get('flightExtractionMode')=='PRIMARY_FACE_DEOCCLUDED','clemens-95k: composite K-Flex face must be de-occluded')
 check((k95_author.get('flightApproximation') or {}).get('deocclusionMethod')=='STRIP_COLLAPSE_RESAMPLE','clemens-95k: wrong de-occlusion method')
