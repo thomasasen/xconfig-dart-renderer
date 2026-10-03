@@ -5,6 +5,8 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT=Path(__file__).resolve().parents[1]
 CAT=json.loads((ROOT/'data/catalog.json').read_text())
 OUT=ROOT/'outputs'
+for _dir in ('comparisons','gallery','qa'):
+    (OUT/_dir).mkdir(parents=True,exist_ok=True)
 
 def img(path): return Image.open(ROOT/path.replace('./','')).convert('RGBA')
 
