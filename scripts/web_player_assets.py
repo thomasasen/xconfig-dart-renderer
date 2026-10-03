@@ -325,7 +325,8 @@ def _canonicalize_integrated_flight_face(image):
     if collapsed.shape[0] < 2:
         return Image.fromarray(arr,'RGBA'), {'mode':'PASSTHROUGH','reason':'occlusion strip collapse would empty texture'}
     collapsed_img=Image.fromarray(collapsed,'RGBA').resize((w,h),Image.Resampling.LANCZOS)
-    out=trim_alpha(collapsed_img,3)
+    bbox=collapsed_img.getbbox()
+    out=collapsed_img.crop(bbox) if bbox else collapsed_img
     approx_pixels=removed_visible
     return out,{
         'mode':'PRIMARY_FACE_DEOCCLUDED',
