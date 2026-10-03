@@ -190,19 +190,26 @@ def canonicalize_integrated_flight_face(img:Image.Image):
     # perpendicular fin in the source photo. Fill only that unknown strip from the
     # immediately adjacent source pixels instead of copying the composite fin into
     # Plane A. This is APPROXIMATED-OCCLUSION, not claimed original artwork.
-    band=max(1,int(round(max_span*.035)))
+    # The photographed perpendicular fin can occupy a sizeable horizontal band,
+    # especially on K-Flex/K-Shift. V1.3 used only ~3.5% of face height and left the
+    # cross-fin visibly printed into Plane A. Replace the entire occluded band using a
+    # vertical interpolation from genuine source pixels immediately above/below it.
+    band=max(2,int(round(max_span*.14)))
+    sample_gap=max(2,int(round(max_span*.025)))
     approx_pixels=0
     for x in range(face_start,face_end+1):
         if spans[x] < broad_threshold: continue
-        y_top=max(0,center-band-2); y_bot=min(h-1,center+band+2)
+        y_top=max(0,center-band-sample_gap)
+        y_bot=min(h-1,center+band+sample_gap)
         if y_bot<=y_top: continue
-        fill=((arr[y_top,x,:3].astype(np.uint16)+arr[y_bot,x,:3].astype(np.uint16))//2).astype(np.uint8)
+        top=arr[y_top,x,:3].astype(np.float32)
+        bot=arr[y_bot,x,:3].astype(np.float32)
         ya=max(0,center-band); yb=min(h,center+band+1)
-        valid=arr[ya:yb,x,3]>0
-        segment=arr[ya:yb,x,:3].copy()
-        segment[valid]=fill
-        arr[ya:yb,x,:3]=segment
-        approx_pixels+=int(valid.sum())
+        for y in range(ya,yb):
+            if arr[y,x,3]==0: continue
+            t=(y-y_top)/max(1,(y_bot-y_top))
+            arr[y,x,:3]=np.clip(top*(1.0-t)+bot*t,0,255).astype(np.uint8)
+            approx_pixels+=1
 
     out=trim_alpha(Image.fromarray(arr,'RGBA'),3)
     visible_pixels=max(1,int((arr[:,:,3]>3).sum()))
