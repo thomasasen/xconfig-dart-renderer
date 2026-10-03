@@ -154,11 +154,44 @@ def _best_elongated_roi(image):
     result=result.crop(bbox)
     if result.width/result.height < 4.5:
         raise RuntimeError(f'Extracted candidate is not dart-like enough: {result.size}')
+
+    # A barrel close-up is also long and slender, so aspect ratio alone is not enough.
+    # Require a genuine tail/flight signature: the rear end must be substantially taller
+    # than the central body band. This rejects barrel-only manufacturer hero images.
+    rmask,_,_=_foreground_mask(result)
+    spans=[]
+    for xcol in range(rmask.shape[1]):
+        ys=np.where(rmask[:,xcol]>0)[0]
+        spans.append(0 if len(ys)==0 else int(ys.max()-ys.min()+1))
+    n=len(spans)
+    body=np.array([v for v in spans[int(n*.30):int(n*.62)] if v>0],dtype=float)
+    tail=np.array([v for v in spans[int(n*.82):] if v>0],dtype=float)
+    if len(body)==0 or len(tail)==0:
+        raise RuntimeError('Extracted candidate lacks measurable body/tail silhouette')
+    body_span=float(np.median(body))
+    tail_span=float(np.percentile(tail,75))
+    if tail_span < body_span*1.45:
+        raise RuntimeError(
+            f'Candidate looks like barrel/body only: tail span {tail_span:.1f}px '
+            f'vs body {body_span:.1f}px (need >= 1.45x)'
+        )
     return result
 
 def _split_source_grounded(key,spec):
-    raw,source_url=_download_product_image(spec['sources'])
-    dart=_best_elongated_roi(raw)
+    errors=[]
+    dart=None
+    source_url=None
+    for candidate_url in spec['sources']:
+        try:
+            raw,_=_download_product_image([candidate_url])
+            candidate=_best_elongated_roi(raw)
+            dart=candidate
+            source_url=candidate_url
+            break
+        except Exception as exc:
+            errors.append(f'{candidate_url}: {exc}')
+    if dart is None:
+        raise RuntimeError(f'{key}: no full-dart source passed visual-geometry checks. ' + ' | '.join(errors))
     w=dart.width
     p1,p2,p3=[max(1,min(w-1,round(v*w))) for v in spec['splits']]
     if not (0 < p1 < p2 < p3 < w):
