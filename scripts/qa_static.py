@@ -1,6 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
 import json, math
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 ROOT=Path(__file__).resolve().parents[1]
 CAT=json.loads((ROOT/'data/catalog.json').read_text())
@@ -44,9 +45,45 @@ def composite_compare(preset_id,p):
     canvas=Image.new('RGBA',(1340,490),(13,16,22,255));canvas.alpha_composite(src,(0,50));canvas.alpha_composite(buildpanel,(520,50));d=ImageDraw.Draw(canvas);d.text((18,16),f'{p["name"]} — {source_label}',fill='white');d.text((540,16),'Builder orthogonal assembly (static QA)',fill='white');d.text((540,455),f'Tip=(0,212), calculated gaps={meta["gapPx"]:.1f}px',fill=(180,195,215));canvas.convert('RGB').save(OUT/'comparisons'/f'{preset_id}.jpg',quality=92)
     return meta
 
-qa={'presets':{},'freeCombinations':[]}
+def high_frequency_energy(im):
+    arr=np.asarray(im.convert('L'),dtype=np.float32)
+    if arr.shape[0]<2 or arr.shape[1]<2:return 0.0
+    return float(np.abs(np.diff(arr,axis=0)).mean()+np.abs(np.diff(arr,axis=1)).mean())
+
+def flight_texture_audit(pid,p):
+    a=assembly_for(p); tail=a['rearSystem'] or a['flight']
+    source=fit(img(p['sourceImage']),(520,360),(245,245,245,255))
+    plane_a_raw=img(tail['planeATexture']); plane_b_raw=img(tail['planeBTexture'])
+    plane_a=fit(plane_a_raw,(420,360),(25,29,37,255))
+    plane_b=fit(plane_b_raw,(420,360),(25,29,37,255))
+    build,_=render_assembly(a); build=fit(build,(820,360),(25,29,37,255))
+    canvas=Image.new('RGBA',(2180,430),(13,16,22,255)); d=ImageDraw.Draw(canvas)
+    d.text((14,12),f'{p["name"]} · original/source',fill='white')
+    d.text((540,12),f'Plane A · {tail.get("planeAProvenance",tail.get("faceEvidence",{}).get("planeA"))}',fill='white')
+    d.text((960,12),f'Plane B · {tail.get("planeBProvenance",tail.get("faceEvidence",{}).get("planeB"))}',fill='white')
+    d.text((1380,12),f'Orthogonal assembly · {tail.get("flightExtractionMode","DIRECT_SOURCE_FACE")}',fill='white')
+    canvas.alpha_composite(source,(0,50)); canvas.alpha_composite(plane_a,(520,50)); canvas.alpha_composite(plane_b,(940,50)); canvas.alpha_composite(build,(1360,50))
+    ea=high_frequency_energy(plane_a_raw); eb=high_frequency_energy(plane_b_raw)
+    ratio=(eb/ea) if ea>1e-6 else 0.0
+    d.text((540,405),f'high-frequency A={ea:.2f} · B={eb:.2f} · ratio={ratio:.2f}',fill=(180,195,215))
+    canvas.convert('RGB').save(OUT/'qa'/f'flight-textures-{pid}.png')
+    return {
+      'name':p['name'],
+      'planeAProvenance':tail.get('planeAProvenance',tail.get('faceEvidence',{}).get('planeA')),
+      'planeBProvenance':tail.get('planeBProvenance',tail.get('faceEvidence',{}).get('planeB')),
+      'flightExtractionMode':tail.get('flightExtractionMode','DIRECT_SOURCE_FACE'),
+      'planeAHighFrequency':ea,
+      'planeBHighFrequency':eb,
+      'backfaceDetailRatio':ratio,
+    }
+
+qa={'presets':{},'freeCombinations':[],'flightTextureQA':{}}
 for pid,p in CAT['presets'].items():
     qa['presets'][pid]=composite_compare(pid,p)
+
+REVIEW_PRESETS=tuple(pid for pid,p in CAT['presets'].items() if p.get('sourceType')!='WEB-REFERENCED-RECONSTRUCTION')
+for pid in REVIEW_PRESETS:
+    qa['flightTextureQA'][pid]=flight_texture_audit(pid,CAT['presets'][pid])
 
 def comparison_contact_sheet(preset_ids, output_name, cols=2):
     cards=[]

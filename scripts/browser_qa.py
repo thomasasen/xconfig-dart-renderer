@@ -1,5 +1,5 @@
 from __future__ import annotations
-import json, subprocess, time, sys
+import json, subprocess, time, sys, re
 from io import BytesIO
 from pathlib import Path
 from PIL import Image, ImageDraw
@@ -7,6 +7,8 @@ from PIL import Image, ImageDraw
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'outputs'/'qa'
 OUT.mkdir(parents=True,exist_ok=True)
+CAT=json.loads((ROOT/'data'/'catalog.json').read_text())
+REVIEW_PRESETS=tuple(pid for pid,p in CAT['presets'].items() if p.get('sourceType')!='WEB-REFERENCED-RECONSTRUCTION')
 out={'status':'NOT_RUN','notes':[]}
 server=None
 
@@ -50,6 +52,34 @@ def save_seam_zoom(page,pid,render_meta):
     )
     canvas.save(OUT/f'seam-{pid}.png')
 
+
+def _panel(im,title,width=789,height=365):
+    canvas=Image.new('RGB',(width,height),(18,22,29))
+    src=im.convert('RGBA')
+    src.thumbnail((width-20,height-46),Image.Resampling.LANCZOS)
+    # Composite transparency on the dark QA background.
+    bg=Image.new('RGBA',src.size,(18,22,29,255)); bg.alpha_composite(src)
+    canvas.paste(bg.convert('RGB'),((width-src.width)//2,36))
+    ImageDraw.Draw(canvas).text((10,10),title,fill='white')
+    return canvas
+
+def save_runtime_review(page,pid):
+    preset=CAT['presets'][pid]
+    source=Image.open(ROOT/preset['sourceImage'].replace('./','')).convert('RGBA')
+    orthogonal=Image.open(BytesIO(page.locator('#orthogonal').screenshot(type='png'))).convert('RGBA')
+    posed=Image.open(BytesIO(page.locator('#posed').screenshot(type='png'))).convert('RGBA')
+    c=CAT['components']
+    tail=c['rearSystems'][preset['rearSystemId']] if preset.get('rearSystemId') else c['flights'][preset['flightId']]
+    titles=[
+        f'Original/source · {preset["name"]}',
+        f'Orthogonal runtime · {tail.get("flightExtractionMode","DIRECT_SOURCE_FACE")}',
+        f'Posed runtime · Plane B {tail.get("planeBProvenance",tail.get("faceEvidence",{}).get("planeB"))}',
+    ]
+    cards=[_panel(source,titles[0]),_panel(orthogonal,titles[1]),_panel(posed,titles[2])]
+    sheet=Image.new('RGB',(789*3,365),(10,13,18))
+    for i,card in enumerate(cards): sheet.paste(card,(i*789,0))
+    sheet.save(OUT/f'runtime-{pid}-source-vs-render.png')
+
 try:
     server=subprocess.Popen(
         [sys.executable,'-m','http.server','4173'],
@@ -78,6 +108,10 @@ try:
         status=page.locator('#status').inner_text()
 
         preset_ids=page.evaluate('Object.keys(window.__CATALOG__.presets)')
+        visible_names=page.evaluate('Object.fromEntries(Object.entries(window.__CATALOG__.presets).map(([id,p])=>[id,p.name]))')
+        weight_re=re.compile(r'\b\d+(?:[.,]\d+)?\s*g\b',re.I)
+        weight_label_violations={pid:name for pid,name in visible_names.items() if weight_re.search(name or '')}
+        labels_ok=not weight_label_violations
         results=[]
         seam_results={}
         max_tip=0.0
@@ -105,11 +139,14 @@ try:
             self_tests.append({'presetId':pid,**self_test})
             results.append({
                 'presetId':pid,
+                'visibleName':visible_names.get(pid),
                 'tipDriftPx':tip,
                 'visibleDeltaMm':visible,
                 'joinSlopeDeltaMmPerMm':slope,
                 'selfTestPassed':bool(self_test.get('passed')),
             })
+            if pid in REVIEW_PRESETS:
+                save_runtime_review(page,pid)
             if pid in ('clemens-g2-23','clemens-95k-23'):
                 seam_results[pid]=render
                 save_seam_zoom(page,pid,render)
@@ -175,6 +212,7 @@ try:
             controls_ok and
             context_ok and
             seam_ok and
+            labels_ok and
             all_self_tests and
             no_js_errors and
             max_tip < 1e-8 and
@@ -193,6 +231,9 @@ try:
             'poseControlChecks':[pose_changed,pose_changed_2],
             'controlsOk':controls_ok,
             'seamOk':seam_ok,
+            'labelsOk':labels_ok,
+            'weightLabelViolations':weight_label_violations,
+            'runtimeReviewPresets':list(REVIEW_PRESETS),
             'contextLoss':{
                 'request':loss_request,
                 'before':before,

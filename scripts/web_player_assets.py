@@ -62,6 +62,24 @@ SOURCE_GROUNDED_SPECS = {
             'https://www.dartswarehouse.nl/media/catalog/product/cache/f20831aa4fe732f409bd1d4a248f932d/image/314593a22/target-gabriel-clemens-95k-95-swiss.jpg',
         ],
     },
+    'humphries-prestige': {
+        'integrated': False,
+        'shape': 'Standard',
+        'profile': None,  # filled after STD is defined
+        # Geometry ratio follows the verified 22g barrel plus the existing conservative
+        # point/shaft render assumptions. It is used only to split the source pixels.
+        'splits': [0.22, 0.51, 0.72],
+        'officialPage': 'https://winmau.com/en-de/products/luke-humphries-prestige-darts',
+        'sources': [
+            # Retail copy of the official Red Dragon media sheet. It contains one long,
+            # clean horizontal assembled dart; the elongated-object gate extracts only
+            # that dart and discards the surrounding packaging/component panels.
+            'https://www.reddragondarts.com/cdn/shop/files/2823_LUKEH_Prestige22gImage_5.jpg?v=1734084563&width=2667',
+            # Angled fallback. The geometry gate will reject it if it is not sufficiently
+            # broadside for component extraction.
+            'https://aviddarts.com.au/cdn/shop/files/LukeHumphries-Prestige-3.jpg?v=1734126420&width=1500',
+        ],
+    },
 }
 
 def _download_product_image(urls):
@@ -124,11 +142,11 @@ def _best_elongated_roi(image):
         gmajor=max(gw,gh); gminor=max(1,min(gw,gh)); gratio=gmajor/gminor
         foreground_fraction=float((mask[gy0:gy1,gx0:gx1]>0).mean())
         if gmajor >= max(w,h)*0.35 and gratio >= 3.3 and foreground_fraction < 0.72:
-            # Slight score boost: when the whole image is a single broadside this is
-            # more robust than a morphology-dependent contour.
             candidates.append((gmajor*gratio*1.15,gx0,gy0,gw,gh,'global'))
 
-    # Build two detection masks so a horizontal or vertical dart can be found.
+    # Product sheets can contain a huge barrel close-up and a smaller complete dart.
+    # Keep all plausible elongated candidates. Selection happens only after the
+    # full-dart tail/flight signature has been validated for each candidate.
     for orientation,kernel in [
         ('horizontal',np.ones((max(3,h//220),max(15,w//45)),np.uint8)),
         ('vertical',np.ones((max(15,h//45),max(3,w//220)),np.uint8)),
@@ -141,74 +159,92 @@ def _best_elongated_roi(image):
             major=max(cw,ch); minor=max(1,min(cw,ch)); ratio=major/minor
             if major < max(w,h)*0.25 or ratio < 4.0:
                 continue
-            # Prefer long/slender objects over boxes and packaging panels.
             score=major*ratio*(0.6+min(1.0,cv2.contourArea(contour)/(cw*ch+1)))
             candidates.append((score,x,y,cw,ch,orientation))
     if not candidates:
         raise RuntimeError('No sufficiently elongated dart candidate found in product image')
-    _,x,y,cw,ch,orientation=max(candidates,key=lambda item:item[0])
-    pad=max(4,round(min(cw,ch)*0.20))
-    x0=max(0,x-pad); y0=max(0,y-pad); x1=min(w,x+cw+pad); y1=min(h,y+ch+pad)
-    crop=image.crop((x0,y0,x1,y1)).convert('RGBA')
-    if crop.height > crop.width:
-        crop=crop.transpose(Image.Transpose.ROTATE_270)
 
-    # Ensure point is left and flight is right. The flight end has much larger
-    # foreground vertical coverage than the point end.
-    cmask,cdist,calpha=_foreground_mask(crop)
-    band=max(2,round(crop.width*0.14))
-    def end_span(m):
-        ys=np.where(m>0)[0]
-        return 0 if len(ys)==0 else int(ys.max()-ys.min()+1)
-    left=end_span(cmask[:,:band]); right=end_span(cmask[:,-band:])
-    if left > right*1.15:
-        crop=crop.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-        cmask,cdist,calpha=_foreground_mask(crop)
+    errors=[]
+    for score,x,y,cw,ch,orientation in sorted(candidates,key=lambda item:item[0],reverse=True):
+        try:
+            pad=max(4,round(min(cw,ch)*0.20))
+            x0=max(0,x-pad); y0=max(0,y-pad); x1=min(w,x+cw+pad); y1=min(h,y+ch+pad)
+            crop=image.crop((x0,y0,x1,y1)).convert('RGBA')
+            if crop.height > crop.width:
+                crop=crop.transpose(Image.Transpose.ROTATE_270)
 
-    # Build alpha from the detected silhouette. Filling between top/bottom foreground
-    # pixels per x preserves genuinely white flight artwork that colour-keying alone
-    # would incorrectly erase. RGB pixels remain untouched original source pixels.
-    silhouette=np.zeros_like(cmask)
-    for xcol in range(cmask.shape[1]):
-        ys=np.where(cmask[:,xcol]>0)[0]
-        if len(ys):
-            silhouette[ys.min():ys.max()+1,xcol]=255
-    silhouette=cv2.morphologyEx(
-        silhouette,cv2.MORPH_CLOSE,
-        np.ones((max(3,crop.height//90),max(3,crop.width//250)),np.uint8)
+            cmask,cdist,calpha=_foreground_mask(crop)
+            end_band=max(2,round(crop.width*0.14))
+            def end_span(m):
+                ys=np.where(m>0)[0]
+                return 0 if len(ys)==0 else int(ys.max()-ys.min()+1)
+            left=end_span(cmask[:,:end_band]); right=end_span(cmask[:,-end_band:])
+            if left > right*1.15:
+                crop=crop.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+                cmask,cdist,calpha=_foreground_mask(crop)
+
+            # Product sheets may place spare shafts/barrels above or below the full
+            # assembled dart. Anchor a corridor on the main dart's body axis using only
+            # the central x-range, then discard off-axis foreground before per-column
+            # silhouette filling. This keeps the real flight while preventing a second
+            # product row from turning into a rectangular alpha bridge.
+            x_body0=max(0,int(cmask.shape[1]*.18))
+            x_body1=max(x_body0+1,int(cmask.shape[1]*.72))
+            row_score=(cmask[:,x_body0:x_body1]>0).sum(axis=1)
+            if row_score.max()>0:
+                axis_row=int(np.argmax(row_score))
+                corridor_half=max(12,int(round(cmask.shape[0]*.32)))
+                ylo=max(0,axis_row-corridor_half)
+                yhi=min(cmask.shape[0],axis_row+corridor_half+1)
+                corridor=np.zeros_like(cmask)
+                corridor[ylo:yhi,:]=255
+                cmask=np.where(corridor>0,cmask,0).astype(np.uint8)
+
+            silhouette=np.zeros_like(cmask)
+            for xcol in range(cmask.shape[1]):
+                ys=np.where(cmask[:,xcol]>0)[0]
+                if len(ys):
+                    silhouette[ys.min():ys.max()+1,xcol]=255
+            silhouette=cv2.morphologyEx(
+                silhouette,cv2.MORPH_CLOSE,
+                np.ones((max(3,crop.height//90),max(3,crop.width//250)),np.uint8)
+            )
+            silhouette=cv2.GaussianBlur(silhouette,(0,0),0.65)
+            rgba=np.asarray(crop).copy()
+            rgba[:,:,3]=np.minimum(np.asarray(crop)[:,:,3],silhouette).astype(np.uint8)
+            result=Image.fromarray(rgba,'RGBA')
+            bbox=result.getbbox()
+            if not bbox:
+                raise ValueError('empty alpha')
+            result=result.crop(bbox)
+            if result.width/result.height < 3.2:
+                raise ValueError(f'not dart-like enough: {result.size}')
+
+            # Reject barrel-only close-ups. A complete dart must become materially
+            # taller in the rear/flight section than in its central body section.
+            rmask,_,_=_foreground_mask(result)
+            spans=[]
+            for xcol in range(rmask.shape[1]):
+                ys=np.where(rmask[:,xcol]>0)[0]
+                spans.append(0 if len(ys)==0 else int(ys.max()-ys.min()+1))
+            n=len(spans)
+            body=np.array([v for v in spans[int(n*.30):int(n*.62)] if v>0],dtype=float)
+            tail=np.array([v for v in spans[int(n*.82):] if v>0],dtype=float)
+            if len(body)==0 or len(tail)==0:
+                raise ValueError('lacks measurable body/tail silhouette')
+            body_span=float(np.median(body))
+            tail_span=float(np.percentile(tail,75))
+            if tail_span < body_span*1.45:
+                raise ValueError(
+                    f'tail span {tail_span:.1f}px vs body {body_span:.1f}px (need >= 1.45x)'
+                )
+            return result
+        except Exception as exc:
+            errors.append(f'{orientation}@{x},{y},{cw}x{ch}: {exc}')
+
+    raise RuntimeError(
+        'No complete dart candidate passed the tail/flight signature. ' + ' | '.join(errors[:8])
     )
-    silhouette=cv2.GaussianBlur(silhouette,(0,0),0.65)
-    rgba=np.asarray(crop).copy()
-    rgba[:,:,3]=np.minimum(np.asarray(crop)[:,:,3],silhouette).astype(np.uint8)
-    result=Image.fromarray(rgba,'RGBA')
-    bbox=result.getbbox()
-    if not bbox:
-        raise RuntimeError('Extracted dart candidate has empty alpha')
-    result=result.crop(bbox)
-    if result.width/result.height < 3.2:
-        raise RuntimeError(f'Extracted candidate is not dart-like enough: {result.size}')
-
-    # A barrel close-up is also long and slender, so aspect ratio alone is not enough.
-    # Require a genuine tail/flight signature: the rear end must be substantially taller
-    # than the central body band. This rejects barrel-only manufacturer hero images.
-    rmask,_,_=_foreground_mask(result)
-    spans=[]
-    for xcol in range(rmask.shape[1]):
-        ys=np.where(rmask[:,xcol]>0)[0]
-        spans.append(0 if len(ys)==0 else int(ys.max()-ys.min()+1))
-    n=len(spans)
-    body=np.array([v for v in spans[int(n*.30):int(n*.62)] if v>0],dtype=float)
-    tail=np.array([v for v in spans[int(n*.82):] if v>0],dtype=float)
-    if len(body)==0 or len(tail)==0:
-        raise RuntimeError('Extracted candidate lacks measurable body/tail silhouette')
-    body_span=float(np.median(body))
-    tail_span=float(np.percentile(tail,75))
-    if tail_span < body_span*1.45:
-        raise RuntimeError(
-            f'Candidate looks like barrel/body only: tail span {tail_span:.1f}px '
-            f'vs body {body_span:.1f}px (need >= 1.45x)'
-        )
-    return result
 
 def _mask_to_flight_profile(image, profile):
     rgba=image.convert('RGBA')
@@ -250,6 +286,74 @@ def _prepare_flat_flight_texture(spec):
     rgba=_mask_to_flight_profile(rgba,spec['profile'])
     return rgba,source_url
 
+def _canonicalize_integrated_flight_face(image):
+    """Remove the already-photographed perpendicular fin from a side-view flight crop.
+
+    The broad face remains source-grounded. Only the narrow centre strip hidden by the
+    perpendicular fin is reconstructed from adjacent source pixels and is explicitly
+    reported as APPROXIMATED-OCCLUSION.
+    """
+    base=image.convert('RGBA')
+    bbox=base.getbbox()
+    if bbox: base=base.crop(bbox)
+    arr=np.asarray(base).copy()
+    alpha=arr[:,:,3]
+    h,w=alpha.shape
+    spans=[]; bounds=[]
+    for x in range(w):
+        ys=np.where(alpha[:,x]>28)[0]
+        if len(ys):
+            y0,y1=int(ys.min()),int(ys.max())
+            spans.append(y1-y0+1); bounds.append((y0,y1))
+        else:
+            spans.append(0); bounds.append(None)
+    max_span=max(spans) if spans else 0
+    if max_span<8:
+        return base,{'mode':'PASSTHROUGH','reason':'flight face too small for de-occlusion'}
+
+    broad_threshold=max(6,int(round(max_span*.30)))
+    broad=[i for i,s in enumerate(spans) if s>=broad_threshold]
+    if not broad:
+        return base,{'mode':'PASSTHROUGH','reason':'no dominant broad face detected'}
+    face_start,face_end=min(broad),max(broad)
+    centres=[(bounds[x][0]+bounds[x][1])/2 for x in broad if bounds[x]]
+    center=int(round(float(np.median(centres)))) if centres else h//2
+
+    envelope=np.zeros_like(alpha)
+    for x,b in enumerate(bounds):
+        if not b: continue
+        y0,y1=b
+        if x<face_start:
+            envelope[y0:y1+1,x]=255
+        elif x<=face_end and spans[x]>=max(3,int(broad_threshold*.55)):
+            envelope[y0:y1+1,x]=255
+    arr[:,:,3]=np.minimum(alpha,envelope).astype(np.uint8)
+
+    # Remove the source-hidden cross-fin band geometrically instead of painting a
+    # synthetic blurred stripe into the artwork. We discard the occluded horizontal
+    # strip, join the genuinely visible source pixels above/below it, then resample the
+    # canonical face back to its original height. No logo/text is mirrored or invented.
+    band=max(1,int(round(max_span*.06)))
+    y0=max(0,center-band)
+    y1=min(h,center+band+1)
+    visible_before=max(1,int((arr[:,:,3]>3).sum()))
+    removed_visible=int((arr[y0:y1,:,3]>3).sum())
+    collapsed=np.concatenate([arr[:y0,:,:],arr[y1:,:,:]],axis=0)
+    if collapsed.shape[0] < 2:
+        return Image.fromarray(arr,'RGBA'), {'mode':'PASSTHROUGH','reason':'occlusion strip collapse would empty texture'}
+    collapsed_img=Image.fromarray(collapsed,'RGBA').resize((w,h),Image.Resampling.LANCZOS)
+    bbox=collapsed_img.getbbox()
+    out=collapsed_img.crop(bbox) if bbox else collapsed_img
+    approx_pixels=removed_visible
+    return out,{
+        'mode':'PRIMARY_FACE_DEOCCLUDED',
+        'faceStartPx':int(face_start),
+        'faceEndPx':int(face_end),
+        'centreBandHalfWidthPx':int(band),
+        'deocclusionMethod':'STRIP_COLLAPSE_RESAMPLE',
+        'approximatedPixelFraction':round(approx_pixels/visible_before,4),
+    }
+
 def _split_source_grounded(key,spec):
     errors=[]
     dart=None
@@ -279,11 +383,18 @@ def _split_source_grounded(key,spec):
         parts[name]=part
 
     flight_texture,flight_source_url=_prepare_flat_flight_texture(spec)
+    flight_qc=None
     if flight_texture is not None:
         parts['flight-plane-a']=flight_texture
+        flight_qc={'mode':'FLAT_FLIGHT_SOURCE','approximatedPixelFraction':0.0}
+    else:
+        # A side-view classic flight can contain the same photographed fold/cross-fin
+        # problem as an integrated K-Flex. Canonicalize any side-view Plane A for which
+        # no dedicated flat flight photograph is available.
+        parts['flight-plane-a'],flight_qc=_canonicalize_integrated_flight_face(parts['flight-plane-a'])
 
-    # Plane B is intentionally only an approximation. Do not mirror source artwork:
-    # mirrored text/logo would falsely imply known reverse-side pixels.
+    # Plane B is intentionally only an approximation. Do not mirror/copy source
+    # artwork: repeated text/logos on a perpendicular fin falsely implies known pixels.
     parts['flight-plane-b-approx']=backface(parts['flight-plane-a'])
 
     d=OUT/key
@@ -315,16 +426,24 @@ def _split_source_grounded(key,spec):
             'alpha silhouette extraction',
             'component crop only; RGB pixels not redrawn',
             'when an exact flat flight source exists, Plane A is replaced by that flat source before 3D mapping',
+            'integrated side-view flights are de-occluded only in the source-hidden centre strip before 3D mapping',
+            'Plane B is a low-frequency approximation with no copied readable logo/text',
         ],
         'splitFractions':spec['splits'],
         'splitsPx':[p1,p2,p3],
         'flightProfile':spec['profile'],
         'rearIntegrated':spec['integrated'],
+        'flightExtractionMode':(flight_qc or {}).get('mode','DIRECT_SOURCE_FACE'),
+        'flightApproximation':flight_qc,
         'componentProvenance':{
             'point':'SOURCE-GROUNDED',
             'barrel':'SOURCE-GROUNDED',
             'rear-shaft' if spec['integrated'] else 'shaft':'SOURCE-GROUNDED',
-            'flight-plane-a':'SOURCE-GROUNDED',
+            'flight-plane-a':(
+                'SOURCE-GROUNDED' if flight_qc and flight_qc.get('mode')=='FLAT_FLIGHT_SOURCE'
+                else 'SOURCE-GROUNDED+APPROXIMATED-OCCLUSION' if flight_qc and flight_qc.get('mode')=='PRIMARY_FACE_DEOCCLUDED'
+                else 'SOURCE-GROUNDED'
+            ),
             'flight-plane-b-approx':'APPROXIMATED',
         },
         'authoringStatus':SOURCE_GROUNDED_WEB,
@@ -339,6 +458,7 @@ NO2 = [[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[
 STD = NO2
 SOURCE_GROUNDED_SPECS['clemens-g2']['profile']=NO6
 SOURCE_GROUNDED_SPECS['clemens-95k']['profile']=NO6
+SOURCE_GROUNDED_SPECS['humphries-prestige']['profile']=STD
 
 def font(size=24, bold=False):
     paths = ['/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf' if bold else '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf']
@@ -489,8 +609,17 @@ def draw_flight(style,shape='No.6'):
     return im
 
 def backface(front):
-    x=ImageEnhance.Color(front).enhance(.35); x=ImageEnhance.Brightness(x).enhance(.62)
-    x.putalpha(front.getchannel('A')); return x
+    # Unknown reverse faces keep only low-frequency colour identity. This avoids the
+    # V1.3 failure where readable front-side logos/text reappeared on Plane B.
+    base=front.convert('RGBA')
+    w,h=base.size
+    sw=max(6,min(18,max(1,w//18))); sh=max(6,min(18,max(1,h//18)))
+    low=base.convert('RGB').resize((sw,sh),Image.Resampling.BOX).resize((w,h),Image.Resampling.BILINEAR)
+    low=ImageEnhance.Color(low).enhance(.45)
+    low=ImageEnhance.Brightness(low).enhance(.68)
+    out=low.convert('RGBA')
+    out.putalpha(base.getchannel('A'))
+    return out
 
 def draw_integrated_shaft(style):
     w,h=500,120; im=canvas(w,h); d=ImageDraw.Draw(im)

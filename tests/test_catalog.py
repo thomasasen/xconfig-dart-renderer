@@ -1,5 +1,7 @@
 from pathlib import Path
 import json, sys, math, re
+import numpy as np
+from PIL import Image
 ROOT=Path(__file__).resolve().parents[1]
 cat=json.loads((ROOT/'data/catalog.json').read_text())
 author=json.loads((ROOT/'data/authoring-metadata.json').read_text())
@@ -61,7 +63,7 @@ for group,items in c.items():
 # requirement and is covered in both a classic and integrated rear setup.
 web_sources={x['presetId']:x for x in cat.get('webPlayerSources',[])}
 check({'clemens-g2-23','clemens-95k-23'} <= set(web_sources),'Gabriel Clemens web presets missing')
-source_grounded_players={'clemens-g2-23','clemens-95k-23'}
+source_grounded_players={'clemens-g2-23','clemens-95k-23','humphries-prestige-22'}
 for pid,entry in web_sources.items():
     p=cat['presets'].get(pid)
     check(p is not None,f'web source points at missing preset {pid}')
@@ -76,7 +78,12 @@ for pid,entry in web_sources.items():
         check(entry.get('originalPixels') is True,f'{pid}: source-grounded entry must assert originalPixels=true')
         provenance=entry.get('componentProvenance',{})
         check(provenance.get('barrel')=='SOURCE-GROUNDED',f'{pid}: barrel not source-grounded')
-        check(provenance.get('flight-plane-a')=='SOURCE-GROUNDED',f'{pid}: plane A not source-grounded')
+        if pid=='clemens-g2-23':
+            check(provenance.get('flight-plane-a')=='SOURCE-GROUNDED',f'{pid}: flat-source Plane A must remain source-grounded')
+            check(entry.get('flightExtractionMode')=='FLAT_FLIGHT_SOURCE',f'{pid}: expected dedicated flat-flight extraction')
+        else:
+            check(provenance.get('flight-plane-a')=='SOURCE-GROUNDED+APPROXIMATED-OCCLUSION',f'{pid}: side-view Plane A must disclose de-occlusion approximation')
+            check(entry.get('flightExtractionMode')=='PRIMARY_FACE_DEOCCLUDED',f'{pid}: side-view must de-occlude photographed cross-fin')
         check(provenance.get('flight-plane-b-approx')=='APPROXIMATED',f'{pid}: plane B must remain approximated')
 
 # G2 Plane A must come from the exact flat No.6 source, not from the assembled
@@ -91,9 +98,58 @@ check('336870' in g2_sources.get('flight-plane-a',''), 'clemens-g2: Plane A must
 k95_author=author.get('clemens-95k',{})
 check('gabriel-clemens-95k-steel-tip-dart-sp-03.jpg' in k95_author.get('sourceUrl',''), 'clemens-95k: expected official complete side-view source')
 
+# Side-view integrated systems must no longer feed a photographed composite flight
+# directly into a renderer plane. Plane A is de-occluded at the source-hidden cross-fin
+# band; Plane B deliberately suppresses readable front-side artwork.
+for product in ('prodigy','shift','gary','chrono','world','auro','supa','mandalorian','atat'):
+    info=author.get(product,{})
+    check(info.get('flightExtractionMode')=='PRIMARY_FACE_DEOCCLUDED',f'{product}: photographed composite flight was not canonicalized')
+    check(info.get('flightPlaneAProvenance')=='SOURCE-GROUNDED+APPROXIMATED-OCCLUSION',f'{product}: Plane A provenance does not disclose de-occlusion')
+    check(info.get('flightPlaneBProvenance')=='APPROXIMATED',f'{product}: Plane B must remain approximated')
+    approx=info.get('flightApproximation') or {}
+    check(approx.get('deocclusionMethod')=='STRIP_COLLAPSE_RESAMPLE',f'{product}: wrong de-occlusion method {approx.get("deocclusionMethod")}')
+    frac=float(approx.get('approximatedPixelFraction',0))
+    check(0 < frac < .45,f'{product}: de-occlusion fraction implausible: {frac}')
+
+check(k95_author.get('flightExtractionMode')=='PRIMARY_FACE_DEOCCLUDED','clemens-95k: composite K-Flex face must be de-occluded')
+check((k95_author.get('flightApproximation') or {}).get('deocclusionMethod')=='STRIP_COLLAPSE_RESAMPLE','clemens-95k: wrong de-occlusion method')
+check((k95_author.get('componentProvenance') or {}).get('flight-plane-a')=='SOURCE-GROUNDED+APPROXIMATED-OCCLUSION','clemens-95k: Plane A provenance must disclose approximated occlusion strip')
+
+humphries_author=author.get('humphries-prestige',{})
+check(humphries_author.get('flightExtractionMode')=='PRIMARY_FACE_DEOCCLUDED','humphries-prestige: product side-view flight must be canonicalized')
+check((humphries_author.get('flightApproximation') or {}).get('deocclusionMethod')=='STRIP_COLLAPSE_RESAMPLE','humphries-prestige: wrong de-occlusion method')
+
+def high_frequency_energy(path):
+    im=Image.open(ROOT/path.replace('./','')).convert('L')
+    arr=np.asarray(im,dtype=np.float32)
+    if arr.shape[0]<2 or arr.shape[1]<2:return 0.0
+    return float(np.abs(np.diff(arr,axis=0)).mean()+np.abs(np.diff(arr,axis=1)).mean())
+
+for group in ('flights','rearSystems'):
+    for cid,obj in c[group].items():
+        a=obj.get('planeATexture'); b=obj.get('planeBTexture')
+        if not a or not b: continue
+        ea=high_frequency_energy(a); eb=high_frequency_energy(b)
+        if ea>3.0:
+            check(eb <= ea*.82+0.25,f'{group}/{cid}: approximated Plane B retains too much copied front-side detail ({eb:.2f} vs {ea:.2f})')
+
 # Visible preset labels are render-design identities, not SKU/weight identities.
+weight_re=re.compile(r'\b\d+(?:[.,]\d+)?\s*g\b',re.I)
 for pid,p in cat['presets'].items():
-    check(re.search(r'\\b\\d+(?:[.,]\\d+)?g\\b',p.get('name',''),re.I) is None,f'{pid}: visible preset name still contains gram weight: {p.get("name")}')
+    check(weight_re.search(p.get('name','')) is None,f'{pid}: visible preset name still contains gram weight: {p.get("name")}')
+for group,items in c.items():
+    for cid,obj in items.items():
+        check(weight_re.search(obj.get('name','')) is None,f'{group}/{cid}: visible component name still contains gram weight: {obj.get("name")}')
+expected_names={
+    'prodigy-23':'Target Luke Littler G1 Prodigy',
+    'shift':'Target Shift SP',
+    'world-champion':'Target Luke Littler G1 World Champion',
+    'clemens-g2-23':'Gabriel Clemens G2',
+    'clemens-95k-23':'Gabriel Clemens 95K',
+    'humphries-prestige-22':'Luke Humphries Prestige',
+}
+for pid,name in expected_names.items():
+    check(cat['presets'][pid]['name']==name,f'{pid}: wrong visible name {cat["presets"][pid]["name"]!r}')
 
 # Explicit uncertainty checks prevent accidental laundering of heuristic dimensions into facts.
 check(c['barrels']['shift-barrel']['diameterMm'] is None,'Shift source weight unresolved: factual diameter must stay null')

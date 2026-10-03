@@ -371,7 +371,7 @@
       "prodigy-23-barrel": {
         "kind": "BarrelDefinition",
         "id": "prodigy-23-barrel",
-        "name": "Luke Littler G1 Prodigy 23g Barrel",
+        "name": "Luke Littler G1 Prodigy Barrel",
         "pointInterface": "SWISS_POINT",
         "rearThread": "2BA",
         "lengthMm": 52,
@@ -419,7 +419,7 @@
       "world-champ-23-barrel": {
         "kind": "BarrelDefinition",
         "id": "world-champ-23-barrel",
-        "name": "Luke Littler G1 World Champion 23g Barrel",
+        "name": "Luke Littler G1 World Champion Barrel",
         "pointInterface": "SWISS_POINT",
         "rearThread": "2BA",
         "lengthMm": 52,
@@ -535,7 +535,7 @@
       "mandalorian-24-barrel": {
         "kind": "BarrelDefinition",
         "id": "mandalorian-24-barrel",
-        "name": "Star Wars Mandalorian 24g Barrel",
+        "name": "Star Wars Mandalorian Barrel",
         "pointInterface": "SWISS_POINT",
         "rearThread": "2BA",
         "lengthMm": 52,
@@ -559,14 +559,14 @@
       "atat-23-barrel": {
         "kind": "BarrelDefinition",
         "id": "atat-23-barrel",
-        "name": "Star Wars AT-AT 23g Barrel",
+        "name": "Star Wars AT-AT Barrel",
         "pointInterface": "SWISS_POINT",
         "rearThread": "2BA",
         "lengthMm": 47.55,
-        "diameterMm": 7.0,
+        "diameterMm": 7,
         "profile": "straight",
         "renderLengthMm": 47.55,
-        "renderDiameterMm": 7.0,
+        "renderDiameterMm": 7,
         "texture": "./assets/components/atat/barrel.png",
         "evidence": [
           {
@@ -579,7 +579,7 @@
       "clemens-g2-23-barrel": {
         "kind": "BarrelDefinition",
         "id": "clemens-g2-23-barrel",
-        "name": "Gabriel Clemens G2 23g Barrel",
+        "name": "Gabriel Clemens G2 Barrel",
         "pointInterface": "SWISS_POINT",
         "rearThread": "2BA",
         "lengthMm": 52,
@@ -603,7 +603,7 @@
       "clemens-95k-23-barrel": {
         "kind": "BarrelDefinition",
         "id": "clemens-95k-23-barrel",
-        "name": "Gabriel Clemens 95K 23g Barrel",
+        "name": "Gabriel Clemens 95K Barrel",
         "pointInterface": "SWISS_POINT",
         "rearThread": "2BA",
         "lengthMm": 52,
@@ -627,7 +627,7 @@
       "cross-95k-23-barrel": {
         "kind": "BarrelDefinition",
         "id": "cross-95k-23-barrel",
-        "name": "Rob Cross 95K 23g Barrel",
+        "name": "Rob Cross 95K Barrel",
         "pointInterface": "SWISS_POINT",
         "rearThread": "2BA",
         "lengthMm": 48,
@@ -651,7 +651,7 @@
       "aspinall-95k-22-barrel": {
         "kind": "BarrelDefinition",
         "id": "aspinall-95k-22-barrel",
-        "name": "Nathan Aspinall 95K 22g Barrel",
+        "name": "Nathan Aspinall 95K Barrel",
         "pointInterface": "SWISS_POINT",
         "rearThread": "2BA",
         "lengthMm": 50,
@@ -675,7 +675,7 @@
       "bunting-95k-23-barrel": {
         "kind": "BarrelDefinition",
         "id": "bunting-95k-23-barrel",
-        "name": "Stephen Bunting 95K 23g Barrel",
+        "name": "Stephen Bunting 95K Barrel",
         "pointInterface": "SWISS_POINT",
         "rearThread": "2BA",
         "lengthMm": 47,
@@ -699,7 +699,7 @@
       "mvg-signature-22-barrel": {
         "kind": "BarrelDefinition",
         "id": "mvg-signature-22-barrel",
-        "name": "Michael van Gerwen Signature 22g Barrel",
+        "name": "Michael van Gerwen Signature Barrel",
         "pointInterface": "PRESS_FIT",
         "rearThread": "2BA",
         "lengthMm": 53,
@@ -728,7 +728,7 @@
       "humphries-prestige-22-barrel": {
         "kind": "BarrelDefinition",
         "id": "humphries-prestige-22-barrel",
-        "name": "Luke Humphries Prestige 22g Barrel",
+        "name": "Luke Humphries Prestige Barrel",
         "pointInterface": "PRESS_FIT",
         "rearThread": "2BA",
         "lengthMm": 43.18,
@@ -927,7 +927,7 @@
         "renderRadiusMm": 16.5,
         "planeProfile": [
           [
-            0.0,
+            0,
             0.2857
           ],
           [
@@ -960,7 +960,7 @@
           ],
           [
             0.6169,
-            1.0
+            1
           ],
           [
             0.6948,
@@ -979,11 +979,11 @@
             0.5429
           ],
           [
-            1.0,
+            1,
             0.1429
           ],
           [
-            1.0,
+            1,
             -0.1857
           ],
           [
@@ -1035,7 +1035,7 @@
             -0.4
           ],
           [
-            0.0,
+            0,
             -0.2857
           ]
         ],
@@ -1068,7 +1068,7 @@
         "renderRadiusMm": 17.8,
         "planeProfile": [
           [
-            0.0,
+            0,
             0.24
           ],
           [
@@ -1089,23 +1089,23 @@
           ],
           [
             0.3866,
-            1.0
+            1
           ],
           [
             0.4639,
-            1.0
+            1
           ],
           [
             0.5361,
-            1.0
+            1
           ],
           [
             0.6134,
-            1.0
+            1
           ],
           [
             0.6907,
-            1.0
+            1
           ],
           [
             0.768,
@@ -1120,11 +1120,11 @@
             0.48
           ],
           [
-            1.0,
+            1,
             0.2533
           ],
           [
-            1.0,
+            1,
             -0.1733
           ],
           [
@@ -1176,7 +1176,7 @@
             -0.1867
           ],
           [
-            0.0,
+            0,
             -0.1067
           ]
         ],
@@ -1205,7 +1205,7 @@
         "renderRadiusMm": 17.2,
         "planeProfile": [
           [
-            0.0,
+            0,
             0.1864
           ],
           [
@@ -1238,7 +1238,7 @@
           ],
           [
             0.6168,
-            1.0
+            1
           ],
           [
             0.6916,
@@ -1257,11 +1257,11 @@
             0.5932
           ],
           [
-            1.0,
+            1,
             0.2768
           ],
           [
-            1.0,
+            1,
             -0.209
           ],
           [
@@ -1313,7 +1313,7 @@
             -0.1751
           ],
           [
-            0.0,
+            0,
             -0.1525
           ]
         ],
@@ -1342,7 +1342,7 @@
         "renderRadiusMm": 18.2,
         "planeProfile": [
           [
-            0.0,
+            0,
             0.2216
           ],
           [
@@ -1363,23 +1363,23 @@
           ],
           [
             0.3862,
-            1.0
+            1
           ],
           [
             0.4603,
-            1.0
+            1
           ],
           [
             0.5397,
-            1.0
+            1
           ],
           [
             0.6138,
-            1.0
+            1
           ],
           [
             0.6931,
-            1.0
+            1
           ],
           [
             0.7672,
@@ -1394,11 +1394,11 @@
             0.4251
           ],
           [
-            1.0,
+            1,
             0.018
           ],
           [
-            1.0,
+            1,
             -0.006
           ],
           [
@@ -1450,7 +1450,7 @@
             -0.3892
           ],
           [
-            0.0,
+            0,
             -0.2096
           ]
         ],
@@ -1530,7 +1530,7 @@
         "renderRadiusMm": 17.2,
         "planeProfile": [
           [
-            0.0,
+            0,
             0.0137
           ],
           [
@@ -1559,7 +1559,7 @@
           ],
           [
             0.5408,
-            1.0
+            1
           ],
           [
             0.6173,
@@ -1582,11 +1582,11 @@
             0.7123
           ],
           [
-            1.0,
+            1,
             0.1096
           ],
           [
-            1.0,
+            1,
             -0.1096
           ],
           [
@@ -1607,7 +1607,7 @@
           ],
           [
             0.6173,
-            -1.0
+            -1
           ],
           [
             0.5408,
@@ -1638,7 +1638,7 @@
             -0.2603
           ],
           [
-            0.0,
+            0,
             -0.0137
           ]
         ],
@@ -1667,8 +1667,8 @@
         "renderRadiusMm": 17.2,
         "planeProfile": [
           [
-            0.0,
-            0.0
+            0,
+            0
           ],
           [
             0.08,
@@ -1680,18 +1680,18 @@
           ],
           [
             0.68,
-            1.0
+            1
           ],
           [
             0.94,
             0.72
           ],
           [
-            1.0,
+            1,
             0.35
           ],
           [
-            1.0,
+            1,
             -0.35
           ],
           [
@@ -1700,7 +1700,7 @@
           ],
           [
             0.68,
-            -1.0
+            -1
           ],
           [
             0.22,
@@ -1728,7 +1728,12 @@
             "status": "HEURISTIC",
             "note": "Artwork/colors are locally reconstructed from inspected public product images; not original manufacturer pixels."
           }
-        ]
+        ],
+        "safeRollMinDeg": -12,
+        "safeRollMaxDeg": 12,
+        "planeAProvenance": "SOURCE-GROUNDED",
+        "planeBProvenance": "APPROXIMATED",
+        "flightExtractionMode": "FLAT_FLIGHT_SOURCE"
       },
       "mvg-signature-no2": {
         "kind": "FlightDefinition",
@@ -1740,8 +1745,8 @@
         "renderRadiusMm": 18.5,
         "planeProfile": [
           [
-            0.0,
-            0.0
+            0,
+            0
           ],
           [
             0.06,
@@ -1753,18 +1758,18 @@
           ],
           [
             0.6,
-            1.0
+            1
           ],
           [
             0.9,
             0.82
           ],
           [
-            1.0,
+            1,
             0.45
           ],
           [
-            1.0,
+            1,
             -0.45
           ],
           [
@@ -1773,7 +1778,7 @@
           ],
           [
             0.6,
-            -1.0
+            -1
           ],
           [
             0.18,
@@ -1813,8 +1818,8 @@
         "renderRadiusMm": 18.2,
         "planeProfile": [
           [
-            0.0,
-            0.0
+            0,
+            0
           ],
           [
             0.06,
@@ -1826,18 +1831,18 @@
           ],
           [
             0.6,
-            1.0
+            1
           ],
           [
             0.9,
             0.82
           ],
           [
-            1.0,
+            1,
             0.45
           ],
           [
-            1.0,
+            1,
             -0.45
           ],
           [
@@ -1846,7 +1851,7 @@
           ],
           [
             0.6,
-            -1.0
+            -1
           ],
           [
             0.18,
@@ -1894,7 +1899,7 @@
         "shaftTexture": "./assets/components/prodigy/rear-shaft.png",
         "planeProfile": [
           [
-            0.0,
+            0,
             0.1553
           ],
           [
@@ -1923,7 +1928,7 @@
           ],
           [
             0.5382,
-            1.0
+            1
           ],
           [
             0.6145,
@@ -1946,11 +1951,11 @@
             0.4854
           ],
           [
-            1.0,
+            1,
             0.1553
           ],
           [
-            1.0,
+            1,
             -0.165
           ],
           [
@@ -2002,7 +2007,7 @@
             -0.1845
           ],
           [
-            0.0,
+            0,
             -0.1359
           ]
         ],
@@ -2013,15 +2018,18 @@
           "planeB": "APPROXIMATED"
         },
         "visualAuthoring": "SOURCE-GROUNDED",
-        "safeRollMinDeg": -20,
-        "safeRollMaxDeg": 20,
+        "safeRollMinDeg": -12,
+        "safeRollMaxDeg": 12,
         "evidence": [
           {
             "status": "WEB-VERIFIED",
             "note": "No.2 K-Flex Short 19 mm.",
             "source": "https://www.targetdarts.com/eu/luke-littler-g1-prodigy-sp"
           }
-        ]
+        ],
+        "planeAProvenance": "SOURCE-GROUNDED+APPROXIMATED-OCCLUSION",
+        "planeBProvenance": "APPROXIMATED",
+        "flightExtractionMode": "PRIMARY_FACE_DEOCCLUDED"
       },
       "shift-kshift-no6-short": {
         "kind": "RearSystemDefinition",
@@ -2039,7 +2047,7 @@
         "shaftTexture": "./assets/components/shift/rear-shaft.png",
         "planeProfile": [
           [
-            0.0,
+            0,
             0.1818
           ],
           [
@@ -2080,7 +2088,7 @@
           ],
           [
             0.771,
-            1.0
+            1
           ],
           [
             0.8458,
@@ -2091,11 +2099,11 @@
             0.5114
           ],
           [
-            1.0,
+            1,
             0.0909
           ],
           [
-            1.0,
+            1,
             -0.0795
           ],
           [
@@ -2147,7 +2155,7 @@
             -0.2386
           ],
           [
-            0.0,
+            0,
             -0.1136
           ]
         ],
@@ -2158,15 +2166,18 @@
           "planeB": "APPROXIMATED"
         },
         "visualAuthoring": "SOURCE-GROUNDED",
-        "safeRollMinDeg": -25,
-        "safeRollMaxDeg": 25,
+        "safeRollMinDeg": -12,
+        "safeRollMaxDeg": 12,
         "evidence": [
           {
             "status": "WEB-VERIFIED",
             "note": "K-Shift is an integrated flight+shaft; fitted Short 19 mm, No.6.",
             "source": "https://www.targetdarts.de/shift-sp"
           }
-        ]
+        ],
+        "planeAProvenance": "SOURCE-GROUNDED+APPROXIMATED-OCCLUSION",
+        "planeBProvenance": "APPROXIMATED",
+        "flightExtractionMode": "PRIMARY_FACE_DEOCCLUDED"
       },
       "world-kflex-no6-short": {
         "kind": "RearSystemDefinition",
@@ -2184,7 +2195,7 @@
         "shaftTexture": "./assets/components/world/rear-shaft.png",
         "planeProfile": [
           [
-            0.0,
+            0,
             0.2391
           ],
           [
@@ -2236,11 +2247,11 @@
             0.4457
           ],
           [
-            1.0,
+            1,
             0.163
           ],
           [
-            1.0,
+            1,
             -0.1413
           ],
           [
@@ -2257,7 +2268,7 @@
           ],
           [
             0.6938,
-            -1.0
+            -1
           ],
           [
             0.6172,
@@ -2292,7 +2303,7 @@
             -0.4457
           ],
           [
-            0.0,
+            0,
             -0.2609
           ]
         ],
@@ -2303,15 +2314,18 @@
           "planeB": "APPROXIMATED"
         },
         "visualAuthoring": "SOURCE-GROUNDED",
-        "safeRollMinDeg": -18,
-        "safeRollMaxDeg": 18,
+        "safeRollMinDeg": -10,
+        "safeRollMaxDeg": 10,
         "evidence": [
           {
             "status": "WEB-VERIFIED",
             "note": "World Champion No.6 K-Flex, Short.",
             "source": "https://www.targetdarts.com/us/luke-littler-world-champion-sp"
           }
-        ]
+        ],
+        "planeAProvenance": "SOURCE-GROUNDED+APPROXIMATED-OCCLUSION",
+        "planeBProvenance": "APPROXIMATED",
+        "flightExtractionMode": "PRIMARY_FACE_DEOCCLUDED"
       },
       "mandalorian-kflex-short": {
         "kind": "RearSystemDefinition",
@@ -2329,7 +2343,7 @@
         "shaftTexture": "./assets/components/mandalorian/rear-shaft.png",
         "planeProfile": [
           [
-            0.0,
+            0,
             0.0323
           ],
           [
@@ -2362,7 +2376,7 @@
           ],
           [
             0.6142,
-            1.0
+            1
           ],
           [
             0.6904,
@@ -2381,11 +2395,11 @@
             0.3806
           ],
           [
-            1.0,
+            1,
             -0.0065
           ],
           [
-            1.0,
+            1,
             -0.0968
           ],
           [
@@ -2437,7 +2451,7 @@
             -0.2387
           ],
           [
-            0.0,
+            0,
             0.0065
           ]
         ],
@@ -2478,8 +2492,8 @@
         "shaftTexture": "./assets/components/clemens-95k/rear-shaft.png",
         "planeProfile": [
           [
-            0.0,
-            0.0
+            0,
+            0
           ],
           [
             0.08,
@@ -2491,18 +2505,18 @@
           ],
           [
             0.68,
-            1.0
+            1
           ],
           [
             0.94,
             0.72
           ],
           [
-            1.0,
+            1,
             0.35
           ],
           [
-            1.0,
+            1,
             -0.35
           ],
           [
@@ -2511,7 +2525,7 @@
           ],
           [
             0.68,
-            -1.0
+            -1
           ],
           [
             0.22,
@@ -2541,7 +2555,10 @@
             "status": "HEURISTIC",
             "note": "Plane A and rear artwork are reconstructed from inspected public imagery."
           }
-        ]
+        ],
+        "planeAProvenance": "SOURCE-GROUNDED+APPROXIMATED-OCCLUSION",
+        "planeBProvenance": "APPROXIMATED",
+        "flightExtractionMode": "PRIMARY_FACE_DEOCCLUDED"
       },
       "cross-95k-kflex-no6-short": {
         "kind": "RearSystemDefinition",
@@ -2559,8 +2576,8 @@
         "shaftTexture": "./assets/components/cross-95k/rear-shaft.png",
         "planeProfile": [
           [
-            0.0,
-            0.0
+            0,
+            0
           ],
           [
             0.08,
@@ -2572,18 +2589,18 @@
           ],
           [
             0.68,
-            1.0
+            1
           ],
           [
             0.94,
             0.72
           ],
           [
-            1.0,
+            1,
             0.35
           ],
           [
-            1.0,
+            1,
             -0.35
           ],
           [
@@ -2592,7 +2609,7 @@
           ],
           [
             0.68,
-            -1.0
+            -1
           ],
           [
             0.22,
@@ -2640,8 +2657,8 @@
         "shaftTexture": "./assets/components/aspinall-95k/rear-shaft.png",
         "planeProfile": [
           [
-            0.0,
-            0.0
+            0,
+            0
           ],
           [
             0.06,
@@ -2653,18 +2670,18 @@
           ],
           [
             0.6,
-            1.0
+            1
           ],
           [
             0.9,
             0.82
           ],
           [
-            1.0,
+            1,
             0.45
           ],
           [
-            1.0,
+            1,
             -0.45
           ],
           [
@@ -2673,7 +2690,7 @@
           ],
           [
             0.6,
-            -1.0
+            -1
           ],
           [
             0.18,
@@ -2721,8 +2738,8 @@
         "shaftTexture": "./assets/components/bunting-95k/rear-shaft.png",
         "planeProfile": [
           [
-            0.0,
-            0.0
+            0,
+            0
           ],
           [
             0.06,
@@ -2734,18 +2751,18 @@
           ],
           [
             0.6,
-            1.0
+            1
           ],
           [
             0.9,
             0.82
           ],
           [
-            1.0,
+            1,
             0.45
           ],
           [
-            1.0,
+            1,
             -0.45
           ],
           [
@@ -2754,7 +2771,7 @@
           ],
           [
             0.6,
-            -1.0
+            -1
           ],
           [
             0.18,
@@ -2796,7 +2813,7 @@
     "prodigy-23": {
       "kind": "DartPreset",
       "id": "prodigy-23",
-      "name": "Target Luke Littler G1 Prodigy 23g",
+      "name": "Target Luke Littler G1 Prodigy",
       "sourceImage": "./assets/source/target-luke-littler-g1-prodigy-95-swiss-23-gram_3.webp",
       "sourcePage": null,
       "sourceLabel": "Supplied source",
@@ -2812,7 +2829,8 @@
       },
       "notes": [
         "Local file says 95; current manufacturer page says 90%. Conflict is surfaced, not reconciled silently."
-      ]
+      ],
+      "variantWeightG": 23
     },
     "shift": {
       "kind": "DartPreset",
@@ -2833,12 +2851,13 @@
       },
       "notes": [
         "Barrel diameter uses 6.8 mm as render heuristic because source weight is unknown."
-      ]
+      ],
+      "variantWeightG": null
     },
     "world-champion": {
       "kind": "DartPreset",
       "id": "world-champion",
-      "name": "Target Luke Littler G1 World Champion 23g",
+      "name": "Target Luke Littler G1 World Champion",
       "sourceImage": "./assets/source/target-luke-littler-world-champion-90-swiss-23-gram_3.webp",
       "sourcePage": null,
       "sourceLabel": "Supplied source",
@@ -2852,7 +2871,8 @@
         "incidenceDeg": 35,
         "rollDeg": 0
       },
-      "notes": []
+      "notes": [],
+      "variantWeightG": 23
     },
     "chrono": {
       "kind": "DartPreset",
@@ -2873,7 +2893,8 @@
       },
       "notes": [
         "Weight variant not identifiable from local filename; render width is a neutral heuristic."
-      ]
+      ],
+      "variantWeightG": null
     },
     "gary-phase6": {
       "kind": "DartPreset",
@@ -2894,7 +2915,8 @@
       },
       "notes": [
         "Source weight/point length unresolved; exact physical diameter must not be read from render heuristic."
-      ]
+      ],
+      "variantWeightG": null
     },
     "auro": {
       "kind": "DartPreset",
@@ -2915,7 +2937,8 @@
       },
       "notes": [
         "Source filename says 90%; current Shot Auro is 95%. Builder keeps the supplied source as a distinct/legacy variant and labels the version uncertainty."
-      ]
+      ],
+      "variantWeightG": null
     },
     "supa-venom": {
       "kind": "DartPreset",
@@ -2934,12 +2957,13 @@
         "incidenceDeg": 35,
         "rollDeg": 0
       },
-      "notes": []
+      "notes": [],
+      "variantWeightG": null
     },
     "mandalorian-24": {
       "kind": "DartPreset",
       "id": "mandalorian-24",
-      "name": "Target Star Wars Mandalorian 24g (infographic preset)",
+      "name": "Target Star Wars Mandalorian (infographic preset)",
       "sourceImage": "./assets/source/190840STARWARSMANDALORIAN95_STEElTIP_GALLERY_DE_PT01.webp",
       "sourcePage": null,
       "sourceLabel": "Supplied source",
@@ -2955,12 +2979,13 @@
       },
       "notes": [
         "Appearance extraction from infographic uses an image-space segmentation heuristic; geometry values are source/web grounded."
-      ]
+      ],
+      "variantWeightG": 24
     },
     "atat-23": {
       "kind": "DartPreset",
       "id": "atat-23",
-      "name": "Target Star Wars AT-AT 23g (infographic preset)",
+      "name": "Target Star Wars AT-AT (infographic preset)",
       "sourceImage": "./assets/source/190843-STARWARSAT-AT90_STEELTIP_GALLERY_DE_PT01.webp",
       "sourcePage": null,
       "sourceLabel": "Supplied source",
@@ -2976,12 +3001,13 @@
       },
       "notes": [
         "Infographic appearance extraction is heuristic; dimensions are source/manufacturer grounded."
-      ]
+      ],
+      "variantWeightG": 23
     },
     "clemens-g2-23": {
       "kind": "DartPreset",
       "id": "clemens-g2-23",
-      "name": "Gabriel Clemens G2 23g",
+      "name": "Gabriel Clemens G2",
       "sourceImage": "./assets/source/web-clemens-g2-reconstruction.png",
       "sourcePage": "https://www.target-darts.co.uk/gabriel-clemens-g2-sp",
       "sourceLabel": "Target Gabriel Clemens G2 · web-referenced reconstruction",
@@ -2998,12 +3024,13 @@
       "notes": [
         "Physical dimensions are manufacturer-verified. Local visual assets are explicitly web-referenced reconstructions because remote product-image bytes are unavailable to the container."
       ],
-      "referenceImageUrl": "https://www.doubletopdartshop.com/cdn/shop/files/190181_GabrielClemensG2SP.jpg?v=1728566875&width=1214"
+      "referenceImageUrl": "https://www.doubletopdartshop.com/cdn/shop/files/190181_GabrielClemensG2SP.jpg?v=1728566875&width=1214",
+      "variantWeightG": 23
     },
     "clemens-95k-23": {
       "kind": "DartPreset",
       "id": "clemens-95k-23",
-      "name": "Gabriel Clemens 95K 23g",
+      "name": "Gabriel Clemens 95K",
       "sourceImage": "./assets/source/web-clemens-95k-reconstruction.png",
       "sourcePage": "https://www.target-darts.co.uk/gabriel-clemens-95k-sp",
       "sourceLabel": "Target Gabriel Clemens 95K · web-referenced reconstruction",
@@ -3020,12 +3047,13 @@
       "notes": [
         "Integrated K-Flex remains one RearSystemDefinition. Safe roll is deliberately narrow because only one useful product view is source-observed."
       ],
-      "referenceImageUrl": "https://www.dartswarehouse.nl/media/catalog/product/cache/f20831aa4fe732f409bd1d4a248f932d/image/314593a22/target-gabriel-clemens-95k-95-swiss.jpg"
+      "referenceImageUrl": "https://www.dartswarehouse.nl/media/catalog/product/cache/f20831aa4fe732f409bd1d4a248f932d/image/314593a22/target-gabriel-clemens-95k-95-swiss.jpg",
+      "variantWeightG": 23
     },
     "cross-95k-23": {
       "kind": "DartPreset",
       "id": "cross-95k-23",
-      "name": "Rob Cross 95K 23g",
+      "name": "Rob Cross 95K",
       "sourceImage": "./assets/source/web-cross-95k-reconstruction.png",
       "sourcePage": "https://www.target-darts.co.uk/rob-cross-95k-sp",
       "sourceLabel": "Target Rob Cross 95K · web-referenced reconstruction",
@@ -3040,12 +3068,13 @@
         "rollDeg": 0
       },
       "notes": [],
-      "referenceImageUrl": "https://www.thedartdepot.co.nz/cdn/shop/files/RobCross95kDart_1_1024x.png?v=1733949037"
+      "referenceImageUrl": "https://www.thedartdepot.co.nz/cdn/shop/files/RobCross95kDart_1_1024x.png?v=1733949037",
+      "variantWeightG": 23
     },
     "aspinall-95k-22": {
       "kind": "DartPreset",
       "id": "aspinall-95k-22",
-      "name": "Nathan Aspinall 95K 22g",
+      "name": "Nathan Aspinall 95K",
       "sourceImage": "./assets/source/web-aspinall-95k-reconstruction.png",
       "sourcePage": "https://www.target-darts.co.uk/nathan-aspinall-95k-sp",
       "sourceLabel": "Target Nathan Aspinall 95K · web-referenced reconstruction",
@@ -3060,12 +3089,13 @@
         "rollDeg": 0
       },
       "notes": [],
-      "referenceImageUrl": "https://www.180darts.nl/images/show/product/target-nathan-aspinall-95k-swiss-point-95-dartpijlen.jpg"
+      "referenceImageUrl": "https://www.180darts.nl/images/show/product/target-nathan-aspinall-95k-swiss-point-95-dartpijlen.jpg",
+      "variantWeightG": 22
     },
     "bunting-95k-23": {
       "kind": "DartPreset",
       "id": "bunting-95k-23",
-      "name": "Stephen Bunting 95K 23g",
+      "name": "Stephen Bunting 95K",
       "sourceImage": "./assets/source/web-bunting-95k-reconstruction.png",
       "sourcePage": "https://www.target-darts.co.uk/stephen-bunting-95k-sp",
       "sourceLabel": "Target Stephen Bunting 95K · web-referenced reconstruction",
@@ -3082,12 +3112,13 @@
       "notes": [
         "Exact K-Flex millimetre length remains UNKNOWN because the current product-page copy is internally suspect; UI label “Short” is manufacturer-supported."
       ],
-      "referenceImageUrl": "https://www.dartswarehouse.nl/media/catalog/product/cache/f20831aa4fe732f409bd1d4a248f932d/image/32443219e/target-stephen-bunting-95k-95-swiss.jpg"
+      "referenceImageUrl": "https://www.dartswarehouse.nl/media/catalog/product/cache/f20831aa4fe732f409bd1d4a248f932d/image/32443219e/target-stephen-bunting-95k-95-swiss.jpg",
+      "variantWeightG": 23
     },
     "mvg-signature-22": {
       "kind": "DartPreset",
       "id": "mvg-signature-22",
-      "name": "Michael van Gerwen Signature Edition 22g",
+      "name": "Michael van Gerwen Signature Edition",
       "sourceImage": "./assets/source/web-mvg-signature-reconstruction.png",
       "sourcePage": "https://winmau.com/en-de/products/mvg-signature-edition",
       "sourceLabel": "Winmau MvG Signature · web-referenced reconstruction",
@@ -3104,12 +3135,13 @@
       "notes": [
         "22g barrel dimensions come from a current retailer because Winmau’s current page exposes weights and profile but not dimensional table."
       ],
-      "referenceImageUrl": "https://www.bullydarts.co.uk/cdn/shop/files/1550_MVG_Signature_22g_image1.jpg?v=1765467371&width=4472"
+      "referenceImageUrl": "https://www.bullydarts.co.uk/cdn/shop/files/1550_MVG_Signature_22g_image1.jpg?v=1765467371&width=4472",
+      "variantWeightG": 22
     },
     "humphries-prestige-22": {
       "kind": "DartPreset",
       "id": "humphries-prestige-22",
-      "name": "Luke Humphries Prestige 22g",
+      "name": "Luke Humphries Prestige",
       "sourceImage": "./assets/source/web-humphries-prestige-reconstruction.png",
       "sourcePage": "https://winmau.com/en-de/products/luke-humphries-prestige-darts",
       "sourceLabel": "Winmau Luke Humphries Prestige · web-referenced reconstruction",
@@ -3124,7 +3156,8 @@
         "rollDeg": 0
       },
       "notes": [],
-      "referenceImageUrl": "https://www.reddragondarts.com/cdn/shop/files/2823_LUKEH_Prestige22gImage_3.jpg?v=1775031981&width=2667"
+      "referenceImageUrl": "https://www.reddragondarts.com/cdn/shop/files/2823_LUKEH_Prestige22gImage_3.jpg?v=1775031981&width=2667",
+      "variantWeightG": 22
     }
   },
   "sourceAnalysis": [

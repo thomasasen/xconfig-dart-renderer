@@ -13,17 +13,17 @@ OUT.mkdir(parents=True, exist_ok=True)
 # Authoring coordinates are deliberately image-space only. Physical geometry lives in catalog.json.
 # splits = fractions of the extracted horizontal dart length: point | barrel | shaft/rear | flight.
 SPECS={
- 'prodigy': dict(file='target-luke-littler-g1-prodigy-95-swiss-23-gram_3.webp', rotate=True, bg='white', splits=[0.1625,0.56875,0.6875], rear=True),
- 'shift': dict(file='target-shift-sp-steeltip-90_3.webp', rotate=False, bg='white', splits=[0.1857,0.5214,0.6929], rear=True),
- 'gary': dict(file='unicorn-w-c-gary-anderson-phase-6-90_1.webp', rotate=True, bg='white', splits=[0.1857,0.5214,0.7214], rear=False),
- 'chrono': dict(file='target-phil-taylor-power-chrono-sp-steeltip-95_3.webp', rotate=True, bg='white', splits=[0.2286,0.5714,0.7786], rear=False),
- 'world': dict(file='target-luke-littler-world-champion-90-swiss-23-gram_3.webp', rotate=True, bg='white', splits=[0.20625,0.55,0.7375], rear=True),
- 'auro': dict(file='shot-alchemy-auro-90_3.webp', rotate=True, bg='white', splits=[0.20,0.53125,0.73125], rear=False),
- 'supa': dict(file='PW2022_SupaVenom_Steel_LEFT.webp', rotate=False, bg='alpha', splits=[0.15,0.525,0.7625], rear=False),
- 'mandalorian': dict(file='190840STARWARSMANDALORIAN95_STEElTIP_GALLERY_DE_PT01.webp', rotate=False, bg='dark-roi', roi=(38,175,765,350), splits=[0.19,0.565,0.725], rear=True),
- 'atat': dict(file='190843-STARWARSAT-AT90_STEELTIP_GALLERY_DE_PT01.webp', rotate=False, bg='dark-roi', roi=(35,180,765,350), splits=[0.19,0.54,0.73], rear=False),
- 'edge': dict(file='PT02_ffd9f2ed-6a52-43e8-9f62-027742ec8be4.webp', rotate=False, bg='dark-roi', roi=(34,175,766,352), splits=[0.19,0.56,0.73], rear=True),
- 'vader': dict(file='PT01_a83f80b3-c589-4f2e-85c1-7cf911048504.webp', rotate=False, bg='dark-roi', roi=(35,175,765,352), splits=[0.19,0.56,0.73], rear=True),
+ 'prodigy': dict(file='target-luke-littler-g1-prodigy-95-swiss-23-gram_3.webp', rotate=True, bg='white', splits=[0.1625,0.56875,0.6875], rear=True, canonicalFlight=True),
+ 'shift': dict(file='target-shift-sp-steeltip-90_3.webp', rotate=False, bg='white', splits=[0.1857,0.5214,0.6929], rear=True, canonicalFlight=True),
+ 'gary': dict(file='unicorn-w-c-gary-anderson-phase-6-90_1.webp', rotate=True, bg='white', splits=[0.1857,0.5214,0.7214], rear=False, canonicalFlight=True),
+ 'chrono': dict(file='target-phil-taylor-power-chrono-sp-steeltip-95_3.webp', rotate=True, bg='white', splits=[0.2286,0.5714,0.7786], rear=False, canonicalFlight=True),
+ 'world': dict(file='target-luke-littler-world-champion-90-swiss-23-gram_3.webp', rotate=True, bg='white', splits=[0.20625,0.55,0.7375], rear=True, canonicalFlight=True),
+ 'auro': dict(file='shot-alchemy-auro-90_3.webp', rotate=True, bg='white', splits=[0.20,0.53125,0.73125], rear=False, canonicalFlight=True),
+ 'supa': dict(file='PW2022_SupaVenom_Steel_LEFT.webp', rotate=False, bg='alpha', splits=[0.15,0.525,0.7625], rear=False, canonicalFlight=True),
+ 'mandalorian': dict(file='190840STARWARSMANDALORIAN95_STEElTIP_GALLERY_DE_PT01.webp', rotate=False, bg='dark-roi', roi=(38,175,765,350), splits=[0.19,0.565,0.725], rear=True, canonicalFlight=True),
+ 'atat': dict(file='190843-STARWARSAT-AT90_STEELTIP_GALLERY_DE_PT01.webp', rotate=False, bg='dark-roi', roi=(35,180,765,350), splits=[0.19,0.54,0.73], rear=False, canonicalFlight=True),
+ 'edge': dict(file='PT02_ffd9f2ed-6a52-43e8-9f62-027742ec8be4.webp', rotate=False, bg='dark-roi', roi=(34,175,766,352), splits=[0.19,0.56,0.73], rear=True, canonicalFlight=True),
+ 'vader': dict(file='PT01_a83f80b3-c589-4f2e-85c1-7cf911048504.webp', rotate=False, bg='dark-roi', roi=(35,175,765,352), splits=[0.19,0.56,0.73], rear=True, canonicalFlight=True),
 }
 
 def alpha_white(img: Image.Image)->Image.Image:
@@ -140,15 +140,93 @@ def save_component(img, path):
     path.parent.mkdir(parents=True,exist_ok=True)
     trim_alpha(img,3).save(path)
 
+def canonicalize_integrated_flight_face(img:Image.Image):
+    """Extract the dominant broad flight face from a photographed integrated rear.
+
+    A side product photo already contains the perpendicular fin as a thin horizontal
+    occluder. Mapping that composite crop onto a 3D plane duplicates the fin. Keep the
+    source-grounded broad face, remove thin trailing protrusions and approximate only the
+    narrow occluded centre band. The approximation is explicitly recorded in metadata.
+    """
+    base=trim_alpha(img.convert('RGBA'),3)
+    arr=np.array(base).copy()
+    alpha=arr[:,:,3]
+    h,w=alpha.shape
+    spans=[]; bounds=[]
+    for x in range(w):
+        ys=np.where(alpha[:,x]>30)[0]
+        if len(ys):
+            y0,y1=int(ys.min()),int(ys.max())
+            spans.append(y1-y0+1); bounds.append((y0,y1))
+        else:
+            spans.append(0); bounds.append(None)
+    max_span=max(spans) if spans else 0
+    if max_span < 8:
+        return base, {'mode':'PASSTHROUGH','reason':'flight face too small for de-occlusion'}
+
+    broad_threshold=max(6,int(round(max_span*.30)))
+    broad=[i for i,s in enumerate(spans) if s>=broad_threshold]
+    if not broad:
+        return base, {'mode':'PASSTHROUGH','reason':'no dominant broad face detected'}
+
+    face_start=min(broad); face_end=max(broad)
+    centres=[(bounds[x][0]+bounds[x][1])/2 for x in broad if bounds[x]]
+    center=int(round(float(np.median(centres)))) if centres else h//2
+
+    # Remove the thin perpendicular fin where it protrudes beyond the broad face.
+    envelope=np.zeros_like(alpha)
+    for x in range(w):
+        b=bounds[x]
+        if not b: continue
+        y0,y1=b
+        if x < face_start:
+            # Keep the narrow root leading into the broad face.
+            envelope[y0:y1+1,x]=255
+        elif x <= face_end and spans[x] >= max(3,int(broad_threshold*.55)):
+            envelope[y0:y1+1,x]=255
+    arr[:,:,3]=np.minimum(alpha,envelope).astype(np.uint8)
+
+    # The broad face is genuinely visible, but the centre strip is hidden by the
+    # perpendicular fin in the source photo. Fill only that unknown strip from the
+    # immediately adjacent source pixels instead of copying the composite fin into
+    # Plane A. This is APPROXIMATED-OCCLUSION, not claimed original artwork.
+    # Remove the source-hidden cross-fin band geometrically instead of painting a
+    # synthetic blurred stripe into the artwork. We discard the occluded horizontal
+    # strip, join the genuinely visible source pixels above/below it, then resample the
+    # canonical face back to its original height. No logo/text is mirrored or invented.
+    band=max(1,int(round(max_span*.06)))
+    y0=max(0,center-band)
+    y1=min(h,center+band+1)
+    visible_before=max(1,int((arr[:,:,3]>3).sum()))
+    removed_visible=int((arr[y0:y1,:,3]>3).sum())
+    collapsed=np.concatenate([arr[:y0,:,:],arr[y1:,:,:]],axis=0)
+    if collapsed.shape[0] < 2:
+        return Image.fromarray(arr,'RGBA'), {'mode':'PASSTHROUGH','reason':'occlusion strip collapse would empty texture'}
+    collapsed_img=Image.fromarray(collapsed,'RGBA').resize((w,h),Image.Resampling.LANCZOS)
+    out=trim_alpha(collapsed_img,3)
+    approx_pixels=removed_visible
+    visible_pixels=max(1,int((arr[:,:,3]>3).sum()))
+    return out,{
+        'mode':'PRIMARY_FACE_DEOCCLUDED',
+        'faceStartPx':int(face_start),
+        'faceEndPx':int(face_end),
+        'centreBandHalfWidthPx':int(band),
+        'deocclusionMethod':'STRIP_COLLAPSE_RESAMPLE',
+        'approximatedPixelFraction':round(approx_pixels/visible_before,4),
+    }
+
 def make_backface(front:Image.Image)->Image.Image:
-    # Approximation intentionally not mirrored: preserve text orientation and visually signal unknown face.
-    base=front.convert('RGBA')
-    rgb=ImageEnhance.Color(base).enhance(0.30)
-    rgb=ImageEnhance.Brightness(rgb).enhance(0.58)
-    arr=np.array(rgb)
-    # retain original alpha
-    arr[:,:,3]=np.array(base.getchannel('A'))
-    return Image.fromarray(arr,'RGBA')
+    # Unknown reverse faces must not repeat legible logos/text from Plane A. Preserve
+    # the silhouette and low-frequency colour identity, but deliberately remove detail.
+    base=trim_alpha(front.convert('RGBA'),3)
+    w,h=base.size
+    sw=max(6,min(18,max(1,w//18))); sh=max(6,min(18,max(1,h//18)))
+    low=base.convert('RGB').resize((sw,sh),Image.Resampling.BOX).resize((w,h),Image.Resampling.BILINEAR)
+    low=ImageEnhance.Color(low).enhance(.45)
+    low=ImageEnhance.Brightness(low).enhance(.68)
+    rgba=low.convert('RGBA')
+    rgba.putalpha(base.getchannel('A'))
+    return rgba
 
 meta={}
 for key,spec in SPECS.items():
@@ -165,6 +243,9 @@ for key,spec in SPECS.items():
     }
     if spec['bg']=='dark-roi':
         crops['flight-plane-a']=mask_flight_polygon(clean_large_component(crops['flight-plane-a']))
+    flight_qc=None
+    if spec.get('canonicalFlight'):
+        crops['flight-plane-a'],flight_qc=canonicalize_integrated_flight_face(crops['flight-plane-a'])
     for name,c in crops.items(): save_component(c,OUT/key/f'{name}.png')
     flight=trim_alpha(crops['flight-plane-a'],3)
     back=make_backface(flight)
@@ -176,7 +257,11 @@ for key,spec in SPECS.items():
       'splitFractions':spec['splits'],
       'flightProfile':flight_profile(flight),
       'rearIntegrated':spec['rear'],
-      'authoringStatus':'HEURISTIC image-space split; physical dimensions come from catalog evidence',
+      'flightExtractionMode':(flight_qc or {}).get('mode','DIRECT_SOURCE_FACE'),
+      'flightPlaneAProvenance':'SOURCE-GROUNDED+APPROXIMATED-OCCLUSION' if flight_qc and flight_qc.get('mode')=='PRIMARY_FACE_DEOCCLUDED' else 'SOURCE-GROUNDED',
+      'flightPlaneBProvenance':'APPROXIMATED',
+      'flightApproximation':flight_qc,
+      'authoringStatus':'SOURCE-GROUNDED component split; integrated flight Plane A de-occludes only source-hidden cross-fin pixels when required',
     }
 
 # Generic geometry-only Slim flight reference. It is intentionally not a product preset.

@@ -72,7 +72,7 @@ rows=[];qa={}
 for pid,p in CAT['presets'].items():
     a=assembly(p); tiles=[];qa[pid]=[]
     for inc,roll in poses:
-        im,m=render(a,inc,roll);tiles.append(panel(im,f'{pid} · i={inc}° r={roll:+}°'));qa[pid].append(m)
+        im,m=render(a,inc,roll);tiles.append(panel(im,f'{p["name"]} · i={inc}° r={roll:+}°'));qa[pid].append(m)
     row=Image.new('RGBA',(789*4,365),(12,15,20,255))
     for j,t in enumerate(tiles):row.alpha_composite(t,(j*789,0))
     row.convert('RGB').save(ROOT/'outputs/gallery'/f'pose-{pid}.jpg',quality=90);rows.append((pid,row))
@@ -81,21 +81,23 @@ cw,ch=789*2,365*math.ceil(len(rows)/2);master=Image.new('RGBA',(cw,ch),(10,13,18
 for k,(pid,row) in enumerate(rows):
     thumb=row.copy();thumb.thumbnail((789,350),Image.Resampling.LANCZOS);master.alpha_composite(thumb,((k%2)*789,(k//2)*365))
 master.convert('RGB').save(ROOT/'outputs/gallery'/'pose-gallery-all-presets.jpg',quality=90)
-# V1.3 visual review triptychs: source-grounded extract vs orthogonal render vs posed render.
-for pid in ('clemens-g2-23','clemens-95k-23'):
+# V1.3.1 visual review triptychs: the four user-reported designs plus Clemens 95K
+# as an integrated source-grounded regression check.
+REVIEW_PRESETS=tuple(pid for pid,p in CAT['presets'].items() if p.get('sourceType')!='WEB-REFERENCED-RECONSTRUCTION')
+for pid in REVIEW_PRESETS:
     preset=CAT['presets'][pid]; a=assembly(preset)
     source=Image.open(ROOT/preset['sourceImage'].replace('./','')).convert('RGBA')
     orthogonal,_=render(a,0,0)
     pose=preset.get('defaultPose',{})
     posed,_=render(a,float(pose.get('incidenceDeg',35)),float(pose.get('rollDeg',0)))
     cards=[
-        panel(source,'SOURCE-GROUNDED extracted product pixels'),
+        panel(source,f'Original/source reference · {preset["name"]}'),
         panel(orthogonal,'Orthogonal builder projection'),
         panel(posed,f'Posed projection · incidence={pose.get("incidenceDeg",35)}° · roll={pose.get("rollDeg",0)}°'),
     ]
     sheet=Image.new('RGBA',(789*3,365),(10,13,18,255))
     for i,card in enumerate(cards): sheet.alpha_composite(card,(i*789,0))
-    sheet.convert('RGB').save(ROOT/'outputs/comparisons'/f'{pid}-v1.3-triptych.jpg',quality=92)
+    sheet.convert('RGB').save(ROOT/'outputs/comparisons'/f'{pid}-v1.3.1-triptych.jpg',quality=92)
 
 (ROOT/'outputs/qa'/'software-pose-qa.json').write_text(json.dumps(qa,indent=2),encoding='utf8')
 print('rendered',len(rows),'preset pose galleries; max drift',max(m['tipDriftPx'] for arr in qa.values() for m in arr))
