@@ -370,6 +370,7 @@ for key,spec in SPECS.items():
       'flightPlaneBProvenance':'APPROXIMATED',
       'flightSourceUrl':(flight_qc or {}).get('sourceUrl'),
       'flightSourcePage':(flight_qc or {}).get('sourcePage'),
+      'flightQaSourceFile':'web-mandalorian-kflex-frontal-source-grounded.png' if (flight_qc or {}).get('mode')=='DEDICATED_FRONTAL_KFLEX_SOURCE' else None,
       'flightApproximation':flight_qc,
       'authoringStatus':'SOURCE-GROUNDED component split; dedicated frontal flight sources are preferred over photographed composite side views; only explicitly recorded occlusion strips are approximated',
     }
