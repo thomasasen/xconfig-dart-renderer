@@ -8,7 +8,7 @@ ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'outputs'/'qa'
 OUT.mkdir(parents=True,exist_ok=True)
 CAT=json.loads((ROOT/'data'/'catalog.json').read_text())
-REVIEW_PRESETS=('clemens-g2-23','prodigy-23','shift','world-champion','humphries-prestige-22','clemens-95k-23')
+REVIEW_PRESETS=tuple(pid for pid,p in CAT['presets'].items() if p.get('sourceType')!='WEB-REFERENCED-RECONSTRUCTION')
 out={'status':'NOT_RUN','notes':[]}
 server=None
 
