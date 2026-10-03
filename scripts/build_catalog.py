@@ -45,12 +45,20 @@ def flight(id,name,shape,product,evidence=None,renderLength=42,renderRadius=18,p
  flights[id]={'kind':'FlightDefinition','id':id,'name':name,'flightMount':'FOLDED_FLIGHT_SLOT','shape':shape,'renderLengthMm':renderLength,'renderRadiusMm':renderRadius,'planeProfile':profile(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'visualAuthoring':visualAuthoring,'evidence':evidence or []}
 def rear(id,name,system,length,shape,product,evidence=None,renderFlightLength=42,renderRadius=18,safe=(-18,18),planeAStatus=SRC,visualAuthoring='SOURCE-GROUNDED'):
  rears[id]={'kind':'RearSystemDefinition','id':id,'name':name,'rearThread':'2BA','integrated':True,'system':system,'shaftLengthMm':length,'flightShape':shape,'renderShaftLengthMm':length or 20,'renderShaftDiameterMm':5.2,'renderFlightLengthMm':renderFlightLength,'renderFlightRadiusMm':renderRadius,'shaftTexture':tex(product,'rear-shaft'),'planeProfile':profile(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'visualAuthoring':visualAuthoring,'safeRollMinDeg':safe[0],'safeRollMaxDeg':safe[1],'evidence':evidence or []}
+WEIGHT_RE=re.compile(r'\\s+(\\d+(?:[.,]\\d+)?)\\s*g\\b',re.IGNORECASE)
+
 def visible_preset_name(name):
- # Weight remains valid product metadata, but it is not part of the render-design identity.
- return re.sub(r'\\s+\\d+(?:[.,]\\d+)?g\\b','',name,flags=re.IGNORECASE).strip()
+ # Weight is variant metadata, never part of the user-facing render-design identity.
+ return WEIGHT_RE.sub('',name).strip()
+
+def preset_weight_g(name):
+ m=WEIGHT_RE.search(name)
+ if not m:return None
+ value=float(m.group(1).replace(',','.'))
+ return int(value) if value.is_integer() else value
 
 def preset(id,name,source,pointId,barrelId,shaftId=None,flightId=None,rearId=None,inc=35,roll=0,notes=None,sourcePage=None,sourceLabel=None,sourceType='SUPPLIED_SOURCE'):
- presets[id]={'kind':'DartPreset','id':id,'name':visible_preset_name(name),'sourceImage':f'./assets/source/{source}','sourcePage':sourcePage,'sourceLabel':sourceLabel or ('Supplied source' if sourceType=='SUPPLIED_SOURCE' else sourceType),'sourceType':sourceType,'pointId':pointId,'barrelId':barrelId,'shaftId':shaftId,'flightId':flightId,'rearSystemId':rearId,'defaultPose':{'incidenceDeg':inc,'rollDeg':roll},'notes':notes or []}
+ presets[id]={'kind':'DartPreset','id':id,'name':visible_preset_name(name),'variantWeightG':preset_weight_g(name),'sourceImage':f'./assets/source/{source}','sourcePage':sourcePage,'sourceLabel':sourceLabel or ('Supplied source' if sourceType=='SUPPLIED_SOURCE' else sourceType),'sourceType':sourceType,'pointId':pointId,'barrelId':barrelId,'shaftId':shaftId,'flightId':flightId,'rearSystemId':rearId,'defaultPose':{'incidenceDeg':inc,'rollDeg':roll},'notes':notes or []}
 
 # Prodigy 23g exact variant
 point('target-swiss-dx-gold-26','Target Swiss DX Gold 26 mm','SWISS_POINT',26,2.1,'prodigy',evidence=[ev(WEB,'26-mm Swiss DX is the fitted point; 30 mm also supplied.','https://www.targetdarts.com/eu/luke-littler-g1-prodigy-sp')])
