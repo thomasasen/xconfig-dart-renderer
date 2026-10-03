@@ -176,7 +176,7 @@ def _best_elongated_roi(image):
     if not bbox:
         raise RuntimeError('Extracted dart candidate has empty alpha')
     result=result.crop(bbox)
-    if result.width/result.height < 4.5:
+    if result.width/result.height < 3.2:
         raise RuntimeError(f'Extracted candidate is not dart-like enough: {result.size}')
 
     # A barrel close-up is also long and slender, so aspect ratio alone is not enough.
