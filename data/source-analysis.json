@@ -1,0 +1,286 @@
+[
+  {
+    "file": "190840STARWARSMANDALORIAN95_STEElTIP_GALLERY_DE_PT01.webp",
+    "classification": "INTEGRATED_REAR_SYSTEM",
+    "identifiedAs": "Target Star Wars Mandalorian SP",
+    "confidence": "HIGH",
+    "reason": "Infografik benennt K-Flex, 2BA, 30/35-mm Swiss Point, 52-mm Barrel, 19-mm Short und No.6/No.2; damit ist ein integriertes Flight/Shaft-System explizit source-grounded.",
+    "evidence": [
+      {
+        "status": "SOURCE-GROUNDED",
+        "note": "Produkt-/Komponentenangaben sind direkt im Bild lesbar."
+      },
+      {
+        "status": "WEB-VERIFIED",
+        "note": "Target bestätigt Mandalorian SP, 95% Tungsten, 52-mm Barrel, 30-mm Swiss Storm Point und Short K-Flex.",
+        "source": "https://www.targetdarts.com/us/star-wars-mandalorian-sp"
+      }
+    ]
+  },
+  {
+    "file": "190843-STARWARSAT-AT90_STEELTIP_GALLERY_DE_PT01.webp",
+    "classification": "CLASSIC_MODULAR",
+    "identifiedAs": "Target Star Wars AT-AT SP",
+    "confidence": "HIGH",
+    "reason": "Infografik zeigt Pro Grip Short plus separate No.6-Flights; kein integriertes Rear-System.",
+    "evidence": [
+      {
+        "status": "SOURCE-GROUNDED",
+        "note": "30-mm Point, 47.55-mm Barrel, 34-mm Short-Shaft, No.6 im Bild."
+      },
+      {
+        "status": "WEB-VERIFIED",
+        "note": "Target bestätigt 90% Tungsten, Pro Grip Short, No.6 Pro Ultra Flight.",
+        "source": "https://www.targetdarts.com/us/star-wars-at-at-sp"
+      }
+    ]
+  },
+  {
+    "file": "9GHHawNA.webp",
+    "classification": "GEOMETRY_REFERENCE",
+    "identifiedAs": null,
+    "confidence": "LOW",
+    "reason": "Sehr sauberer freigestellter Broadside-Render mit deutlich sichtbarer Kreuzgeometrie am Rear-System; Produktidentität/Variante ist aus Datei und sichtbarer Beschriftung nicht belastbar rekonstruierbar. Deshalb Geometrie-Referenz, nicht Presetquelle.",
+    "evidence": [
+      {
+        "status": "SOURCE-GROUNDED",
+        "note": "Transparenter/isolierter Broadside-Render; Hinten ist eine molded/integrated wirkende Kreuzgeometrie sichtbar."
+      },
+      {
+        "status": "UNKNOWN",
+        "note": "Exakte Produktidentität und Maße nicht verifiziert."
+      }
+    ]
+  },
+  {
+    "file": "GNGTP_Gnasha-Angled.webp",
+    "classification": "ANGLED_REFERENCE",
+    "identifiedAs": "Shot Gnarly Gnasha Steel Tip 95%",
+    "confidence": "HIGH",
+    "reason": "Dateiname und sichtbarer Aufbau passen zum offiziellen Shot-Modell; die Aufnahme ist absichtlich schräg und damit Pose-/Materialreferenz, nicht kanonische Komponentenansicht.",
+    "evidence": [
+      {
+        "status": "SOURCE-GROUNDED",
+        "note": "Angled product view; kein orthogonaler Komponenten-Extract."
+      },
+      {
+        "status": "WEB-VERIFIED",
+        "note": "Shot führt Gnarly Gnasha Steel Tip 95% mit Turbo Points, Carbon-Shafts und No.6 Flight.",
+        "source": "https://www.shotdarts.com/products/gnarly-gnasha-steel-tip-dart-set-95-tungsten-barrels"
+      }
+    ]
+  },
+  {
+    "file": "PT01_a83f80b3-c589-4f2e-85c1-7cf911048504.webp",
+    "classification": "INTEGRATED_REAR_SYSTEM",
+    "identifiedAs": "Target Star Wars Darth Vader SP (matched)",
+    "confidence": "MEDIUM_HIGH",
+    "reason": "Infografik nennt 95%, 52 mm, 30/35-mm Swiss Point, 19-mm Short, K-Flex und No.6/No.2. Diese Kombination stimmt mit Darth Vader SP überein; Dateiname selbst nennt das Modell nicht.",
+    "evidence": [
+      {
+        "status": "SOURCE-GROUNDED",
+        "note": "K-Flex/2BA und Maße direkt im Bild."
+      },
+      {
+        "status": "WEB-VERIFIED",
+        "note": "Target Darth Vader SP hat dieselbe Kernkonfiguration.",
+        "source": "https://www.targetdarts.com/us/darth-vader-sp"
+      },
+      {
+        "status": "HEURISTIC",
+        "note": "Modellzuordnung ist ein Match aus Artwork + Spezifikationen, nicht aus dem Dateinamen."
+      }
+    ]
+  },
+  {
+    "file": "PT02_ffd9f2ed-6a52-43e8-9f62-027742ec8be4.webp",
+    "classification": "INTEGRATED_REAR_SYSTEM",
+    "identifiedAs": "Target Luke Littler Edge SP (matched)",
+    "confidence": "HIGH",
+    "reason": "THE NUKE-Artwork, 95%, 52-mm Barrel, 30/42-mm Swiss Point und No.2 K-Flex Short stimmen mit Luke Littler Edge SP überein.",
+    "evidence": [
+      {
+        "status": "SOURCE-GROUNDED",
+        "note": "K-Flex, Maße und Gewichte 22/23/24 direkt im Bild."
+      },
+      {
+        "status": "WEB-VERIFIED",
+        "note": "Target Edge SP bestätigt 95%, 52-mm Barrel, No.2 K-Flex und Varianten.",
+        "source": "https://www.targetdarts.com/us/luke-littler-edge-sp"
+      }
+    ]
+  },
+  {
+    "file": "PW2022_SupaVenom_Steel_LEFT.webp",
+    "classification": "CLASSIC_MODULAR",
+    "identifiedAs": "Red Dragon Peter Wright Supa-Venom Steel Tip",
+    "confidence": "HIGH",
+    "reason": "Freigestellte orthogonale Seitenansicht mit klar getrenntem Barrel, klassischem Shaft und Standard-Flight.",
+    "evidence": [
+      {
+        "status": "SOURCE-GROUNDED",
+        "note": "Broadside source suitable for modular extraction."
+      },
+      {
+        "status": "WEB-VERIFIED",
+        "note": "Red Dragon bestätigt Nitrotech polycarbonate short shaft und Players extra thick standard flights.",
+        "source": "https://www.reddragondarts.com/products/peter-wright-supa-venom-darts"
+      }
+    ]
+  },
+  {
+    "file": "S5-1_22b0f7a4-0463-42e0-8623-49ef67353563_1.webp",
+    "classification": "NEEDS_MANUAL_REVIEW",
+    "identifiedAs": null,
+    "confidence": "LOW",
+    "reason": "Broadside-Aufnahme ist sehr brauchbar, aber Produktname, Rear-Systemtyp und reale Maße sind nicht aus der Quelle verifizierbar. Ein Preset würde sonst Scheingenauigkeit erzeugen.",
+    "evidence": [
+      {
+        "status": "SOURCE-GROUNDED",
+        "note": "Klarer Broadside-Render mit schwarzem Rear-System."
+      },
+      {
+        "status": "UNKNOWN",
+        "note": "Produktidentität, Verbindungstyp und Maße fehlen."
+      }
+    ]
+  },
+  {
+    "file": "S5-1_d5e583f9-5bbe-4728-b176-4f516d0960b3.webp",
+    "classification": "NEEDS_MANUAL_REVIEW",
+    "identifiedAs": null,
+    "confidence": "LOW",
+    "reason": "Sehr sauberer Broadside-Render, aber unbekanntes Produkt/Logo und keine belastbaren Spezifikationen. Als Designquelle erst nach Identifikation freigeben.",
+    "evidence": [
+      {
+        "status": "SOURCE-GROUNDED",
+        "note": "Broadside-Render mit schwarzem grafischem Flight."
+      },
+      {
+        "status": "UNKNOWN",
+        "note": "Produktidentität, Maße, Flight-/Shaftsystem nicht verifiziert."
+      }
+    ]
+  },
+  {
+    "file": "shot-alchemy-auro-90_3.webp",
+    "classification": "CLASSIC_MODULAR",
+    "identifiedAs": "Shot Alchemy Auro 90% source variant",
+    "confidence": "HIGH",
+    "reason": "Orthogonale Produktaufnahme mit separatem Shaft und Flight. Dateiname nennt 90%; aktuelle Shot-Seite führt eine 95%-Version. Daher Versionskonflikt ausdrücklich erhalten.",
+    "evidence": [
+      {
+        "status": "SOURCE-GROUNDED",
+        "note": "Dateiname bezeichnet 90%-Variante; Bild zeigt klassisches Shaft+Flight-Setup."
+      },
+      {
+        "status": "WEB-VERIFIED",
+        "note": "Aktuelle Shot-Seite führt Auro 95% mit 35-mm Point, Koi Carbon Inbetween und No.6.",
+        "source": "https://www.shotdarts.com/products/alchemy-auro-steel-tip-dart-set-95-tungsten-barrels"
+      },
+      {
+        "status": "WEB-VERIFIED",
+        "note": "Retailer dokumentiert Auro 90% in 23/24/25g mit 46/47/47 mm Barrel.",
+        "source": "https://www.dartswarehouse.de/shot-alchemy-auro-90.html"
+      }
+    ]
+  },
+  {
+    "file": "target-luke-littler-g1-prodigy-95-swiss-23-gram_3.webp",
+    "classification": "INTEGRATED_REAR_SYSTEM",
+    "identifiedAs": "Target Luke Littler G1 Prodigy SP 23g",
+    "confidence": "HIGH",
+    "reason": "Dateiname nennt Produkt und 23g; Bild zeigt K-Flex. Hersteller führt das aktuelle G1 Prodigy allerdings als 90%, nicht 95%; der Dateiname ist daher bezüglich Tungsten-Prozent widersprüchlich.",
+    "evidence": [
+      {
+        "status": "SOURCE-GROUNDED",
+        "note": "Dateiname: G1 Prodigy, 23 gram, „95“; sichtbares purple K-Flex."
+      },
+      {
+        "status": "WEB-VERIFIED",
+        "note": "Target: 23g = 52 x 6.5 mm, 26-mm Swiss DX, No.2 K-Flex Short; Material 90%.",
+        "source": "https://www.targetdarts.com/eu/luke-littler-g1-prodigy-sp"
+      },
+      {
+        "status": "UNKNOWN",
+        "note": "Warum die lokale Datei „95“ nennt, ist nicht geklärt; nicht als Herstellerfakt übernehmen."
+      }
+    ]
+  },
+  {
+    "file": "target-luke-littler-world-champion-90-swiss-23-gram_3.webp",
+    "classification": "INTEGRATED_REAR_SYSTEM",
+    "identifiedAs": "Target Luke Littler G1 World Champion SP 23g",
+    "confidence": "HIGH",
+    "reason": "Dateiname und Produktbild eindeutig; integriertes World Champion K-Flex.",
+    "evidence": [
+      {
+        "status": "SOURCE-GROUNDED",
+        "note": "23g im Dateinamen; sichtbares integriertes Rear-System."
+      },
+      {
+        "status": "WEB-VERIFIED",
+        "note": "Target: 52 x 6.5 mm, 35-mm Swiss SLK, No.6, K-Flex Short.",
+        "source": "https://www.targetdarts.com/us/luke-littler-world-champion-sp"
+      }
+    ]
+  },
+  {
+    "file": "target-phil-taylor-power-chrono-sp-steeltip-95_3.webp",
+    "classification": "CLASSIC_MODULAR",
+    "identifiedAs": "Target Phil Taylor Power Chrono SP",
+    "confidence": "HIGH",
+    "reason": "Produktbild zeigt separates Power Chrono Shaft-/Flight-Setup; keine integrierte Rear-Einheit.",
+    "evidence": [
+      {
+        "status": "SOURCE-GROUNDED",
+        "note": "Orthogonaler Produkt-Render."
+      },
+      {
+        "status": "WEB-VERIFIED",
+        "note": "Target: 95%, 30/35-mm Swiss Chrono Points, Short 22.4-mm Titanium Shafts; Vapor S/No.2/No.6 im Set.",
+        "source": "https://www.targetdarts.com/us/phil-taylor-power-chrono-sp"
+      }
+    ]
+  },
+  {
+    "file": "target-shift-sp-steeltip-90_3.webp",
+    "classification": "INTEGRATED_REAR_SYSTEM",
+    "identifiedAs": "Target Shift SP",
+    "confidence": "HIGH",
+    "reason": "Produktbild zeigt K-Shift-artiges einteiliges Rear-System; Hersteller bestätigt K-Shift als integriertes Flight-/Shaftsystem.",
+    "evidence": [
+      {
+        "status": "SOURCE-GROUNDED",
+        "note": "Red integrated rear visible in source."
+      },
+      {
+        "status": "WEB-VERIFIED",
+        "note": "Target: 90%, 50-mm Barrel, 30-mm Swiss GRD, No.6 K-Shift Short.",
+        "source": "https://www.targetdarts.de/shift-sp"
+      }
+    ]
+  },
+  {
+    "file": "unicorn-w-c-gary-anderson-phase-6-90_1.webp",
+    "classification": "CLASSIC_MODULAR",
+    "identifiedAs": "Unicorn Gary Anderson Phase 6 90%",
+    "confidence": "HIGH",
+    "reason": "Orthogonaler Produkt-Render mit klassischem Gripper-Shaft und separatem Flight.",
+    "evidence": [
+      {
+        "status": "SOURCE-GROUNDED",
+        "note": "Separate shaft/flight visually clear."
+      },
+      {
+        "status": "WEB-VERIFIED",
+        "note": "Dartshopper/Double Top dokumentieren die Gewichtsvarianten und Barrelmaße.",
+        "source": "https://www.dartshopper.com/unicorn-gary-anderson-phase-6-90/"
+      },
+      {
+        "status": "UNKNOWN",
+        "note": "Die konkrete Gewichtsvariante des lokalen Bildes ist nicht im Dateinamen codiert."
+      }
+    ]
+  }
+]

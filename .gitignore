@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Generated renderer assets
+assets/components/
+assets/source/web-*-reconstruction.png
+
+# Generated QA/output artifacts
+outputs/
+reports/*.log
+MANIFEST_SHA256.txt
+
+# Python/OS/editor caches
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Restored from the versioned source bundle
+assets/source/*.webp

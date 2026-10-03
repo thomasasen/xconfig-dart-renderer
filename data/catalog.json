@@ -1,0 +1,3474 @@
+{
+  "schemaVersion": 1,
+  "rendererContract": {
+    "width": 789,
+    "height": 331,
+    "tip": {
+      "x": 0,
+      "y": 212
+    },
+    "flightPlaneModel": "TWO_FULL_INTERSECTING_PLANES_SHARED_AXIS_90_DEG",
+    "poseModel": "axis Vec3 + roll",
+    "screenRotation": "outside renderer",
+    "flatPerspective3DPath": false
+  },
+  "evidenceStatus": [
+    "SOURCE-GROUNDED",
+    "WEB-VERIFIED",
+    "HEURISTIC",
+    "APPROXIMATED",
+    "UNKNOWN"
+  ],
+  "compatibility": {
+    "rules": [
+      "PointDefinition.interface must equal BarrelDefinition.pointInterface.",
+      "BarrelDefinition.rearThread must equal ShaftDefinition.rearThread or RearSystemDefinition.rearThread.",
+      "ShaftDefinition.flightMount must equal FlightDefinition.flightMount.",
+      "RearSystemDefinition is mutually exclusive with ShaftDefinition + FlightDefinition.",
+      "Integrated rear system is represented as one catalog entity even though renderer internally has shaft-body + two flight planes."
+    ],
+    "interfaces": {
+      "SWISS_POINT": "Target Swiss Point compatible barrel nose",
+      "PRESS_FIT": "traditional steel point press-fit",
+      "2BA": "standard rear barrel thread",
+      "FOLDED_FLIGHT_SLOT": "classic shaft slot / separate folded flight"
+    }
+  },
+  "components": {
+    "points": {
+      "target-swiss-dx-gold-26": {
+        "kind": "PointDefinition",
+        "id": "target-swiss-dx-gold-26",
+        "name": "Target Swiss DX Gold 26 mm",
+        "interface": "SWISS_POINT",
+        "lengthMm": 26,
+        "diameterMm": 2.1,
+        "renderLengthMm": 26,
+        "renderDiameterMm": 2.1,
+        "texture": "./assets/components/prodigy/point.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "26-mm Swiss DX is the fitted point; 30 mm also supplied.",
+            "source": "https://www.targetdarts.com/eu/luke-littler-g1-prodigy-sp"
+          }
+        ]
+      },
+      "target-swiss-grd-black-30": {
+        "kind": "PointDefinition",
+        "id": "target-swiss-grd-black-30",
+        "name": "Target Swiss GRD Black 30 mm",
+        "interface": "SWISS_POINT",
+        "lengthMm": 30,
+        "diameterMm": 2.1,
+        "renderLengthMm": 30,
+        "renderDiameterMm": 2.1,
+        "texture": "./assets/components/shift/point.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "30-mm Swiss GRD fitted; 35-mm options in box.",
+            "source": "https://www.targetdarts.de/shift-sp"
+          }
+        ]
+      },
+      "target-swiss-slk-gold-35": {
+        "kind": "PointDefinition",
+        "id": "target-swiss-slk-gold-35",
+        "name": "Target Swiss SLK Gold 35 mm",
+        "interface": "SWISS_POINT",
+        "lengthMm": 35,
+        "diameterMm": 2.1,
+        "renderLengthMm": 35,
+        "renderDiameterMm": 2.1,
+        "texture": "./assets/components/world/point.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Fitted 35-mm Swiss SLK; 42-mm alternative included.",
+            "source": "https://www.targetdarts.com/us/luke-littler-world-champion-sp"
+          }
+        ]
+      },
+      "target-swiss-chrono-silver-30": {
+        "kind": "PointDefinition",
+        "id": "target-swiss-chrono-silver-30",
+        "name": "Target Swiss Chrono Silver 30 mm",
+        "interface": "SWISS_POINT",
+        "lengthMm": 30,
+        "diameterMm": 2.1,
+        "renderLengthMm": 30,
+        "renderDiameterMm": 2.1,
+        "texture": "./assets/components/chrono/point.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "30-mm Swiss Chrono fitted; 35 mm also included.",
+            "source": "https://www.targetdarts.com/us/phil-taylor-power-chrono-sp"
+          }
+        ]
+      },
+      "unicorn-steel-point-heuristic": {
+        "kind": "PointDefinition",
+        "id": "unicorn-steel-point-heuristic",
+        "name": "Unicorn Steel Point (source setup)",
+        "interface": "PRESS_FIT",
+        "lengthMm": null,
+        "diameterMm": 2.1,
+        "renderLengthMm": 36,
+        "renderDiameterMm": 2.1,
+        "texture": "./assets/components/gary/point.png",
+        "evidence": [
+          {
+            "status": "UNKNOWN",
+            "note": "Exact point model/length not established from the supplied broadside image; retailer notes longer points in player setup, but source-specific length is not proven."
+          }
+        ]
+      },
+      "shot-auro-point-35": {
+        "kind": "PointDefinition",
+        "id": "shot-auro-point-35",
+        "name": "Shot/Alchemy Steel Point 35 mm",
+        "interface": "PRESS_FIT",
+        "lengthMm": 35,
+        "diameterMm": 2.1,
+        "renderLengthMm": 35,
+        "renderDiameterMm": 2.1,
+        "texture": "./assets/components/auro/point.png",
+        "evidence": [
+          {
+            "status": "SOURCE-GROUNDED",
+            "note": "Source shows gold steel point."
+          },
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Current 95% Auro page specifies Alchemy 35-mm steel points; old 90% source variant point model is not independently confirmed.",
+            "source": "https://www.shotdarts.com/products/alchemy-auro-steel-tip-dart-set-95-tungsten-barrels"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "35 mm used for builder geometry across the visually matching source setup."
+          }
+        ]
+      },
+      "supa-steel-point": {
+        "kind": "PointDefinition",
+        "id": "supa-steel-point",
+        "name": "Red Dragon Supa-Venom steel point (source)",
+        "interface": "PRESS_FIT",
+        "lengthMm": null,
+        "diameterMm": 2.1,
+        "renderLengthMm": 32,
+        "renderDiameterMm": 2.1,
+        "texture": "./assets/components/supa/point.png",
+        "evidence": [
+          {
+            "status": "UNKNOWN",
+            "note": "Exact factory point length not stated on the product page captured; do not infer from optional repointing products."
+          }
+        ]
+      },
+      "mandalorian-storm-black-30": {
+        "kind": "PointDefinition",
+        "id": "mandalorian-storm-black-30",
+        "name": "Target Swiss Storm Black 30 mm",
+        "interface": "SWISS_POINT",
+        "lengthMm": 30,
+        "diameterMm": 2.1,
+        "renderLengthMm": 30,
+        "renderDiameterMm": 2.1,
+        "texture": "./assets/components/mandalorian/point.png",
+        "evidence": [
+          {
+            "status": "SOURCE-GROUNDED",
+            "note": "30 mm plus extra 35 mm shown in infographic."
+          },
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Target confirms Swiss Storm Black 30/35.",
+            "source": "https://www.targetdarts.com/us/star-wars-mandalorian-sp"
+          }
+        ]
+      },
+      "atat-storm-silver-30": {
+        "kind": "PointDefinition",
+        "id": "atat-storm-silver-30",
+        "name": "Target Swiss Storm Silver 30 mm",
+        "interface": "SWISS_POINT",
+        "lengthMm": 30,
+        "diameterMm": 2.1,
+        "renderLengthMm": 30,
+        "renderDiameterMm": 2.1,
+        "texture": "./assets/components/atat/point.png",
+        "evidence": [
+          {
+            "status": "SOURCE-GROUNDED",
+            "note": "Infographic 30 mm."
+          },
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Target confirms 30 mm Silver Swiss Storm.",
+            "source": "https://www.targetdarts.com/us/star-wars-at-at-sp"
+          }
+        ]
+      },
+      "clemens-g2-storm-nano-26": {
+        "kind": "PointDefinition",
+        "id": "clemens-g2-storm-nano-26",
+        "name": "Gabriel Clemens G2 Swiss Storm Nano 26 mm",
+        "interface": "SWISS_POINT",
+        "lengthMm": 26,
+        "diameterMm": 2.1,
+        "renderLengthMm": 26,
+        "renderDiameterMm": 2.1,
+        "texture": "./assets/components/clemens-g2/point.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Target specifies fitted 26-mm Storm Nano Swiss Points.",
+            "source": "https://www.target-darts.co.uk/gabriel-clemens-g2-sp"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "Local point pixels are a web-referenced reconstruction, not downloaded source pixels."
+          }
+        ]
+      },
+      "clemens-95k-storm-black-26": {
+        "kind": "PointDefinition",
+        "id": "clemens-95k-storm-black-26",
+        "name": "Gabriel Clemens 95K Swiss Storm Black 26 mm",
+        "interface": "SWISS_POINT",
+        "lengthMm": 26,
+        "diameterMm": 2.1,
+        "renderLengthMm": 26,
+        "renderDiameterMm": 2.1,
+        "texture": "./assets/components/clemens-95k/point.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Target specifies 26-mm Black Swiss Storm Points; 30-mm alternatives are also included.",
+            "source": "https://www.target-darts.co.uk/gabriel-clemens-95k-sp"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "Local appearance reconstruction only."
+          }
+        ]
+      },
+      "cross-95k-storm-surge-gold-26": {
+        "kind": "PointDefinition",
+        "id": "cross-95k-storm-surge-gold-26",
+        "name": "Rob Cross 95K Swiss Storm Surge Gold 26 mm",
+        "interface": "SWISS_POINT",
+        "lengthMm": 26,
+        "diameterMm": 2.1,
+        "renderLengthMm": 26,
+        "renderDiameterMm": 2.1,
+        "texture": "./assets/components/cross-95k/point.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Target specifies fitted Swiss Storm Surge Gold 26-mm points.",
+            "source": "https://www.target-darts.co.uk/rob-cross-95k-sp"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "Local appearance reconstruction only."
+          }
+        ]
+      },
+      "aspinall-95k-storm-black-26": {
+        "kind": "PointDefinition",
+        "id": "aspinall-95k-storm-black-26",
+        "name": "Nathan Aspinall 95K Swiss Storm Black 26 mm",
+        "interface": "SWISS_POINT",
+        "lengthMm": 26,
+        "diameterMm": 2.1,
+        "renderLengthMm": 26,
+        "renderDiameterMm": 2.1,
+        "texture": "./assets/components/aspinall-95k/point.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Target specifies fitted Black Swiss Storm 26-mm points.",
+            "source": "https://www.target-darts.co.uk/nathan-aspinall-95k-sp"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "Local appearance reconstruction only."
+          }
+        ]
+      },
+      "bunting-95k-diamond-gold-26": {
+        "kind": "PointDefinition",
+        "id": "bunting-95k-diamond-gold-26",
+        "name": "Stephen Bunting 95K Swiss Diamond Pro Gold 26 mm",
+        "interface": "SWISS_POINT",
+        "lengthMm": 26,
+        "diameterMm": 2.1,
+        "renderLengthMm": 26,
+        "renderDiameterMm": 2.1,
+        "texture": "./assets/components/bunting-95k/point.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Target specifies Gold Swiss Diamond Pro Points, 26 mm.",
+            "source": "https://www.target-darts.co.uk/stephen-bunting-95k-sp"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "Local point appearance reconstruction only."
+          }
+        ]
+      },
+      "mvg-signature-steel-point": {
+        "kind": "PointDefinition",
+        "id": "mvg-signature-steel-point",
+        "name": "MvG Signature Steeltip (exact length unknown)",
+        "interface": "PRESS_FIT",
+        "lengthMm": null,
+        "diameterMm": 2.1,
+        "renderLengthMm": 32,
+        "renderDiameterMm": 2.1,
+        "texture": "./assets/components/mvg-signature/point.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Winmau specifies Steeltip, but not the point length on the product page.",
+            "source": "https://winmau.com/en-de/products/mvg-signature-edition"
+          },
+          {
+            "status": "UNKNOWN",
+            "note": "Exact point length remains unknown; 32-mm render length is heuristic."
+          }
+        ]
+      },
+      "humphries-prestige-black-point": {
+        "kind": "PointDefinition",
+        "id": "humphries-prestige-black-point",
+        "name": "Luke Humphries Prestige Black High Tensile Point",
+        "interface": "PRESS_FIT",
+        "lengthMm": null,
+        "diameterMm": 2.1,
+        "renderLengthMm": 32,
+        "renderDiameterMm": 2.1,
+        "texture": "./assets/components/humphries-prestige/point.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Winmau identifies the point type as Black high tensile; exact length is not published.",
+            "source": "https://winmau.com/en-de/products/luke-humphries-prestige-darts"
+          },
+          {
+            "status": "UNKNOWN",
+            "note": "Exact point length remains unknown; 32-mm render length is heuristic."
+          }
+        ]
+      }
+    },
+    "barrels": {
+      "prodigy-23-barrel": {
+        "kind": "BarrelDefinition",
+        "id": "prodigy-23-barrel",
+        "name": "Luke Littler G1 Prodigy 23g Barrel",
+        "pointInterface": "SWISS_POINT",
+        "rearThread": "2BA",
+        "lengthMm": 52,
+        "diameterMm": 6.5,
+        "profile": "straight",
+        "renderLengthMm": 52,
+        "renderDiameterMm": 6.5,
+        "texture": "./assets/components/prodigy/barrel.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "23g: 52 x 6.5 mm; current official material 90%.",
+            "source": "https://www.targetdarts.com/eu/luke-littler-g1-prodigy-sp"
+          },
+          {
+            "status": "UNKNOWN",
+            "note": "Local filename says 95; not treated as manufacturer fact."
+          }
+        ]
+      },
+      "shift-barrel": {
+        "kind": "BarrelDefinition",
+        "id": "shift-barrel",
+        "name": "Target Shift SP Barrel (source weight unresolved)",
+        "pointInterface": "SWISS_POINT",
+        "rearThread": "2BA",
+        "lengthMm": 50,
+        "diameterMm": null,
+        "profile": "straight",
+        "renderLengthMm": 50,
+        "renderDiameterMm": 6.8,
+        "texture": "./assets/components/shift/barrel.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "50 mm for 23/24/25g; diameters 6.7/6.8/7.0 mm.",
+            "source": "https://www.targetdarts.de/shift-sp"
+          },
+          {
+            "status": "UNKNOWN",
+            "note": "Local source does not identify weight; exact diameter unknown."
+          }
+        ]
+      },
+      "world-champ-23-barrel": {
+        "kind": "BarrelDefinition",
+        "id": "world-champ-23-barrel",
+        "name": "Luke Littler G1 World Champion 23g Barrel",
+        "pointInterface": "SWISS_POINT",
+        "rearThread": "2BA",
+        "lengthMm": 52,
+        "diameterMm": 6.5,
+        "profile": "straight",
+        "renderLengthMm": 52,
+        "renderDiameterMm": 6.5,
+        "texture": "./assets/components/world/barrel.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "23g only: 52 x 6.5 mm, 90% tungsten.",
+            "source": "https://www.targetdarts.com/us/luke-littler-world-champion-sp"
+          }
+        ]
+      },
+      "chrono-barrel": {
+        "kind": "BarrelDefinition",
+        "id": "chrono-barrel",
+        "name": "Phil Taylor Power Chrono Barrel (source weight unresolved)",
+        "pointInterface": "SWISS_POINT",
+        "rearThread": "2BA",
+        "lengthMm": null,
+        "diameterMm": null,
+        "profile": "torpedo",
+        "renderLengthMm": 41,
+        "renderDiameterMm": 7.75,
+        "texture": "./assets/components/chrono/barrel.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "22g 41x7.55; 24g 41x7.85; 26g 42.5x7.85 mm.",
+            "source": "https://www.targetdarts.com/us/phil-taylor-power-chrono-sp"
+          },
+          {
+            "status": "UNKNOWN",
+            "note": "Local source weight not encoded."
+          }
+        ]
+      },
+      "gary-phase6-barrel": {
+        "kind": "BarrelDefinition",
+        "id": "gary-phase6-barrel",
+        "name": "Unicorn Gary Anderson Phase 6 Barrel (source weight unresolved)",
+        "pointInterface": "PRESS_FIT",
+        "rearThread": "2BA",
+        "lengthMm": null,
+        "diameterMm": null,
+        "profile": "teardrop",
+        "renderLengthMm": 50.7,
+        "renderDiameterMm": 7.2,
+        "texture": "./assets/components/gary/barrel.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "21g 46.3x7.2; 22g 48.5x7.2; 23g 50.7x7.2; 24g 50.7x7.3; 25g 50.7x7.5 mm.",
+            "source": "https://www.dartshopper.com/unicorn-gary-anderson-phase-6-90/"
+          },
+          {
+            "status": "UNKNOWN",
+            "note": "Local source weight unknown."
+          }
+        ]
+      },
+      "auro-90-barrel": {
+        "kind": "BarrelDefinition",
+        "id": "auro-90-barrel",
+        "name": "Shot Alchemy Auro 90% Barrel (source weight unresolved)",
+        "pointInterface": "PRESS_FIT",
+        "rearThread": "2BA",
+        "lengthMm": null,
+        "diameterMm": null,
+        "profile": "tapered",
+        "renderLengthMm": 47,
+        "renderDiameterMm": 7.5,
+        "texture": "./assets/components/auro/barrel.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Auro 90 retailer: 23g 46x7.5; 24g 47x7.5; 25g 47x7.6 mm.",
+            "source": "https://www.dartswarehouse.de/shot-alchemy-auro-90.html"
+          },
+          {
+            "status": "UNKNOWN",
+            "note": "Source weight unknown; current manufacturer page is a 95% version."
+          }
+        ]
+      },
+      "supa-barrel": {
+        "kind": "BarrelDefinition",
+        "id": "supa-barrel",
+        "name": "Peter Wright Supa-Venom Barrel (source weight unresolved)",
+        "pointInterface": "PRESS_FIT",
+        "rearThread": "2BA",
+        "lengthMm": 54.6,
+        "diameterMm": null,
+        "profile": "straight",
+        "renderLengthMm": 54.6,
+        "renderDiameterMm": 6.25,
+        "texture": "./assets/components/supa/barrel.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "All steel variants are 54.6 mm; diameters 6.0/6.1/6.25/6.35 for 21/22/23/24g.",
+            "source": "https://www.reddragondarts.com/products/peter-wright-supa-venom-darts"
+          },
+          {
+            "status": "UNKNOWN",
+            "note": "Source image weight unknown."
+          }
+        ]
+      },
+      "mandalorian-24-barrel": {
+        "kind": "BarrelDefinition",
+        "id": "mandalorian-24-barrel",
+        "name": "Star Wars Mandalorian 24g Barrel",
+        "pointInterface": "SWISS_POINT",
+        "rearThread": "2BA",
+        "lengthMm": 52,
+        "diameterMm": 6.5,
+        "profile": "straight",
+        "renderLengthMm": 52,
+        "renderDiameterMm": 6.5,
+        "texture": "./assets/components/mandalorian/barrel.png",
+        "evidence": [
+          {
+            "status": "SOURCE-GROUNDED",
+            "note": "Infographic: 52 mm, 95%; weights include 24g."
+          },
+          {
+            "status": "WEB-VERIFIED",
+            "note": "24g = 52 x 6.5 mm.",
+            "source": "https://www.targetdarts.com/us/star-wars-mandalorian-sp"
+          }
+        ]
+      },
+      "atat-23-barrel": {
+        "kind": "BarrelDefinition",
+        "id": "atat-23-barrel",
+        "name": "Star Wars AT-AT 23g Barrel",
+        "pointInterface": "SWISS_POINT",
+        "rearThread": "2BA",
+        "lengthMm": 47.55,
+        "diameterMm": 7.0,
+        "profile": "straight",
+        "renderLengthMm": 47.55,
+        "renderDiameterMm": 7.0,
+        "texture": "./assets/components/atat/barrel.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "23g = 47.55 x 7.0 mm.",
+            "source": "https://www.targetdarts.com/us/star-wars-at-at-sp"
+          }
+        ]
+      },
+      "clemens-g2-23-barrel": {
+        "kind": "BarrelDefinition",
+        "id": "clemens-g2-23-barrel",
+        "name": "Gabriel Clemens G2 23g Barrel",
+        "pointInterface": "SWISS_POINT",
+        "rearThread": "2BA",
+        "lengthMm": 52,
+        "diameterMm": 6.9,
+        "profile": "straight",
+        "renderLengthMm": 52,
+        "renderDiameterMm": 6.9,
+        "texture": "./assets/components/clemens-g2/barrel.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Target: 23g = 52 x 6.9 mm, 90% tungsten.",
+            "source": "https://www.target-darts.co.uk/gabriel-clemens-g2-sp"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "Local barrel appearance is reconstructed from inspected product imagery."
+          }
+        ]
+      },
+      "clemens-95k-23-barrel": {
+        "kind": "BarrelDefinition",
+        "id": "clemens-95k-23-barrel",
+        "name": "Gabriel Clemens 95K 23g Barrel",
+        "pointInterface": "SWISS_POINT",
+        "rearThread": "2BA",
+        "lengthMm": 52,
+        "diameterMm": 6.9,
+        "profile": "straight",
+        "renderLengthMm": 52,
+        "renderDiameterMm": 6.9,
+        "texture": "./assets/components/clemens-95k/barrel.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Target: 23g = 52 x 6.9 mm, 95% tungsten.",
+            "source": "https://www.target-darts.co.uk/gabriel-clemens-95k-sp"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "Local visual appearance reconstructed from web reference."
+          }
+        ]
+      },
+      "cross-95k-23-barrel": {
+        "kind": "BarrelDefinition",
+        "id": "cross-95k-23-barrel",
+        "name": "Rob Cross 95K 23g Barrel",
+        "pointInterface": "SWISS_POINT",
+        "rearThread": "2BA",
+        "lengthMm": 48,
+        "diameterMm": 6.6,
+        "profile": "straight",
+        "renderLengthMm": 48,
+        "renderDiameterMm": 6.6,
+        "texture": "./assets/components/cross-95k/barrel.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Target: 23g = 48 x 6.6 mm, 95% tungsten.",
+            "source": "https://www.target-darts.co.uk/rob-cross-95k-sp"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "Local visual appearance reconstructed from web reference."
+          }
+        ]
+      },
+      "aspinall-95k-22-barrel": {
+        "kind": "BarrelDefinition",
+        "id": "aspinall-95k-22-barrel",
+        "name": "Nathan Aspinall 95K 22g Barrel",
+        "pointInterface": "SWISS_POINT",
+        "rearThread": "2BA",
+        "lengthMm": 50,
+        "diameterMm": 6.8,
+        "profile": "tapered",
+        "renderLengthMm": 50,
+        "renderDiameterMm": 6.8,
+        "texture": "./assets/components/aspinall-95k/barrel.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Target: 22g = 50 x 6.8 mm; product description identifies Nathan’s preferred tapered front profile.",
+            "source": "https://www.target-darts.co.uk/nathan-aspinall-95k-sp"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "Local barrel appearance reconstructed from inspected product image."
+          }
+        ]
+      },
+      "bunting-95k-23-barrel": {
+        "kind": "BarrelDefinition",
+        "id": "bunting-95k-23-barrel",
+        "name": "Stephen Bunting 95K 23g Barrel",
+        "pointInterface": "SWISS_POINT",
+        "rearThread": "2BA",
+        "lengthMm": 47,
+        "diameterMm": 6.9,
+        "profile": "tapered",
+        "renderLengthMm": 47,
+        "renderDiameterMm": 6.9,
+        "texture": "./assets/components/bunting-95k/barrel.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Target: 23g = 47 x 6.9 mm, 95% tungsten; product description identifies a tapered/front-nose profile.",
+            "source": "https://www.target-darts.co.uk/stephen-bunting-95k-sp"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "Local appearance reconstructed from web reference."
+          }
+        ]
+      },
+      "mvg-signature-22-barrel": {
+        "kind": "BarrelDefinition",
+        "id": "mvg-signature-22-barrel",
+        "name": "Michael van Gerwen Signature 22g Barrel",
+        "pointInterface": "PRESS_FIT",
+        "rearThread": "2BA",
+        "lengthMm": 53,
+        "diameterMm": 6.3,
+        "profile": "straight",
+        "renderLengthMm": 53,
+        "renderDiameterMm": 6.3,
+        "texture": "./assets/components/mvg-signature/barrel.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Winmau verifies 90% tungsten, centre weighting and parallel barrel profile.",
+            "source": "https://winmau.com/en-de/products/mvg-signature-edition"
+          },
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Dartworld lists the 22g barrel at 53.00 x 6.30 mm.",
+            "source": "https://www.dartworld.de/steel-darts/nach-preis/winmau-michael-van-gerwen-mvg-signature-edition-90?c=22162"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "Local visual appearance reconstructed from inspected product image."
+          }
+        ]
+      },
+      "humphries-prestige-22-barrel": {
+        "kind": "BarrelDefinition",
+        "id": "humphries-prestige-22-barrel",
+        "name": "Luke Humphries Prestige 22g Barrel",
+        "pointInterface": "PRESS_FIT",
+        "rearThread": "2BA",
+        "lengthMm": 43.18,
+        "diameterMm": 7.3,
+        "profile": "torpedo",
+        "renderLengthMm": 43.18,
+        "renderDiameterMm": 7.3,
+        "texture": "./assets/components/humphries-prestige/barrel.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Winmau: 22g = 7.3 x 43.18 mm; 90% tungsten; front-weighted torpedo profile.",
+            "source": "https://winmau.com/en-de/products/luke-humphries-prestige-darts"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "Local barrel appearance reconstructed from inspected product image."
+          }
+        ]
+      }
+    },
+    "shafts": {
+      "chrono-titanium-short": {
+        "kind": "ShaftDefinition",
+        "id": "chrono-titanium-short",
+        "name": "Power Chrono Titanium Short 22.4 mm",
+        "rearThread": "2BA",
+        "flightMount": "FOLDED_FLIGHT_SLOT",
+        "lengthMm": 22.4,
+        "renderLengthMm": 22.4,
+        "renderDiameterMm": 4.8,
+        "texture": "./assets/components/chrono/shaft.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Power Chrono shaft Short 22.4 mm.",
+            "source": "https://www.targetdarts.com/us/phil-taylor-power-chrono-sp"
+          }
+        ]
+      },
+      "gary-gripper4": {
+        "kind": "ShaftDefinition",
+        "id": "gary-gripper4",
+        "name": "Unicorn Gripper 4 Shaft",
+        "rearThread": "2BA",
+        "flightMount": "FOLDED_FLIGHT_SLOT",
+        "lengthMm": null,
+        "renderLengthMm": 30,
+        "renderDiameterMm": 4.8,
+        "texture": "./assets/components/gary/shaft.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Double Top lists Gripper 4 shafts with the Phase 6 set.",
+            "source": "https://www.doubletopdartshop.com/products/gary-anderson-phase-6-world-champion-90-tungsten-steel-tip-darts-by-unicorn"
+          }
+        ]
+      },
+      "auro-koi-carbon": {
+        "kind": "ShaftDefinition",
+        "id": "auro-koi-carbon",
+        "name": "Shot Koi Carbon Shaft Helioknot Gold Inbetween",
+        "rearThread": "2BA",
+        "flightMount": "FOLDED_FLIGHT_SLOT",
+        "lengthMm": null,
+        "renderLengthMm": 30,
+        "renderDiameterMm": 4.8,
+        "texture": "./assets/components/auro/shaft.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Current Auro page names Koi Carbon Shaft Helioknot Gold Inbetween.",
+            "source": "https://www.shotdarts.com/products/alchemy-auro-steel-tip-dart-set-95-tungsten-barrels"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "Used as closest named setup for supplied Auro source; source is labeled 90%."
+          }
+        ]
+      },
+      "supa-nitrotech-short": {
+        "kind": "ShaftDefinition",
+        "id": "supa-nitrotech-short",
+        "name": "Red Dragon Nitrotech Polycarbonate Short",
+        "rearThread": "2BA",
+        "flightMount": "FOLDED_FLIGHT_SLOT",
+        "lengthMm": null,
+        "renderLengthMm": 30,
+        "renderDiameterMm": 4.8,
+        "texture": "./assets/components/supa/shaft.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Product information lists Nitrotech polycarbonate short.",
+            "source": "https://www.reddragondarts.com/products/peter-wright-supa-venom-darts"
+          }
+        ]
+      },
+      "atat-progrip-short": {
+        "kind": "ShaftDefinition",
+        "id": "atat-progrip-short",
+        "name": "Star Wars Pro Grip Short 34 mm",
+        "rearThread": "2BA",
+        "flightMount": "FOLDED_FLIGHT_SLOT",
+        "lengthMm": 34,
+        "renderLengthMm": 34,
+        "renderDiameterMm": 4.8,
+        "texture": "./assets/components/atat/shaft.png",
+        "evidence": [
+          {
+            "status": "SOURCE-GROUNDED",
+            "note": "34 mm Short shown in infographic."
+          },
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Target confirms grey Pro Grip Short 34 mm.",
+            "source": "https://www.targetdarts.com/us/star-wars-at-at-sp"
+          }
+        ]
+      },
+      "clemens-g2-progrip-short": {
+        "kind": "ShaftDefinition",
+        "id": "clemens-g2-progrip-short",
+        "name": "Gabriel Clemens G2 Pro Grip Short",
+        "rearThread": "2BA",
+        "flightMount": "FOLDED_FLIGHT_SLOT",
+        "lengthMm": null,
+        "renderLengthMm": 30,
+        "renderDiameterMm": 4.8,
+        "texture": "./assets/components/clemens-g2/shaft.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Target specifies a short Pro Grip shaft; exact millimetre length is not stated on the product page.",
+            "source": "https://www.target-darts.co.uk/gabriel-clemens-g2-sp"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "30-mm render length is a builder heuristic; factual length remains null."
+          }
+        ]
+      },
+      "mvg-signature-vecta-short": {
+        "kind": "ShaftDefinition",
+        "id": "mvg-signature-vecta-short",
+        "name": "MvG Signature Vecta Short Shaft",
+        "rearThread": "2BA",
+        "flightMount": "FOLDED_FLIGHT_SLOT",
+        "lengthMm": null,
+        "renderLengthMm": 30,
+        "renderDiameterMm": 4.8,
+        "texture": "./assets/components/mvg-signature/shaft.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Winmau specifies Short Vecta shafts.",
+            "source": "https://winmau.com/en-de/products/mvg-signature-edition"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "30-mm render length used because the product page does not state physical shaft length."
+          }
+        ]
+      },
+      "humphries-prestige-nitrotech-short": {
+        "kind": "ShaftDefinition",
+        "id": "humphries-prestige-nitrotech-short",
+        "name": "Luke Humphries Prestige Nitrotech Short",
+        "rearThread": "2BA",
+        "flightMount": "FOLDED_FLIGHT_SLOT",
+        "lengthMm": null,
+        "renderLengthMm": 30,
+        "renderDiameterMm": 4.8,
+        "texture": "./assets/components/humphries-prestige/shaft.png",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Winmau specifies Nitrotech polycarbonate short shafts.",
+            "source": "https://winmau.com/en-de/products/luke-humphries-prestige-darts"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "30-mm render length is a geometry heuristic; factual millimetre length remains unknown."
+          }
+        ]
+      }
+    },
+    "flights": {
+      "chrono-vapor-s": {
+        "kind": "FlightDefinition",
+        "id": "chrono-vapor-s",
+        "name": "Power Chrono Vapor S Flight",
+        "flightMount": "FOLDED_FLIGHT_SLOT",
+        "shape": "Vapor S",
+        "renderLengthMm": 40,
+        "renderRadiusMm": 16.5,
+        "planeProfile": [
+          [
+            0.0,
+            0.2857
+          ],
+          [
+            0.0779,
+            0.3857
+          ],
+          [
+            0.1558,
+            0.4857
+          ],
+          [
+            0.2338,
+            0.5857
+          ],
+          [
+            0.3052,
+            0.6857
+          ],
+          [
+            0.3831,
+            0.8143
+          ],
+          [
+            0.461,
+            0.9286
+          ],
+          [
+            0.539,
+            0.9857
+          ],
+          [
+            0.6169,
+            1.0
+          ],
+          [
+            0.6948,
+            0.9857
+          ],
+          [
+            0.7662,
+            0.9143
+          ],
+          [
+            0.8442,
+            0.8143
+          ],
+          [
+            0.9221,
+            0.5429
+          ],
+          [
+            1.0,
+            0.1429
+          ],
+          [
+            1.0,
+            -0.1857
+          ],
+          [
+            0.9221,
+            -0.4857
+          ],
+          [
+            0.8442,
+            -0.8
+          ],
+          [
+            0.7662,
+            -0.9286
+          ],
+          [
+            0.6948,
+            -0.9571
+          ],
+          [
+            0.6169,
+            -0.9857
+          ],
+          [
+            0.539,
+            -0.9857
+          ],
+          [
+            0.461,
+            -0.9143
+          ],
+          [
+            0.3831,
+            -0.7714
+          ],
+          [
+            0.3052,
+            -0.7
+          ],
+          [
+            0.2338,
+            -0.5714
+          ],
+          [
+            0.1558,
+            -0.4714
+          ],
+          [
+            0.0779,
+            -0.4
+          ],
+          [
+            0.0,
+            -0.2857
+          ]
+        ],
+        "planeATexture": "./assets/components/chrono/flight-plane-a.png",
+        "planeBTexture": "./assets/components/chrono/flight-plane-b-approx.png",
+        "faceEvidence": {
+          "planeA": "SOURCE-GROUNDED",
+          "planeB": "APPROXIMATED"
+        },
+        "visualAuthoring": "SOURCE-GROUNDED",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Vapor S, No.2 and No.6 are supplied; source broadside visually matches the selected Vapor-S-like profile, but exact fitted flight is image-derived.",
+            "source": "https://www.targetdarts.com/us/phil-taylor-power-chrono-sp"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "Exact flight selection in source is inferred from silhouette."
+          }
+        ]
+      },
+      "gary-phase6-flight": {
+        "kind": "FlightDefinition",
+        "id": "gary-phase6-flight",
+        "name": "Unicorn Gary Anderson Phase 6 Flight",
+        "flightMount": "FOLDED_FLIGHT_SLOT",
+        "shape": "player standard",
+        "renderLengthMm": 42,
+        "renderRadiusMm": 17.8,
+        "planeProfile": [
+          [
+            0.0,
+            0.24
+          ],
+          [
+            0.0773,
+            0.36
+          ],
+          [
+            0.1546,
+            0.56
+          ],
+          [
+            0.232,
+            0.68
+          ],
+          [
+            0.3093,
+            0.8933
+          ],
+          [
+            0.3866,
+            1.0
+          ],
+          [
+            0.4639,
+            1.0
+          ],
+          [
+            0.5361,
+            1.0
+          ],
+          [
+            0.6134,
+            1.0
+          ],
+          [
+            0.6907,
+            1.0
+          ],
+          [
+            0.768,
+            0.9733
+          ],
+          [
+            0.8454,
+            0.7867
+          ],
+          [
+            0.9227,
+            0.48
+          ],
+          [
+            1.0,
+            0.2533
+          ],
+          [
+            1.0,
+            -0.1733
+          ],
+          [
+            0.9227,
+            -0.3733
+          ],
+          [
+            0.8454,
+            -0.6933
+          ],
+          [
+            0.768,
+            -0.88
+          ],
+          [
+            0.6907,
+            -0.9067
+          ],
+          [
+            0.6134,
+            -0.8667
+          ],
+          [
+            0.5361,
+            -0.8533
+          ],
+          [
+            0.4639,
+            -0.88
+          ],
+          [
+            0.3866,
+            -0.9067
+          ],
+          [
+            0.3093,
+            -0.7867
+          ],
+          [
+            0.232,
+            -0.52
+          ],
+          [
+            0.1546,
+            -0.36
+          ],
+          [
+            0.0773,
+            -0.1867
+          ],
+          [
+            0.0,
+            -0.1067
+          ]
+        ],
+        "planeATexture": "./assets/components/gary/flight-plane-a.png",
+        "planeBTexture": "./assets/components/gary/flight-plane-b-approx.png",
+        "faceEvidence": {
+          "planeA": "SOURCE-GROUNDED",
+          "planeB": "APPROXIMATED"
+        },
+        "visualAuthoring": "SOURCE-GROUNDED",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Double Top lists Ultrafly Gary Anderson AR2 World Champion Phase 6 flights.",
+            "source": "https://www.doubletopdartshop.com/products/gary-anderson-phase-6-world-champion-90-tungsten-steel-tip-darts-by-unicorn"
+          }
+        ]
+      },
+      "auro-no6": {
+        "kind": "FlightDefinition",
+        "id": "auro-no6",
+        "name": "Shot Alchemy No.6 Small Standard Flight",
+        "flightMount": "FOLDED_FLIGHT_SLOT",
+        "shape": "No.6",
+        "renderLengthMm": 41.5,
+        "renderRadiusMm": 17.2,
+        "planeProfile": [
+          [
+            0.0,
+            0.1864
+          ],
+          [
+            0.0748,
+            0.2768
+          ],
+          [
+            0.1542,
+            0.435
+          ],
+          [
+            0.229,
+            0.6384
+          ],
+          [
+            0.3084,
+            0.8192
+          ],
+          [
+            0.3832,
+            0.9209
+          ],
+          [
+            0.4626,
+            0.9322
+          ],
+          [
+            0.5374,
+            0.9435
+          ],
+          [
+            0.6168,
+            1.0
+          ],
+          [
+            0.6916,
+            0.9661
+          ],
+          [
+            0.771,
+            0.9548
+          ],
+          [
+            0.8458,
+            0.8983
+          ],
+          [
+            0.9252,
+            0.5932
+          ],
+          [
+            1.0,
+            0.2768
+          ],
+          [
+            1.0,
+            -0.209
+          ],
+          [
+            0.9252,
+            -0.6158
+          ],
+          [
+            0.8458,
+            -0.8418
+          ],
+          [
+            0.771,
+            -0.9774
+          ],
+          [
+            0.6916,
+            -0.9661
+          ],
+          [
+            0.6168,
+            -0.9322
+          ],
+          [
+            0.5374,
+            -0.9209
+          ],
+          [
+            0.4626,
+            -0.8983
+          ],
+          [
+            0.3832,
+            -0.887
+          ],
+          [
+            0.3084,
+            -0.8418
+          ],
+          [
+            0.229,
+            -0.6158
+          ],
+          [
+            0.1542,
+            -0.4802
+          ],
+          [
+            0.0748,
+            -0.1751
+          ],
+          [
+            0.0,
+            -0.1525
+          ]
+        ],
+        "planeATexture": "./assets/components/auro/flight-plane-a.png",
+        "planeBTexture": "./assets/components/auro/flight-plane-b-approx.png",
+        "faceEvidence": {
+          "planeA": "SOURCE-GROUNDED",
+          "planeB": "APPROXIMATED"
+        },
+        "visualAuthoring": "SOURCE-GROUNDED",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Current Auro page specifies No.6 Small Standard.",
+            "source": "https://www.shotdarts.com/products/alchemy-auro-steel-tip-dart-set-95-tungsten-barrels"
+          }
+        ]
+      },
+      "supa-standard": {
+        "kind": "FlightDefinition",
+        "id": "supa-standard",
+        "name": "Peter Wright Players Extra Thick Standard",
+        "flightMount": "FOLDED_FLIGHT_SLOT",
+        "shape": "Standard",
+        "renderLengthMm": 43,
+        "renderRadiusMm": 18.2,
+        "planeProfile": [
+          [
+            0.0,
+            0.2216
+          ],
+          [
+            0.0794,
+            0.4012
+          ],
+          [
+            0.1534,
+            0.5689
+          ],
+          [
+            0.2328,
+            0.7485
+          ],
+          [
+            0.3069,
+            0.9162
+          ],
+          [
+            0.3862,
+            1.0
+          ],
+          [
+            0.4603,
+            1.0
+          ],
+          [
+            0.5397,
+            1.0
+          ],
+          [
+            0.6138,
+            1.0
+          ],
+          [
+            0.6931,
+            1.0
+          ],
+          [
+            0.7672,
+            0.9281
+          ],
+          [
+            0.8466,
+            0.7485
+          ],
+          [
+            0.9206,
+            0.4251
+          ],
+          [
+            1.0,
+            0.018
+          ],
+          [
+            1.0,
+            -0.006
+          ],
+          [
+            0.9206,
+            -0.4132
+          ],
+          [
+            0.8466,
+            -0.7365
+          ],
+          [
+            0.7672,
+            -0.9162
+          ],
+          [
+            0.6931,
+            -0.988
+          ],
+          [
+            0.6138,
+            -0.988
+          ],
+          [
+            0.5397,
+            -0.988
+          ],
+          [
+            0.4603,
+            -0.988
+          ],
+          [
+            0.3862,
+            -0.988
+          ],
+          [
+            0.3069,
+            -0.9042
+          ],
+          [
+            0.2328,
+            -0.7365
+          ],
+          [
+            0.1534,
+            -0.5569
+          ],
+          [
+            0.0794,
+            -0.3892
+          ],
+          [
+            0.0,
+            -0.2096
+          ]
+        ],
+        "planeATexture": "./assets/components/supa/flight-plane-a.png",
+        "planeBTexture": "./assets/components/supa/flight-plane-b-approx.png",
+        "faceEvidence": {
+          "planeA": "SOURCE-GROUNDED",
+          "planeB": "APPROXIMATED"
+        },
+        "visualAuthoring": "SOURCE-GROUNDED",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Product information lists Players extra thick standard flights.",
+            "source": "https://www.reddragondarts.com/products/peter-wright-supa-venom-darts"
+          }
+        ]
+      },
+      "generic-slim-geometry": {
+        "kind": "FlightDefinition",
+        "id": "generic-slim-geometry",
+        "name": "Generic Slim Geometry QA",
+        "flightMount": "FOLDED_FLIGHT_SLOT",
+        "shape": "Slim",
+        "renderLengthMm": 46,
+        "renderRadiusMm": 10.5,
+        "planeProfile": [
+          [
+            0,
+            0
+          ],
+          [
+            0.09,
+            0.35
+          ],
+          [
+            0.23,
+            0.72
+          ],
+          [
+            1,
+            0.48
+          ],
+          [
+            1,
+            -0.48
+          ],
+          [
+            0.23,
+            -0.72
+          ],
+          [
+            0.09,
+            -0.35
+          ]
+        ],
+        "planeATexture": "./assets/components/generic/slim-plane-a.png",
+        "planeBTexture": "./assets/components/generic/slim-plane-b-approx.png",
+        "faceEvidence": {
+          "planeA": "HEURISTIC",
+          "planeB": "APPROXIMATED"
+        },
+        "evidence": [
+          {
+            "status": "HEURISTIC",
+            "note": "Generic Slim flight geometry prepared for builder compatibility/shape testing; not tied to a supplied product image."
+          }
+        ]
+      },
+      "atat-no6": {
+        "kind": "FlightDefinition",
+        "id": "atat-no6",
+        "name": "AT-AT Pro Ultra No.6",
+        "flightMount": "FOLDED_FLIGHT_SLOT",
+        "shape": "No.6",
+        "renderLengthMm": 41.5,
+        "renderRadiusMm": 17.2,
+        "planeProfile": [
+          [
+            0.0,
+            0.0137
+          ],
+          [
+            0.0765,
+            0.274
+          ],
+          [
+            0.1531,
+            0.5753
+          ],
+          [
+            0.2296,
+            0.7808
+          ],
+          [
+            0.3061,
+            0.9726
+          ],
+          [
+            0.3827,
+            0.9726
+          ],
+          [
+            0.4592,
+            0.8356
+          ],
+          [
+            0.5408,
+            1.0
+          ],
+          [
+            0.6173,
+            0.9452
+          ],
+          [
+            0.6939,
+            0.726
+          ],
+          [
+            0.7704,
+            0.726
+          ],
+          [
+            0.8469,
+            0.137
+          ],
+          [
+            0.9235,
+            0.7123
+          ],
+          [
+            1.0,
+            0.1096
+          ],
+          [
+            1.0,
+            -0.1096
+          ],
+          [
+            0.9235,
+            -0.6986
+          ],
+          [
+            0.8469,
+            -0.6712
+          ],
+          [
+            0.7704,
+            -0.7534
+          ],
+          [
+            0.6939,
+            -0.6438
+          ],
+          [
+            0.6173,
+            -1.0
+          ],
+          [
+            0.5408,
+            -0.9863
+          ],
+          [
+            0.4592,
+            -0.7397
+          ],
+          [
+            0.3827,
+            -0.9041
+          ],
+          [
+            0.3061,
+            -0.9589
+          ],
+          [
+            0.2296,
+            -0.9452
+          ],
+          [
+            0.1531,
+            -0.6301
+          ],
+          [
+            0.0765,
+            -0.2603
+          ],
+          [
+            0.0,
+            -0.0137
+          ]
+        ],
+        "planeATexture": "./assets/components/atat/flight-plane-a.png",
+        "planeBTexture": "./assets/components/atat/flight-plane-b-approx.png",
+        "faceEvidence": {
+          "planeA": "SOURCE-GROUNDED",
+          "planeB": "APPROXIMATED"
+        },
+        "visualAuthoring": "SOURCE-GROUNDED",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Target confirms Pro Ultra AT-AT No.6.",
+            "source": "https://www.targetdarts.com/us/star-wars-at-at-sp"
+          }
+        ]
+      },
+      "clemens-g2-no6": {
+        "kind": "FlightDefinition",
+        "id": "clemens-g2-no6",
+        "name": "Gabriel Clemens G2 Edition No.6",
+        "flightMount": "FOLDED_FLIGHT_SLOT",
+        "shape": "No.6",
+        "renderLengthMm": 41.5,
+        "renderRadiusMm": 17.2,
+        "planeProfile": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            0.08,
+            0.3
+          ],
+          [
+            0.22,
+            0.9
+          ],
+          [
+            0.68,
+            1.0
+          ],
+          [
+            0.94,
+            0.72
+          ],
+          [
+            1.0,
+            0.35
+          ],
+          [
+            1.0,
+            -0.35
+          ],
+          [
+            0.94,
+            -0.72
+          ],
+          [
+            0.68,
+            -1.0
+          ],
+          [
+            0.22,
+            -0.9
+          ],
+          [
+            0.08,
+            -0.3
+          ]
+        ],
+        "planeATexture": "./assets/components/clemens-g2/flight-plane-a.png",
+        "planeBTexture": "./assets/components/clemens-g2/flight-plane-b-approx.png",
+        "faceEvidence": {
+          "planeA": "HEURISTIC",
+          "planeB": "APPROXIMATED"
+        },
+        "visualAuthoring": "WEB-REFERENCED-RECONSTRUCTION",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Target specifies Gabriel Clemens G2 edition No.6 flights.",
+            "source": "https://www.target-darts.co.uk/gabriel-clemens-g2-sp"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "Artwork/colors are locally reconstructed from inspected public product images; not original manufacturer pixels."
+          }
+        ]
+      },
+      "mvg-signature-no2": {
+        "kind": "FlightDefinition",
+        "id": "mvg-signature-no2",
+        "name": "MvG Signature #2 100 Micron Flight",
+        "flightMount": "FOLDED_FLIGHT_SLOT",
+        "shape": "No.2",
+        "renderLengthMm": 43,
+        "renderRadiusMm": 18.5,
+        "planeProfile": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            0.06,
+            0.34
+          ],
+          [
+            0.18,
+            0.96
+          ],
+          [
+            0.6,
+            1.0
+          ],
+          [
+            0.9,
+            0.82
+          ],
+          [
+            1.0,
+            0.45
+          ],
+          [
+            1.0,
+            -0.45
+          ],
+          [
+            0.9,
+            -0.82
+          ],
+          [
+            0.6,
+            -1.0
+          ],
+          [
+            0.18,
+            -0.96
+          ],
+          [
+            0.06,
+            -0.34
+          ]
+        ],
+        "planeATexture": "./assets/components/mvg-signature/flight-plane-a.png",
+        "planeBTexture": "./assets/components/mvg-signature/flight-plane-b-approx.png",
+        "faceEvidence": {
+          "planeA": "HEURISTIC",
+          "planeB": "APPROXIMATED"
+        },
+        "visualAuthoring": "WEB-REFERENCED-RECONSTRUCTION",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Winmau specifies #2 Shape 100 Micron flights.",
+            "source": "https://winmau.com/en-de/products/mvg-signature-edition"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "Artwork is a local reconstruction from public product imagery."
+          }
+        ]
+      },
+      "humphries-prestige-standard": {
+        "kind": "FlightDefinition",
+        "id": "humphries-prestige-standard",
+        "name": "Luke Humphries Players Extra Thick Standard",
+        "flightMount": "FOLDED_FLIGHT_SLOT",
+        "shape": "Standard",
+        "renderLengthMm": 43,
+        "renderRadiusMm": 18.2,
+        "planeProfile": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            0.06,
+            0.34
+          ],
+          [
+            0.18,
+            0.96
+          ],
+          [
+            0.6,
+            1.0
+          ],
+          [
+            0.9,
+            0.82
+          ],
+          [
+            1.0,
+            0.45
+          ],
+          [
+            1.0,
+            -0.45
+          ],
+          [
+            0.9,
+            -0.82
+          ],
+          [
+            0.6,
+            -1.0
+          ],
+          [
+            0.18,
+            -0.96
+          ],
+          [
+            0.06,
+            -0.34
+          ]
+        ],
+        "planeATexture": "./assets/components/humphries-prestige/flight-plane-a.png",
+        "planeBTexture": "./assets/components/humphries-prestige/flight-plane-b-approx.png",
+        "faceEvidence": {
+          "planeA": "HEURISTIC",
+          "planeB": "APPROXIMATED"
+        },
+        "visualAuthoring": "WEB-REFERENCED-RECONSTRUCTION",
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Winmau specifies Players extra thick standard flights.",
+            "source": "https://winmau.com/en-de/products/luke-humphries-prestige-darts"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "Artwork is a local reconstruction from inspected product imagery."
+          }
+        ]
+      }
+    },
+    "rearSystems": {
+      "prodigy-kflex-no2-short": {
+        "kind": "RearSystemDefinition",
+        "id": "prodigy-kflex-no2-short",
+        "name": "Prodigy Purple K-Flex No.2 Short",
+        "rearThread": "2BA",
+        "integrated": true,
+        "system": "K-FLEX",
+        "shaftLengthMm": 19,
+        "flightShape": "No.2",
+        "renderShaftLengthMm": 19,
+        "renderShaftDiameterMm": 5.2,
+        "renderFlightLengthMm": 43,
+        "renderFlightRadiusMm": 18.5,
+        "shaftTexture": "./assets/components/prodigy/rear-shaft.png",
+        "planeProfile": [
+          [
+            0.0,
+            0.1553
+          ],
+          [
+            0.0763,
+            0.2136
+          ],
+          [
+            0.1526,
+            0.3883
+          ],
+          [
+            0.2289,
+            0.5437
+          ],
+          [
+            0.3092,
+            0.767
+          ],
+          [
+            0.3855,
+            0.932
+          ],
+          [
+            0.4618,
+            0.9806
+          ],
+          [
+            0.5382,
+            1.0
+          ],
+          [
+            0.6145,
+            0.9806
+          ],
+          [
+            0.6908,
+            0.9709
+          ],
+          [
+            0.7711,
+            0.9515
+          ],
+          [
+            0.8474,
+            0.835
+          ],
+          [
+            0.9237,
+            0.4854
+          ],
+          [
+            1.0,
+            0.1553
+          ],
+          [
+            1.0,
+            -0.165
+          ],
+          [
+            0.9237,
+            -0.4757
+          ],
+          [
+            0.8474,
+            -0.7573
+          ],
+          [
+            0.7711,
+            -0.9223
+          ],
+          [
+            0.6908,
+            -0.9515
+          ],
+          [
+            0.6145,
+            -0.9515
+          ],
+          [
+            0.5382,
+            -0.9515
+          ],
+          [
+            0.4618,
+            -0.9806
+          ],
+          [
+            0.3855,
+            -0.9223
+          ],
+          [
+            0.3092,
+            -0.767
+          ],
+          [
+            0.2289,
+            -0.5534
+          ],
+          [
+            0.1526,
+            -0.3689
+          ],
+          [
+            0.0763,
+            -0.1845
+          ],
+          [
+            0.0,
+            -0.1359
+          ]
+        ],
+        "planeATexture": "./assets/components/prodigy/flight-plane-a.png",
+        "planeBTexture": "./assets/components/prodigy/flight-plane-b-approx.png",
+        "faceEvidence": {
+          "planeA": "SOURCE-GROUNDED",
+          "planeB": "APPROXIMATED"
+        },
+        "visualAuthoring": "SOURCE-GROUNDED",
+        "safeRollMinDeg": -20,
+        "safeRollMaxDeg": 20,
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "No.2 K-Flex Short 19 mm.",
+            "source": "https://www.targetdarts.com/eu/luke-littler-g1-prodigy-sp"
+          }
+        ]
+      },
+      "shift-kshift-no6-short": {
+        "kind": "RearSystemDefinition",
+        "id": "shift-kshift-no6-short",
+        "name": "Target K-Shift No.6 Short",
+        "rearThread": "2BA",
+        "integrated": true,
+        "system": "K-SHIFT",
+        "shaftLengthMm": 19,
+        "flightShape": "No.6",
+        "renderShaftLengthMm": 19,
+        "renderShaftDiameterMm": 5.2,
+        "renderFlightLengthMm": 41.5,
+        "renderFlightRadiusMm": 17.2,
+        "shaftTexture": "./assets/components/shift/rear-shaft.png",
+        "planeProfile": [
+          [
+            0.0,
+            0.1818
+          ],
+          [
+            0.0748,
+            0.2841
+          ],
+          [
+            0.1542,
+            0.4659
+          ],
+          [
+            0.229,
+            0.6477
+          ],
+          [
+            0.3084,
+            0.8409
+          ],
+          [
+            0.3832,
+            0.9773
+          ],
+          [
+            0.4626,
+            0.9545
+          ],
+          [
+            0.5374,
+            0.9659
+          ],
+          [
+            0.6168,
+            0.9773
+          ],
+          [
+            0.6916,
+            0.9886
+          ],
+          [
+            0.771,
+            1.0
+          ],
+          [
+            0.8458,
+            0.8977
+          ],
+          [
+            0.9252,
+            0.5114
+          ],
+          [
+            1.0,
+            0.0909
+          ],
+          [
+            1.0,
+            -0.0795
+          ],
+          [
+            0.9252,
+            -0.4773
+          ],
+          [
+            0.8458,
+            -0.8068
+          ],
+          [
+            0.771,
+            -0.9091
+          ],
+          [
+            0.6916,
+            -0.9545
+          ],
+          [
+            0.6168,
+            -0.9318
+          ],
+          [
+            0.5374,
+            -0.9091
+          ],
+          [
+            0.4626,
+            -0.8977
+          ],
+          [
+            0.3832,
+            -0.8864
+          ],
+          [
+            0.3084,
+            -0.7727
+          ],
+          [
+            0.229,
+            -0.5909
+          ],
+          [
+            0.1542,
+            -0.4091
+          ],
+          [
+            0.0748,
+            -0.2386
+          ],
+          [
+            0.0,
+            -0.1136
+          ]
+        ],
+        "planeATexture": "./assets/components/shift/flight-plane-a.png",
+        "planeBTexture": "./assets/components/shift/flight-plane-b-approx.png",
+        "faceEvidence": {
+          "planeA": "SOURCE-GROUNDED",
+          "planeB": "APPROXIMATED"
+        },
+        "visualAuthoring": "SOURCE-GROUNDED",
+        "safeRollMinDeg": -25,
+        "safeRollMaxDeg": 25,
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "K-Shift is an integrated flight+shaft; fitted Short 19 mm, No.6.",
+            "source": "https://www.targetdarts.de/shift-sp"
+          }
+        ]
+      },
+      "world-kflex-no6-short": {
+        "kind": "RearSystemDefinition",
+        "id": "world-kflex-no6-short",
+        "name": "World Champion K-Flex No.6 Short",
+        "rearThread": "2BA",
+        "integrated": true,
+        "system": "K-FLEX",
+        "shaftLengthMm": 19,
+        "flightShape": "No.6",
+        "renderShaftLengthMm": 19,
+        "renderShaftDiameterMm": 5.2,
+        "renderFlightLengthMm": 41.5,
+        "renderFlightRadiusMm": 17.2,
+        "shaftTexture": "./assets/components/world/rear-shaft.png",
+        "planeProfile": [
+          [
+            0.0,
+            0.2391
+          ],
+          [
+            0.0766,
+            0.413
+          ],
+          [
+            0.1531,
+            0.587
+          ],
+          [
+            0.2297,
+            0.7609
+          ],
+          [
+            0.3062,
+            0.913
+          ],
+          [
+            0.3828,
+            0.9239
+          ],
+          [
+            0.4593,
+            0.9348
+          ],
+          [
+            0.5407,
+            0.9565
+          ],
+          [
+            0.6172,
+            0.9565
+          ],
+          [
+            0.6938,
+            0.9674
+          ],
+          [
+            0.7703,
+            0.9348
+          ],
+          [
+            0.8469,
+            0.8043
+          ],
+          [
+            0.9234,
+            0.4457
+          ],
+          [
+            1.0,
+            0.163
+          ],
+          [
+            1.0,
+            -0.1413
+          ],
+          [
+            0.9234,
+            -0.4783
+          ],
+          [
+            0.8469,
+            -0.8587
+          ],
+          [
+            0.7703,
+            -0.9565
+          ],
+          [
+            0.6938,
+            -1.0
+          ],
+          [
+            0.6172,
+            -0.9783
+          ],
+          [
+            0.5407,
+            -0.9783
+          ],
+          [
+            0.4593,
+            -0.9565
+          ],
+          [
+            0.3828,
+            -0.9457
+          ],
+          [
+            0.3062,
+            -0.9348
+          ],
+          [
+            0.2297,
+            -0.7826
+          ],
+          [
+            0.1531,
+            -0.6087
+          ],
+          [
+            0.0766,
+            -0.4457
+          ],
+          [
+            0.0,
+            -0.2609
+          ]
+        ],
+        "planeATexture": "./assets/components/world/flight-plane-a.png",
+        "planeBTexture": "./assets/components/world/flight-plane-b-approx.png",
+        "faceEvidence": {
+          "planeA": "SOURCE-GROUNDED",
+          "planeB": "APPROXIMATED"
+        },
+        "visualAuthoring": "SOURCE-GROUNDED",
+        "safeRollMinDeg": -18,
+        "safeRollMaxDeg": 18,
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "World Champion No.6 K-Flex, Short.",
+            "source": "https://www.targetdarts.com/us/luke-littler-world-champion-sp"
+          }
+        ]
+      },
+      "mandalorian-kflex-short": {
+        "kind": "RearSystemDefinition",
+        "id": "mandalorian-kflex-short",
+        "name": "Mandalorian K-Flex Short (infographic No.6)",
+        "rearThread": "2BA",
+        "integrated": true,
+        "system": "K-FLEX",
+        "shaftLengthMm": 19,
+        "flightShape": "No.6",
+        "renderShaftLengthMm": 19,
+        "renderShaftDiameterMm": 5.2,
+        "renderFlightLengthMm": 41.5,
+        "renderFlightRadiusMm": 17.2,
+        "shaftTexture": "./assets/components/mandalorian/rear-shaft.png",
+        "planeProfile": [
+          [
+            0.0,
+            0.0323
+          ],
+          [
+            0.0761,
+            0.2774
+          ],
+          [
+            0.1523,
+            0.6258
+          ],
+          [
+            0.2284,
+            0.9355
+          ],
+          [
+            0.3096,
+            0.9484
+          ],
+          [
+            0.3858,
+            0.9613
+          ],
+          [
+            0.4619,
+            0.9742
+          ],
+          [
+            0.5381,
+            0.9871
+          ],
+          [
+            0.6142,
+            1.0
+          ],
+          [
+            0.6904,
+            0.9613
+          ],
+          [
+            0.7716,
+            0.9484
+          ],
+          [
+            0.8477,
+            0.7935
+          ],
+          [
+            0.9239,
+            0.3806
+          ],
+          [
+            1.0,
+            -0.0065
+          ],
+          [
+            1.0,
+            -0.0968
+          ],
+          [
+            0.9239,
+            -0.6645
+          ],
+          [
+            0.8477,
+            -0.7806
+          ],
+          [
+            0.7716,
+            -0.9097
+          ],
+          [
+            0.6904,
+            -0.9613
+          ],
+          [
+            0.6142,
+            -0.9613
+          ],
+          [
+            0.5381,
+            -0.9484
+          ],
+          [
+            0.4619,
+            -0.9355
+          ],
+          [
+            0.3858,
+            -0.9226
+          ],
+          [
+            0.3096,
+            -0.9097
+          ],
+          [
+            0.2284,
+            -0.8968
+          ],
+          [
+            0.1523,
+            -0.5871
+          ],
+          [
+            0.0761,
+            -0.2387
+          ],
+          [
+            0.0,
+            0.0065
+          ]
+        ],
+        "planeATexture": "./assets/components/mandalorian/flight-plane-a.png",
+        "planeBTexture": "./assets/components/mandalorian/flight-plane-b-approx.png",
+        "faceEvidence": {
+          "planeA": "SOURCE-GROUNDED",
+          "planeB": "APPROXIMATED"
+        },
+        "visualAuthoring": "SOURCE-GROUNDED",
+        "safeRollMinDeg": -12,
+        "safeRollMaxDeg": 12,
+        "evidence": [
+          {
+            "status": "SOURCE-GROUNDED",
+            "note": "Infographic explicitly says K-Flex, 19 mm Short, flight form No.6, extra No.2."
+          },
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Target set includes Short 19-mm No.2 and No.6 K-Flex variants.",
+            "source": "https://www.targetdarts.com/us/star-wars-mandalorian-sp"
+          }
+        ]
+      },
+      "clemens-95k-kflex-no6-short": {
+        "kind": "RearSystemDefinition",
+        "id": "clemens-95k-kflex-no6-short",
+        "name": "Gabriel Clemens 95K K-Flex No.6 Short",
+        "rearThread": "2BA",
+        "integrated": true,
+        "system": "K-FLEX",
+        "shaftLengthMm": 19,
+        "flightShape": "No.6",
+        "renderShaftLengthMm": 19,
+        "renderShaftDiameterMm": 5.2,
+        "renderFlightLengthMm": 41.5,
+        "renderFlightRadiusMm": 17.2,
+        "shaftTexture": "./assets/components/clemens-95k/rear-shaft.png",
+        "planeProfile": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            0.08,
+            0.3
+          ],
+          [
+            0.22,
+            0.9
+          ],
+          [
+            0.68,
+            1.0
+          ],
+          [
+            0.94,
+            0.72
+          ],
+          [
+            1.0,
+            0.35
+          ],
+          [
+            1.0,
+            -0.35
+          ],
+          [
+            0.94,
+            -0.72
+          ],
+          [
+            0.68,
+            -1.0
+          ],
+          [
+            0.22,
+            -0.9
+          ],
+          [
+            0.08,
+            -0.3
+          ]
+        ],
+        "planeATexture": "./assets/components/clemens-95k/flight-plane-a.png",
+        "planeBTexture": "./assets/components/clemens-95k/flight-plane-b-approx.png",
+        "faceEvidence": {
+          "planeA": "HEURISTIC",
+          "planeB": "APPROXIMATED"
+        },
+        "visualAuthoring": "WEB-REFERENCED-RECONSTRUCTION",
+        "safeRollMinDeg": -12,
+        "safeRollMaxDeg": 12,
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Target specifies Player-Edition No.6 K-Flex, Short, 19-mm shaft.",
+            "source": "https://www.target-darts.co.uk/gabriel-clemens-95k-sp"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "Plane A and rear artwork are reconstructed from inspected public imagery."
+          }
+        ]
+      },
+      "cross-95k-kflex-no6-short": {
+        "kind": "RearSystemDefinition",
+        "id": "cross-95k-kflex-no6-short",
+        "name": "Rob Cross 95K K-Flex No.6 Short",
+        "rearThread": "2BA",
+        "integrated": true,
+        "system": "K-FLEX",
+        "shaftLengthMm": 19,
+        "flightShape": "No.6",
+        "renderShaftLengthMm": 19,
+        "renderShaftDiameterMm": 5.2,
+        "renderFlightLengthMm": 41.5,
+        "renderFlightRadiusMm": 17.2,
+        "shaftTexture": "./assets/components/cross-95k/rear-shaft.png",
+        "planeProfile": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            0.08,
+            0.3
+          ],
+          [
+            0.22,
+            0.9
+          ],
+          [
+            0.68,
+            1.0
+          ],
+          [
+            0.94,
+            0.72
+          ],
+          [
+            1.0,
+            0.35
+          ],
+          [
+            1.0,
+            -0.35
+          ],
+          [
+            0.94,
+            -0.72
+          ],
+          [
+            0.68,
+            -1.0
+          ],
+          [
+            0.22,
+            -0.9
+          ],
+          [
+            0.08,
+            -0.3
+          ]
+        ],
+        "planeATexture": "./assets/components/cross-95k/flight-plane-a.png",
+        "planeBTexture": "./assets/components/cross-95k/flight-plane-b-approx.png",
+        "faceEvidence": {
+          "planeA": "HEURISTIC",
+          "planeB": "APPROXIMATED"
+        },
+        "visualAuthoring": "WEB-REFERENCED-RECONSTRUCTION",
+        "safeRollMinDeg": -12,
+        "safeRollMaxDeg": 12,
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Target specifies No.6 Player-Edition K-Flex, Short. K-Flex keeps the planes at 90 degrees.",
+            "source": "https://www.target-darts.co.uk/rob-cross-95k-sp"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "Artwork/color is a local web-referenced reconstruction."
+          }
+        ]
+      },
+      "aspinall-95k-kflex-no2-short": {
+        "kind": "RearSystemDefinition",
+        "id": "aspinall-95k-kflex-no2-short",
+        "name": "Nathan Aspinall 95K K-Flex No.2 Short",
+        "rearThread": "2BA",
+        "integrated": true,
+        "system": "K-FLEX",
+        "shaftLengthMm": 19,
+        "flightShape": "No.2",
+        "renderShaftLengthMm": 19,
+        "renderShaftDiameterMm": 5.2,
+        "renderFlightLengthMm": 43,
+        "renderFlightRadiusMm": 18.5,
+        "shaftTexture": "./assets/components/aspinall-95k/rear-shaft.png",
+        "planeProfile": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            0.06,
+            0.34
+          ],
+          [
+            0.18,
+            0.96
+          ],
+          [
+            0.6,
+            1.0
+          ],
+          [
+            0.9,
+            0.82
+          ],
+          [
+            1.0,
+            0.45
+          ],
+          [
+            1.0,
+            -0.45
+          ],
+          [
+            0.9,
+            -0.82
+          ],
+          [
+            0.6,
+            -1.0
+          ],
+          [
+            0.18,
+            -0.96
+          ],
+          [
+            0.06,
+            -0.34
+          ]
+        ],
+        "planeATexture": "./assets/components/aspinall-95k/flight-plane-a.png",
+        "planeBTexture": "./assets/components/aspinall-95k/flight-plane-b-approx.png",
+        "faceEvidence": {
+          "planeA": "HEURISTIC",
+          "planeB": "APPROXIMATED"
+        },
+        "visualAuthoring": "WEB-REFERENCED-RECONSTRUCTION",
+        "safeRollMinDeg": -12,
+        "safeRollMaxDeg": 12,
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Target specifies K-Flex No.2, Short, 19-mm shaft.",
+            "source": "https://www.target-darts.co.uk/nathan-aspinall-95k-sp"
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "Flight/rear visual is a local reconstruction."
+          }
+        ]
+      },
+      "bunting-95k-kflex-no2-short": {
+        "kind": "RearSystemDefinition",
+        "id": "bunting-95k-kflex-no2-short",
+        "name": "Stephen Bunting 95K K-Flex No.2 Short",
+        "rearThread": "2BA",
+        "integrated": true,
+        "system": "K-FLEX",
+        "shaftLengthMm": null,
+        "flightShape": "No.2",
+        "renderShaftLengthMm": 20,
+        "renderShaftDiameterMm": 5.2,
+        "renderFlightLengthMm": 43,
+        "renderFlightRadiusMm": 18.5,
+        "shaftTexture": "./assets/components/bunting-95k/rear-shaft.png",
+        "planeProfile": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            0.06,
+            0.34
+          ],
+          [
+            0.18,
+            0.96
+          ],
+          [
+            0.6,
+            1.0
+          ],
+          [
+            0.9,
+            0.82
+          ],
+          [
+            1.0,
+            0.45
+          ],
+          [
+            1.0,
+            -0.45
+          ],
+          [
+            0.9,
+            -0.82
+          ],
+          [
+            0.6,
+            -1.0
+          ],
+          [
+            0.18,
+            -0.96
+          ],
+          [
+            0.06,
+            -0.34
+          ]
+        ],
+        "planeATexture": "./assets/components/bunting-95k/flight-plane-a.png",
+        "planeBTexture": "./assets/components/bunting-95k/flight-plane-b-approx.png",
+        "faceEvidence": {
+          "planeA": "HEURISTIC",
+          "planeB": "APPROXIMATED"
+        },
+        "visualAuthoring": "WEB-REFERENCED-RECONSTRUCTION",
+        "safeRollMinDeg": -10,
+        "safeRollMaxDeg": 10,
+        "evidence": [
+          {
+            "status": "WEB-VERIFIED",
+            "note": "Target specifies Player-Edition No.2 K-Flex and Shaft Length “Short”.",
+            "source": "https://www.target-darts.co.uk/stephen-bunting-95k-sp"
+          },
+          {
+            "status": "UNKNOWN",
+            "note": "Product page box copy contains “33m”; exact millimetre shaft length is therefore intentionally not adopted as fact."
+          },
+          {
+            "status": "HEURISTIC",
+            "note": "20-mm render shaft length and visual artwork are builder/reconstruction heuristics."
+          }
+        ]
+      }
+    }
+  },
+  "presets": {
+    "prodigy-23": {
+      "kind": "DartPreset",
+      "id": "prodigy-23",
+      "name": "Target Luke Littler G1 Prodigy 23g",
+      "sourceImage": "./assets/source/target-luke-littler-g1-prodigy-95-swiss-23-gram_3.webp",
+      "sourcePage": null,
+      "sourceLabel": "Supplied source",
+      "sourceType": "SUPPLIED_SOURCE",
+      "pointId": "target-swiss-dx-gold-26",
+      "barrelId": "prodigy-23-barrel",
+      "shaftId": null,
+      "flightId": null,
+      "rearSystemId": "prodigy-kflex-no2-short",
+      "defaultPose": {
+        "incidenceDeg": 35,
+        "rollDeg": 0
+      },
+      "notes": [
+        "Local file says 95; current manufacturer page says 90%. Conflict is surfaced, not reconciled silently."
+      ]
+    },
+    "shift": {
+      "kind": "DartPreset",
+      "id": "shift",
+      "name": "Target Shift SP",
+      "sourceImage": "./assets/source/target-shift-sp-steeltip-90_3.webp",
+      "sourcePage": null,
+      "sourceLabel": "Supplied source",
+      "sourceType": "SUPPLIED_SOURCE",
+      "pointId": "target-swiss-grd-black-30",
+      "barrelId": "shift-barrel",
+      "shaftId": null,
+      "flightId": null,
+      "rearSystemId": "shift-kshift-no6-short",
+      "defaultPose": {
+        "incidenceDeg": 35,
+        "rollDeg": 0
+      },
+      "notes": [
+        "Barrel diameter uses 6.8 mm as render heuristic because source weight is unknown."
+      ]
+    },
+    "world-champion": {
+      "kind": "DartPreset",
+      "id": "world-champion",
+      "name": "Target Luke Littler G1 World Champion 23g",
+      "sourceImage": "./assets/source/target-luke-littler-world-champion-90-swiss-23-gram_3.webp",
+      "sourcePage": null,
+      "sourceLabel": "Supplied source",
+      "sourceType": "SUPPLIED_SOURCE",
+      "pointId": "target-swiss-slk-gold-35",
+      "barrelId": "world-champ-23-barrel",
+      "shaftId": null,
+      "flightId": null,
+      "rearSystemId": "world-kflex-no6-short",
+      "defaultPose": {
+        "incidenceDeg": 35,
+        "rollDeg": 0
+      },
+      "notes": []
+    },
+    "chrono": {
+      "kind": "DartPreset",
+      "id": "chrono",
+      "name": "Target Phil Taylor Power Chrono SP",
+      "sourceImage": "./assets/source/target-phil-taylor-power-chrono-sp-steeltip-95_3.webp",
+      "sourcePage": null,
+      "sourceLabel": "Supplied source",
+      "sourceType": "SUPPLIED_SOURCE",
+      "pointId": "target-swiss-chrono-silver-30",
+      "barrelId": "chrono-barrel",
+      "shaftId": "chrono-titanium-short",
+      "flightId": "chrono-vapor-s",
+      "rearSystemId": null,
+      "defaultPose": {
+        "incidenceDeg": 35,
+        "rollDeg": 0
+      },
+      "notes": [
+        "Weight variant not identifiable from local filename; render width is a neutral heuristic."
+      ]
+    },
+    "gary-phase6": {
+      "kind": "DartPreset",
+      "id": "gary-phase6",
+      "name": "Unicorn Gary Anderson Phase 6 90%",
+      "sourceImage": "./assets/source/unicorn-w-c-gary-anderson-phase-6-90_1.webp",
+      "sourcePage": null,
+      "sourceLabel": "Supplied source",
+      "sourceType": "SUPPLIED_SOURCE",
+      "pointId": "unicorn-steel-point-heuristic",
+      "barrelId": "gary-phase6-barrel",
+      "shaftId": "gary-gripper4",
+      "flightId": "gary-phase6-flight",
+      "rearSystemId": null,
+      "defaultPose": {
+        "incidenceDeg": 35,
+        "rollDeg": 0
+      },
+      "notes": [
+        "Source weight/point length unresolved; exact physical diameter must not be read from render heuristic."
+      ]
+    },
+    "auro": {
+      "kind": "DartPreset",
+      "id": "auro",
+      "name": "Shot Alchemy Auro (supplied 90% source)",
+      "sourceImage": "./assets/source/shot-alchemy-auro-90_3.webp",
+      "sourcePage": null,
+      "sourceLabel": "Supplied source",
+      "sourceType": "SUPPLIED_SOURCE",
+      "pointId": "shot-auro-point-35",
+      "barrelId": "auro-90-barrel",
+      "shaftId": "auro-koi-carbon",
+      "flightId": "auro-no6",
+      "rearSystemId": null,
+      "defaultPose": {
+        "incidenceDeg": 35,
+        "rollDeg": 0
+      },
+      "notes": [
+        "Source filename says 90%; current Shot Auro is 95%. Builder keeps the supplied source as a distinct/legacy variant and labels the version uncertainty."
+      ]
+    },
+    "supa-venom": {
+      "kind": "DartPreset",
+      "id": "supa-venom",
+      "name": "Red Dragon Peter Wright Supa-Venom",
+      "sourceImage": "./assets/source/PW2022_SupaVenom_Steel_LEFT.webp",
+      "sourcePage": null,
+      "sourceLabel": "Supplied source",
+      "sourceType": "SUPPLIED_SOURCE",
+      "pointId": "supa-steel-point",
+      "barrelId": "supa-barrel",
+      "shaftId": "supa-nitrotech-short",
+      "flightId": "supa-standard",
+      "rearSystemId": null,
+      "defaultPose": {
+        "incidenceDeg": 35,
+        "rollDeg": 0
+      },
+      "notes": []
+    },
+    "mandalorian-24": {
+      "kind": "DartPreset",
+      "id": "mandalorian-24",
+      "name": "Target Star Wars Mandalorian 24g (infographic preset)",
+      "sourceImage": "./assets/source/190840STARWARSMANDALORIAN95_STEElTIP_GALLERY_DE_PT01.webp",
+      "sourcePage": null,
+      "sourceLabel": "Supplied source",
+      "sourceType": "SUPPLIED_SOURCE",
+      "pointId": "mandalorian-storm-black-30",
+      "barrelId": "mandalorian-24-barrel",
+      "shaftId": null,
+      "flightId": null,
+      "rearSystemId": "mandalorian-kflex-short",
+      "defaultPose": {
+        "incidenceDeg": 35,
+        "rollDeg": 0
+      },
+      "notes": [
+        "Appearance extraction from infographic uses an image-space segmentation heuristic; geometry values are source/web grounded."
+      ]
+    },
+    "atat-23": {
+      "kind": "DartPreset",
+      "id": "atat-23",
+      "name": "Target Star Wars AT-AT 23g (infographic preset)",
+      "sourceImage": "./assets/source/190843-STARWARSAT-AT90_STEELTIP_GALLERY_DE_PT01.webp",
+      "sourcePage": null,
+      "sourceLabel": "Supplied source",
+      "sourceType": "SUPPLIED_SOURCE",
+      "pointId": "atat-storm-silver-30",
+      "barrelId": "atat-23-barrel",
+      "shaftId": "atat-progrip-short",
+      "flightId": "atat-no6",
+      "rearSystemId": null,
+      "defaultPose": {
+        "incidenceDeg": 35,
+        "rollDeg": 0
+      },
+      "notes": [
+        "Infographic appearance extraction is heuristic; dimensions are source/manufacturer grounded."
+      ]
+    },
+    "clemens-g2-23": {
+      "kind": "DartPreset",
+      "id": "clemens-g2-23",
+      "name": "Gabriel Clemens G2 23g",
+      "sourceImage": "./assets/source/web-clemens-g2-reconstruction.png",
+      "sourcePage": "https://www.target-darts.co.uk/gabriel-clemens-g2-sp",
+      "sourceLabel": "Target Gabriel Clemens G2 · web-referenced reconstruction",
+      "sourceType": "WEB-REFERENCED-RECONSTRUCTION",
+      "pointId": "clemens-g2-storm-nano-26",
+      "barrelId": "clemens-g2-23-barrel",
+      "shaftId": "clemens-g2-progrip-short",
+      "flightId": "clemens-g2-no6",
+      "rearSystemId": null,
+      "defaultPose": {
+        "incidenceDeg": 35,
+        "rollDeg": 0
+      },
+      "notes": [
+        "Physical dimensions are manufacturer-verified. Local visual assets are explicitly web-referenced reconstructions because remote product-image bytes are unavailable to the container."
+      ],
+      "referenceImageUrl": "https://www.doubletopdartshop.com/cdn/shop/files/190181_GabrielClemensG2SP.jpg?v=1728566875&width=1214"
+    },
+    "clemens-95k-23": {
+      "kind": "DartPreset",
+      "id": "clemens-95k-23",
+      "name": "Gabriel Clemens 95K 23g",
+      "sourceImage": "./assets/source/web-clemens-95k-reconstruction.png",
+      "sourcePage": "https://www.target-darts.co.uk/gabriel-clemens-95k-sp",
+      "sourceLabel": "Target Gabriel Clemens 95K · web-referenced reconstruction",
+      "sourceType": "WEB-REFERENCED-RECONSTRUCTION",
+      "pointId": "clemens-95k-storm-black-26",
+      "barrelId": "clemens-95k-23-barrel",
+      "shaftId": null,
+      "flightId": null,
+      "rearSystemId": "clemens-95k-kflex-no6-short",
+      "defaultPose": {
+        "incidenceDeg": 35,
+        "rollDeg": 0
+      },
+      "notes": [
+        "Integrated K-Flex remains one RearSystemDefinition. Safe roll is deliberately narrow because only one useful product view is source-observed."
+      ],
+      "referenceImageUrl": "https://www.dartswarehouse.nl/media/catalog/product/cache/f20831aa4fe732f409bd1d4a248f932d/image/314593a22/target-gabriel-clemens-95k-95-swiss.jpg"
+    },
+    "cross-95k-23": {
+      "kind": "DartPreset",
+      "id": "cross-95k-23",
+      "name": "Rob Cross 95K 23g",
+      "sourceImage": "./assets/source/web-cross-95k-reconstruction.png",
+      "sourcePage": "https://www.target-darts.co.uk/rob-cross-95k-sp",
+      "sourceLabel": "Target Rob Cross 95K · web-referenced reconstruction",
+      "sourceType": "WEB-REFERENCED-RECONSTRUCTION",
+      "pointId": "cross-95k-storm-surge-gold-26",
+      "barrelId": "cross-95k-23-barrel",
+      "shaftId": null,
+      "flightId": null,
+      "rearSystemId": "cross-95k-kflex-no6-short",
+      "defaultPose": {
+        "incidenceDeg": 35,
+        "rollDeg": 0
+      },
+      "notes": [],
+      "referenceImageUrl": "https://www.thedartdepot.co.nz/cdn/shop/files/RobCross95kDart_1_1024x.png?v=1733949037"
+    },
+    "aspinall-95k-22": {
+      "kind": "DartPreset",
+      "id": "aspinall-95k-22",
+      "name": "Nathan Aspinall 95K 22g",
+      "sourceImage": "./assets/source/web-aspinall-95k-reconstruction.png",
+      "sourcePage": "https://www.target-darts.co.uk/nathan-aspinall-95k-sp",
+      "sourceLabel": "Target Nathan Aspinall 95K · web-referenced reconstruction",
+      "sourceType": "WEB-REFERENCED-RECONSTRUCTION",
+      "pointId": "aspinall-95k-storm-black-26",
+      "barrelId": "aspinall-95k-22-barrel",
+      "shaftId": null,
+      "flightId": null,
+      "rearSystemId": "aspinall-95k-kflex-no2-short",
+      "defaultPose": {
+        "incidenceDeg": 35,
+        "rollDeg": 0
+      },
+      "notes": [],
+      "referenceImageUrl": "https://www.180darts.nl/images/show/product/target-nathan-aspinall-95k-swiss-point-95-dartpijlen.jpg"
+    },
+    "bunting-95k-23": {
+      "kind": "DartPreset",
+      "id": "bunting-95k-23",
+      "name": "Stephen Bunting 95K 23g",
+      "sourceImage": "./assets/source/web-bunting-95k-reconstruction.png",
+      "sourcePage": "https://www.target-darts.co.uk/stephen-bunting-95k-sp",
+      "sourceLabel": "Target Stephen Bunting 95K · web-referenced reconstruction",
+      "sourceType": "WEB-REFERENCED-RECONSTRUCTION",
+      "pointId": "bunting-95k-diamond-gold-26",
+      "barrelId": "bunting-95k-23-barrel",
+      "shaftId": null,
+      "flightId": null,
+      "rearSystemId": "bunting-95k-kflex-no2-short",
+      "defaultPose": {
+        "incidenceDeg": 35,
+        "rollDeg": 0
+      },
+      "notes": [
+        "Exact K-Flex millimetre length remains UNKNOWN because the current product-page copy is internally suspect; UI label “Short” is manufacturer-supported."
+      ],
+      "referenceImageUrl": "https://www.dartswarehouse.nl/media/catalog/product/cache/f20831aa4fe732f409bd1d4a248f932d/image/32443219e/target-stephen-bunting-95k-95-swiss.jpg"
+    },
+    "mvg-signature-22": {
+      "kind": "DartPreset",
+      "id": "mvg-signature-22",
+      "name": "Michael van Gerwen Signature Edition 22g",
+      "sourceImage": "./assets/source/web-mvg-signature-reconstruction.png",
+      "sourcePage": "https://winmau.com/en-de/products/mvg-signature-edition",
+      "sourceLabel": "Winmau MvG Signature · web-referenced reconstruction",
+      "sourceType": "WEB-REFERENCED-RECONSTRUCTION",
+      "pointId": "mvg-signature-steel-point",
+      "barrelId": "mvg-signature-22-barrel",
+      "shaftId": "mvg-signature-vecta-short",
+      "flightId": "mvg-signature-no2",
+      "rearSystemId": null,
+      "defaultPose": {
+        "incidenceDeg": 35,
+        "rollDeg": 0
+      },
+      "notes": [
+        "22g barrel dimensions come from a current retailer because Winmau’s current page exposes weights and profile but not dimensional table."
+      ],
+      "referenceImageUrl": "https://www.bullydarts.co.uk/cdn/shop/files/1550_MVG_Signature_22g_image1.jpg?v=1765467371&width=4472"
+    },
+    "humphries-prestige-22": {
+      "kind": "DartPreset",
+      "id": "humphries-prestige-22",
+      "name": "Luke Humphries Prestige 22g",
+      "sourceImage": "./assets/source/web-humphries-prestige-reconstruction.png",
+      "sourcePage": "https://winmau.com/en-de/products/luke-humphries-prestige-darts",
+      "sourceLabel": "Winmau Luke Humphries Prestige · web-referenced reconstruction",
+      "sourceType": "WEB-REFERENCED-RECONSTRUCTION",
+      "pointId": "humphries-prestige-black-point",
+      "barrelId": "humphries-prestige-22-barrel",
+      "shaftId": "humphries-prestige-nitrotech-short",
+      "flightId": "humphries-prestige-standard",
+      "rearSystemId": null,
+      "defaultPose": {
+        "incidenceDeg": 35,
+        "rollDeg": 0
+      },
+      "notes": [],
+      "referenceImageUrl": "https://www.reddragondarts.com/cdn/shop/files/2823_LUKEH_Prestige22gImage_3.jpg?v=1775031981&width=2667"
+    }
+  },
+  "sourceAnalysis": [
+    {
+      "file": "190840STARWARSMANDALORIAN95_STEElTIP_GALLERY_DE_PT01.webp",
+      "classification": "INTEGRATED_REAR_SYSTEM",
+      "identifiedAs": "Target Star Wars Mandalorian SP",
+      "confidence": "HIGH",
+      "reason": "Infografik benennt K-Flex, 2BA, 30/35-mm Swiss Point, 52-mm Barrel, 19-mm Short und No.6/No.2; damit ist ein integriertes Flight/Shaft-System explizit source-grounded.",
+      "evidence": [
+        {
+          "status": "SOURCE-GROUNDED",
+          "note": "Produkt-/Komponentenangaben sind direkt im Bild lesbar."
+        },
+        {
+          "status": "WEB-VERIFIED",
+          "note": "Target bestätigt Mandalorian SP, 95% Tungsten, 52-mm Barrel, 30-mm Swiss Storm Point und Short K-Flex.",
+          "source": "https://www.targetdarts.com/us/star-wars-mandalorian-sp"
+        }
+      ]
+    },
+    {
+      "file": "190843-STARWARSAT-AT90_STEELTIP_GALLERY_DE_PT01.webp",
+      "classification": "CLASSIC_MODULAR",
+      "identifiedAs": "Target Star Wars AT-AT SP",
+      "confidence": "HIGH",
+      "reason": "Infografik zeigt Pro Grip Short plus separate No.6-Flights; kein integriertes Rear-System.",
+      "evidence": [
+        {
+          "status": "SOURCE-GROUNDED",
+          "note": "30-mm Point, 47.55-mm Barrel, 34-mm Short-Shaft, No.6 im Bild."
+        },
+        {
+          "status": "WEB-VERIFIED",
+          "note": "Target bestätigt 90% Tungsten, Pro Grip Short, No.6 Pro Ultra Flight.",
+          "source": "https://www.targetdarts.com/us/star-wars-at-at-sp"
+        }
+      ]
+    },
+    {
+      "file": "9GHHawNA.webp",
+      "classification": "GEOMETRY_REFERENCE",
+      "identifiedAs": null,
+      "confidence": "LOW",
+      "reason": "Sehr sauberer freigestellter Broadside-Render mit deutlich sichtbarer Kreuzgeometrie am Rear-System; Produktidentität/Variante ist aus Datei und sichtbarer Beschriftung nicht belastbar rekonstruierbar. Deshalb Geometrie-Referenz, nicht Presetquelle.",
+      "evidence": [
+        {
+          "status": "SOURCE-GROUNDED",
+          "note": "Transparenter/isolierter Broadside-Render; Hinten ist eine molded/integrated wirkende Kreuzgeometrie sichtbar."
+        },
+        {
+          "status": "UNKNOWN",
+          "note": "Exakte Produktidentität und Maße nicht verifiziert."
+        }
+      ]
+    },
+    {
+      "file": "GNGTP_Gnasha-Angled.webp",
+      "classification": "ANGLED_REFERENCE",
+      "identifiedAs": "Shot Gnarly Gnasha Steel Tip 95%",
+      "confidence": "HIGH",
+      "reason": "Dateiname und sichtbarer Aufbau passen zum offiziellen Shot-Modell; die Aufnahme ist absichtlich schräg und damit Pose-/Materialreferenz, nicht kanonische Komponentenansicht.",
+      "evidence": [
+        {
+          "status": "SOURCE-GROUNDED",
+          "note": "Angled product view; kein orthogonaler Komponenten-Extract."
+        },
+        {
+          "status": "WEB-VERIFIED",
+          "note": "Shot führt Gnarly Gnasha Steel Tip 95% mit Turbo Points, Carbon-Shafts und No.6 Flight.",
+          "source": "https://www.shotdarts.com/products/gnarly-gnasha-steel-tip-dart-set-95-tungsten-barrels"
+        }
+      ]
+    },
+    {
+      "file": "PT01_a83f80b3-c589-4f2e-85c1-7cf911048504.webp",
+      "classification": "INTEGRATED_REAR_SYSTEM",
+      "identifiedAs": "Target Star Wars Darth Vader SP (matched)",
+      "confidence": "MEDIUM_HIGH",
+      "reason": "Infografik nennt 95%, 52 mm, 30/35-mm Swiss Point, 19-mm Short, K-Flex und No.6/No.2. Diese Kombination stimmt mit Darth Vader SP überein; Dateiname selbst nennt das Modell nicht.",
+      "evidence": [
+        {
+          "status": "SOURCE-GROUNDED",
+          "note": "K-Flex/2BA und Maße direkt im Bild."
+        },
+        {
+          "status": "WEB-VERIFIED",
+          "note": "Target Darth Vader SP hat dieselbe Kernkonfiguration.",
+          "source": "https://www.targetdarts.com/us/darth-vader-sp"
+        },
+        {
+          "status": "HEURISTIC",
+          "note": "Modellzuordnung ist ein Match aus Artwork + Spezifikationen, nicht aus dem Dateinamen."
+        }
+      ]
+    },
+    {
+      "file": "PT02_ffd9f2ed-6a52-43e8-9f62-027742ec8be4.webp",
+      "classification": "INTEGRATED_REAR_SYSTEM",
+      "identifiedAs": "Target Luke Littler Edge SP (matched)",
+      "confidence": "HIGH",
+      "reason": "THE NUKE-Artwork, 95%, 52-mm Barrel, 30/42-mm Swiss Point und No.2 K-Flex Short stimmen mit Luke Littler Edge SP überein.",
+      "evidence": [
+        {
+          "status": "SOURCE-GROUNDED",
+          "note": "K-Flex, Maße und Gewichte 22/23/24 direkt im Bild."
+        },
+        {
+          "status": "WEB-VERIFIED",
+          "note": "Target Edge SP bestätigt 95%, 52-mm Barrel, No.2 K-Flex und Varianten.",
+          "source": "https://www.targetdarts.com/us/luke-littler-edge-sp"
+        }
+      ]
+    },
+    {
+      "file": "PW2022_SupaVenom_Steel_LEFT.webp",
+      "classification": "CLASSIC_MODULAR",
+      "identifiedAs": "Red Dragon Peter Wright Supa-Venom Steel Tip",
+      "confidence": "HIGH",
+      "reason": "Freigestellte orthogonale Seitenansicht mit klar getrenntem Barrel, klassischem Shaft und Standard-Flight.",
+      "evidence": [
+        {
+          "status": "SOURCE-GROUNDED",
+          "note": "Broadside source suitable for modular extraction."
+        },
+        {
+          "status": "WEB-VERIFIED",
+          "note": "Red Dragon bestätigt Nitrotech polycarbonate short shaft und Players extra thick standard flights.",
+          "source": "https://www.reddragondarts.com/products/peter-wright-supa-venom-darts"
+        }
+      ]
+    },
+    {
+      "file": "S5-1_22b0f7a4-0463-42e0-8623-49ef67353563_1.webp",
+      "classification": "NEEDS_MANUAL_REVIEW",
+      "identifiedAs": null,
+      "confidence": "LOW",
+      "reason": "Broadside-Aufnahme ist sehr brauchbar, aber Produktname, Rear-Systemtyp und reale Maße sind nicht aus der Quelle verifizierbar. Ein Preset würde sonst Scheingenauigkeit erzeugen.",
+      "evidence": [
+        {
+          "status": "SOURCE-GROUNDED",
+          "note": "Klarer Broadside-Render mit schwarzem Rear-System."
+        },
+        {
+          "status": "UNKNOWN",
+          "note": "Produktidentität, Verbindungstyp und Maße fehlen."
+        }
+      ]
+    },
+    {
+      "file": "S5-1_d5e583f9-5bbe-4728-b176-4f516d0960b3.webp",
+      "classification": "NEEDS_MANUAL_REVIEW",
+      "identifiedAs": null,
+      "confidence": "LOW",
+      "reason": "Sehr sauberer Broadside-Render, aber unbekanntes Produkt/Logo und keine belastbaren Spezifikationen. Als Designquelle erst nach Identifikation freigeben.",
+      "evidence": [
+        {
+          "status": "SOURCE-GROUNDED",
+          "note": "Broadside-Render mit schwarzem grafischem Flight."
+        },
+        {
+          "status": "UNKNOWN",
+          "note": "Produktidentität, Maße, Flight-/Shaftsystem nicht verifiziert."
+        }
+      ]
+    },
+    {
+      "file": "shot-alchemy-auro-90_3.webp",
+      "classification": "CLASSIC_MODULAR",
+      "identifiedAs": "Shot Alchemy Auro 90% source variant",
+      "confidence": "HIGH",
+      "reason": "Orthogonale Produktaufnahme mit separatem Shaft und Flight. Dateiname nennt 90%; aktuelle Shot-Seite führt eine 95%-Version. Daher Versionskonflikt ausdrücklich erhalten.",
+      "evidence": [
+        {
+          "status": "SOURCE-GROUNDED",
+          "note": "Dateiname bezeichnet 90%-Variante; Bild zeigt klassisches Shaft+Flight-Setup."
+        },
+        {
+          "status": "WEB-VERIFIED",
+          "note": "Aktuelle Shot-Seite führt Auro 95% mit 35-mm Point, Koi Carbon Inbetween und No.6.",
+          "source": "https://www.shotdarts.com/products/alchemy-auro-steel-tip-dart-set-95-tungsten-barrels"
+        },
+        {
+          "status": "WEB-VERIFIED",
+          "note": "Retailer dokumentiert Auro 90% in 23/24/25g mit 46/47/47 mm Barrel.",
+          "source": "https://www.dartswarehouse.de/shot-alchemy-auro-90.html"
+        }
+      ]
+    },
+    {
+      "file": "target-luke-littler-g1-prodigy-95-swiss-23-gram_3.webp",
+      "classification": "INTEGRATED_REAR_SYSTEM",
+      "identifiedAs": "Target Luke Littler G1 Prodigy SP 23g",
+      "confidence": "HIGH",
+      "reason": "Dateiname nennt Produkt und 23g; Bild zeigt K-Flex. Hersteller führt das aktuelle G1 Prodigy allerdings als 90%, nicht 95%; der Dateiname ist daher bezüglich Tungsten-Prozent widersprüchlich.",
+      "evidence": [
+        {
+          "status": "SOURCE-GROUNDED",
+          "note": "Dateiname: G1 Prodigy, 23 gram, „95“; sichtbares purple K-Flex."
+        },
+        {
+          "status": "WEB-VERIFIED",
+          "note": "Target: 23g = 52 x 6.5 mm, 26-mm Swiss DX, No.2 K-Flex Short; Material 90%.",
+          "source": "https://www.targetdarts.com/eu/luke-littler-g1-prodigy-sp"
+        },
+        {
+          "status": "UNKNOWN",
+          "note": "Warum die lokale Datei „95“ nennt, ist nicht geklärt; nicht als Herstellerfakt übernehmen."
+        }
+      ]
+    },
+    {
+      "file": "target-luke-littler-world-champion-90-swiss-23-gram_3.webp",
+      "classification": "INTEGRATED_REAR_SYSTEM",
+      "identifiedAs": "Target Luke Littler G1 World Champion SP 23g",
+      "confidence": "HIGH",
+      "reason": "Dateiname und Produktbild eindeutig; integriertes World Champion K-Flex.",
+      "evidence": [
+        {
+          "status": "SOURCE-GROUNDED",
+          "note": "23g im Dateinamen; sichtbares integriertes Rear-System."
+        },
+        {
+          "status": "WEB-VERIFIED",
+          "note": "Target: 52 x 6.5 mm, 35-mm Swiss SLK, No.6, K-Flex Short.",
+          "source": "https://www.targetdarts.com/us/luke-littler-world-champion-sp"
+        }
+      ]
+    },
+    {
+      "file": "target-phil-taylor-power-chrono-sp-steeltip-95_3.webp",
+      "classification": "CLASSIC_MODULAR",
+      "identifiedAs": "Target Phil Taylor Power Chrono SP",
+      "confidence": "HIGH",
+      "reason": "Produktbild zeigt separates Power Chrono Shaft-/Flight-Setup; keine integrierte Rear-Einheit.",
+      "evidence": [
+        {
+          "status": "SOURCE-GROUNDED",
+          "note": "Orthogonaler Produkt-Render."
+        },
+        {
+          "status": "WEB-VERIFIED",
+          "note": "Target: 95%, 30/35-mm Swiss Chrono Points, Short 22.4-mm Titanium Shafts; Vapor S/No.2/No.6 im Set.",
+          "source": "https://www.targetdarts.com/us/phil-taylor-power-chrono-sp"
+        }
+      ]
+    },
+    {
+      "file": "target-shift-sp-steeltip-90_3.webp",
+      "classification": "INTEGRATED_REAR_SYSTEM",
+      "identifiedAs": "Target Shift SP",
+      "confidence": "HIGH",
+      "reason": "Produktbild zeigt K-Shift-artiges einteiliges Rear-System; Hersteller bestätigt K-Shift als integriertes Flight-/Shaftsystem.",
+      "evidence": [
+        {
+          "status": "SOURCE-GROUNDED",
+          "note": "Red integrated rear visible in source."
+        },
+        {
+          "status": "WEB-VERIFIED",
+          "note": "Target: 90%, 50-mm Barrel, 30-mm Swiss GRD, No.6 K-Shift Short.",
+          "source": "https://www.targetdarts.de/shift-sp"
+        }
+      ]
+    },
+    {
+      "file": "unicorn-w-c-gary-anderson-phase-6-90_1.webp",
+      "classification": "CLASSIC_MODULAR",
+      "identifiedAs": "Unicorn Gary Anderson Phase 6 90%",
+      "confidence": "HIGH",
+      "reason": "Orthogonaler Produkt-Render mit klassischem Gripper-Shaft und separatem Flight.",
+      "evidence": [
+        {
+          "status": "SOURCE-GROUNDED",
+          "note": "Separate shaft/flight visually clear."
+        },
+        {
+          "status": "WEB-VERIFIED",
+          "note": "Dartshopper/Double Top dokumentieren die Gewichtsvarianten und Barrelmaße.",
+          "source": "https://www.dartshopper.com/unicorn-gary-anderson-phase-6-90/"
+        },
+        {
+          "status": "UNKNOWN",
+          "note": "Die konkrete Gewichtsvariante des lokalen Bildes ist nicht im Dateinamen codiert."
+        }
+      ]
+    }
+  ],
+  "webPlayerSources": [
+    {
+      "presetId": "clemens-g2-23",
+      "player": "Gabriel Clemens",
+      "product": "Target Gabriel Clemens G2 SP 23g",
+      "officialPage": "https://www.target-darts.co.uk/gabriel-clemens-g2-sp",
+      "imageReference": "https://www.doubletopdartshop.com/cdn/shop/files/190181_GabrielClemensG2SP.jpg?v=1728566875&width=1214",
+      "visualStatus": "WEB-REFERENCED-RECONSTRUCTION"
+    },
+    {
+      "presetId": "clemens-95k-23",
+      "player": "Gabriel Clemens",
+      "product": "Target Gabriel Clemens 95K SP 23g",
+      "officialPage": "https://www.target-darts.co.uk/gabriel-clemens-95k-sp",
+      "imageReference": "https://www.dartswarehouse.nl/media/catalog/product/cache/f20831aa4fe732f409bd1d4a248f932d/image/314593a22/target-gabriel-clemens-95k-95-swiss.jpg",
+      "visualStatus": "WEB-REFERENCED-RECONSTRUCTION"
+    },
+    {
+      "presetId": "cross-95k-23",
+      "player": "Rob Cross",
+      "product": "Target Rob Cross 95K SP 23g",
+      "officialPage": "https://www.target-darts.co.uk/rob-cross-95k-sp",
+      "imageReference": "https://www.thedartdepot.co.nz/cdn/shop/files/RobCross95kDart_1_1024x.png?v=1733949037",
+      "visualStatus": "WEB-REFERENCED-RECONSTRUCTION"
+    },
+    {
+      "presetId": "aspinall-95k-22",
+      "player": "Nathan Aspinall",
+      "product": "Target Nathan Aspinall 95K SP 22g",
+      "officialPage": "https://www.target-darts.co.uk/nathan-aspinall-95k-sp",
+      "imageReference": "https://www.180darts.nl/images/show/product/target-nathan-aspinall-95k-swiss-point-95-dartpijlen.jpg",
+      "visualStatus": "WEB-REFERENCED-RECONSTRUCTION"
+    },
+    {
+      "presetId": "bunting-95k-23",
+      "player": "Stephen Bunting",
+      "product": "Target Stephen Bunting 95K SP 23g",
+      "officialPage": "https://www.target-darts.co.uk/stephen-bunting-95k-sp",
+      "imageReference": "https://www.dartswarehouse.nl/media/catalog/product/cache/f20831aa4fe732f409bd1d4a248f932d/image/32443219e/target-stephen-bunting-95k-95-swiss.jpg",
+      "visualStatus": "WEB-REFERENCED-RECONSTRUCTION"
+    },
+    {
+      "presetId": "mvg-signature-22",
+      "player": "Michael van Gerwen",
+      "product": "Winmau MvG Signature Edition 22g",
+      "officialPage": "https://winmau.com/en-de/products/mvg-signature-edition",
+      "imageReference": "https://www.bullydarts.co.uk/cdn/shop/files/1550_MVG_Signature_22g_image1.jpg?v=1765467371&width=4472",
+      "visualStatus": "WEB-REFERENCED-RECONSTRUCTION"
+    },
+    {
+      "presetId": "humphries-prestige-22",
+      "player": "Luke Humphries",
+      "product": "Luke Humphries Prestige 22g",
+      "officialPage": "https://winmau.com/en-de/products/luke-humphries-prestige-darts",
+      "imageReference": "https://www.reddragondarts.com/cdn/shop/files/2823_LUKEH_Prestige22gImage_3.jpg?v=1775031981&width=2667",
+      "visualStatus": "WEB-REFERENCED-RECONSTRUCTION"
+    }
+  ]
+}

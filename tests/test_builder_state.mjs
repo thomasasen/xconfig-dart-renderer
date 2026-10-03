@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import {createBuilderState,mutateBuilderState,resetBuilderState} from '../src/builder-state.js';
+const catalog=JSON.parse(fs.readFileSync(new URL('../data/catalog.json',import.meta.url),'utf8'));
+const p=catalog.presets['prodigy-23'];
+const state=createBuilderState('prodigy-23',p);
+const original=structuredClone(state.selection);
+mutateBuilderState(state,'pointId','target-swiss-slk-gold-35');
+assert.equal(state.currentPresetId,'prodigy-23');
+assert.equal(state.dirty,true);
+assert.notDeepEqual(state.selection,original);
+resetBuilderState(state,'prodigy-23',p);
+assert.equal(state.dirty,false);
+assert.deepEqual(state.selection,original);
+console.log('PASS: preset -> manual component change -> reset restores exact preset selection');

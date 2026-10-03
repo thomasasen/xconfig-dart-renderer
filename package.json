@@ -1,0 +1,19 @@
+{
+  "name": "xconfig-dart-renderer",
+  "version": "1.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "npm run setup-assets && python -m http.server 4173",
+    "validate": "npm run setup-assets && python tests/test_catalog.py && node tests/test_builder_state.mjs && node tests/test_compatibility.mjs && node tests/test_geometry.mjs && node --check src/geometry.js && node --check src/renderer.js && node --check src/compatibility.js && node --check src/builder-state.js && node --check src/app.js",
+    "qa": "python scripts/browser_qa.py",
+    "qa:static": "python scripts/qa_static.py",
+    "qa:pose": "python scripts/software_pose_qa.py",
+    "qa:browser": "python scripts/browser_qa.py",
+    "qa:all": "python scripts/qa_static.py && python scripts/software_pose_qa.py && python scripts/browser_qa.py",
+    "setup-assets": "python scripts/restore_source_bundle.py && python scripts/author_assets.py && python scripts/web_player_assets.py && python scripts/build_catalog.py"
+  },
+  "dependencies": {
+    "three": "0.180.0"
+  }
+}
