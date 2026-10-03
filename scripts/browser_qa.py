@@ -20,7 +20,7 @@ except Exception as e:
 def wait_render(page,pid,timeout=15000):
     page.wait_for_function(
         """pid => window.__POC_LAST_RENDER__ && window.__POC_LAST_RENDER__.presetId === pid""",
-        pid,
+        arg=pid,
         timeout=timeout,
     )
     return page.evaluate('window.__POC_LAST_RENDER__')
@@ -142,12 +142,12 @@ try:
         if loss_request.get('supported'):
             page.wait_for_function(
                 '(before)=>window.__RENDERER__.contextStats().lost > before.lost',
-                before,
+                arg=before,
                 timeout=4000,
             )
             page.wait_for_function(
                 '(before)=>window.__RENDERER__.contextStats().restored > before.restored && window.__RENDERER__.invalid === false',
-                before,
+                arg=before,
                 timeout=10000,
             )
             after=page.evaluate('window.__RENDERER__.contextStats()')
