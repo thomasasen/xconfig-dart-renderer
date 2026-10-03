@@ -2,6 +2,7 @@ from pathlib import Path
 import json, sys, math, re
 ROOT=Path(__file__).resolve().parents[1]
 cat=json.loads((ROOT/'data/catalog.json').read_text())
+author=json.loads((ROOT/'data/authoring-metadata.json').read_text())
 errors=[]
 def check(cond,msg):
     if not cond: errors.append(msg)
@@ -77,6 +78,18 @@ for pid,entry in web_sources.items():
         check(provenance.get('barrel')=='SOURCE-GROUNDED',f'{pid}: barrel not source-grounded')
         check(provenance.get('flight-plane-a')=='SOURCE-GROUNDED',f'{pid}: plane A not source-grounded')
         check(provenance.get('flight-plane-b-approx')=='APPROXIMATED',f'{pid}: plane B must remain approximated')
+
+# G2 Plane A must come from the exact flat No.6 source, not from the assembled
+# dart's already-perspectival composite flight. This prevents a regression to the
+# original four-times/composite-flight failure mode.
+g2_author=author.get('clemens-g2',{})
+g2_sources=g2_author.get('componentSources',{})
+check(bool(g2_sources.get('flight-plane-a')), 'clemens-g2: missing dedicated Plane-A source')
+check(g2_sources.get('flight-plane-a') != g2_author.get('sourceUrl'), 'clemens-g2: Plane A must not reuse assembled composite-flight image')
+check('336870' in g2_sources.get('flight-plane-a',''), 'clemens-g2: Plane A must use exact G2 No.6 SKU 336870 source')
+
+k95_author=author.get('clemens-95k',{})
+check('gabriel-clemens-95k-steel-tip-dart-sp-03.jpg' in k95_author.get('sourceUrl',''), 'clemens-95k: expected official complete side-view source')
 
 # Visible preset labels are render-design identities, not SKU/weight identities.
 for pid,p in cat['presets'].items():
