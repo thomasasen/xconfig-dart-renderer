@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import {validateAssembly} from '../src/compatibility.js';
+const catalog=JSON.parse(fs.readFileSync(new URL('../data/catalog.json',import.meta.url),'utf8'));
+const c=catalog.components;
+const resolve=p=>({point:c.points[p.pointId],barrel:c.barrels[p.barrelId],rearSystem:p.rearSystemId?c.rearSystems[p.rearSystemId]:null,shaft:p.shaftId?c.shafts[p.shaftId]:null,flight:p.flightId?c.flights[p.flightId]:null});
+for(const [id,p] of Object.entries(catalog.presets)) assert.equal(validateAssembly(resolve(p)).valid,true,`${id} must be compatible`);
+const bad={point:c.points['target-swiss-dx-gold-26'],barrel:c.barrels['auro-90-barrel'],rearSystem:null,shaft:c.shafts['auro-koi-carbon'],flight:c.flights['auro-no6']};
+assert.equal(validateAssembly(bad).valid,false,'Swiss point must not fit press-fit barrel');
+const doubled={...resolve(catalog.presets['prodigy-23']),shaft:c.shafts['gary-gripper4'],flight:c.flights['gary-phase6-flight']};
+assert.equal(validateAssembly(doubled).valid,false,'integrated rear must exclude separate shaft/flight');
+console.log('PASS: all presets compatible; incompatible Swiss/press-fit and doubled rear assemblies rejected');
