@@ -109,7 +109,7 @@ try:
 
         preset_ids=page.evaluate('Object.keys(window.__CATALOG__.presets)')
         visible_names=page.evaluate('Object.fromEntries(Object.entries(window.__CATALOG__.presets).map(([id,p])=>[id,p.name]))')
-        weight_re=re.compile(r'\\b\\d+(?:[.,]\\d+)?\\s*g\\b',re.I)
+        weight_re=re.compile(r'\b\d+(?:[.,]\d+)?\s*g\b',re.I)
         weight_label_violations={pid:name for pid,name in visible_names.items() if weight_re.search(name or '')}
         labels_ok=not weight_label_violations
         results=[]
