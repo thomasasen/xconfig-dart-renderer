@@ -51,6 +51,24 @@ def alpha_white(img: Image.Image)->Image.Image:
     arr[:,:,3]=alpha
     return Image.fromarray(arr,'RGBA')
 
+def alpha_connected_white_background(img:Image.Image)->Image.Image:
+    """Remove only border-connected catalogue white, preserving white printed artwork."""
+    arr=np.array(img.convert('RGBA')).copy()
+    rgb=arr[:,:,:3].astype(np.int16)
+    lo=rgb.min(axis=2); hi=rgb.max(axis=2); chroma=hi-lo
+    candidate=((lo>242)&(chroma<12)).astype(np.uint8)
+    n,labels,_,_=cv2.connectedComponentsWithStats(candidate,8)
+    border_labels=set(np.unique(np.concatenate([labels[0,:],labels[-1,:],labels[:,0],labels[:,-1]])))
+    bg=np.zeros(candidate.shape,np.uint8)
+    for lab in border_labels:
+        if lab==0: continue
+        bg[labels==lab]=255
+    # Slightly feather only the outside boundary; enclosed white logos remain opaque.
+    bg=Image.fromarray(bg,'L').filter(ImageFilter.GaussianBlur(.65))
+    alpha=255-np.asarray(bg,dtype=np.uint8)
+    arr[:,:,3]=np.minimum(arr[:,:,3],alpha).astype(np.uint8)
+    return trim_alpha(Image.fromarray(arr,'RGBA'),3)
+
 def alpha_dark_roi(img: Image.Image, roi)->Image.Image:
     # Tight infographic extraction. We deliberately reject panel rules/text and keep only
     # pixels that differ materially from a per-column background estimate inside a dart-shaped corridor.
@@ -213,7 +231,7 @@ def prepare_dedicated_flight_face(spec):
     # The selected catalogue image is a clean front view with the black K-Flex on
     # the left and a clear/red K-Flex on the right. Work only with the black half.
     left=raw.crop((0,0,max(1,raw.width//2),raw.height))
-    isolated=largest_alpha_component(alpha_white(left),20)
+    isolated=largest_alpha_component(alpha_connected_white_background(left),20)
     # Catalogue orientation: shaft points down. Rotate clockwise so the flight root
     # points left, matching the xConfig canonical component convention.
     horizontal=trim_alpha(isolated.transpose(Image.Transpose.ROTATE_270),3)
