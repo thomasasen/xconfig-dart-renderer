@@ -26,6 +26,13 @@ SOURCE_GROUNDED_SPECS = {
         'profile': None,  # filled after NO6 is defined
         'splits': [0.17, 0.51, 0.73],
         'officialPage': 'https://www.target-darts.co.uk/gabriel-clemens-g2-sp',
+        'flightProductPage': 'https://www.target-darts.co.uk/gabriel-clemens-g2-flights',
+        'flightSources': [
+            # Exact G2 Pro.Ultra No.6 (SKU 336870), photographed flat. This is used
+            # instead of the assembled-dart composite flight crop.
+            'https://www.bullydarts.co.uk/cdn/shop/files/336870GABRIELCLEMENSG2x3SETSPRO.ULTRANO.6FLIGHTBAGGED2023FLAT_1.jpg?v=1694594825&width=3111',
+            'https://dartgott.de/media/02/e0/25/1718815398/target-gabriel-clemens-g2-pro-ultra-no6-flights-3-sets.webp?ts=1781909020',
+        ],
         'sources': [
             # Manufacturer first. Retail broadside is a fallback if the official box-content
             # composition does not contain a usable complete assembled dart.
@@ -203,6 +210,24 @@ def _best_elongated_roi(image):
         )
     return result
 
+def _prepare_flat_flight_texture(spec):
+    urls=spec.get('flightSources') or []
+    if not urls:
+        return None,None
+    image,source_url=_download_product_image(urls)
+    rgba=image.convert('RGBA')
+    # Flat accessory photos are intentionally not colour-keyed: white artwork is part
+    # of the printed flight and must not disappear into a white catalogue background.
+    # Geometry supplies the No.6 silhouette, so only trim a tiny outer catalogue margin.
+    w,h=rgba.size
+    margin=max(0,round(min(w,h)*0.005))
+    if margin and w>margin*2 and h>margin*2:
+        rgba=rgba.crop((margin,margin,w-margin,h-margin))
+    # Product face is photographed upright; rotate to the canonical xConfig convention
+    # where the flight root is on the left and the trailing edge on the right.
+    rgba=rgba.transpose(Image.Transpose.ROTATE_270)
+    return rgba,source_url
+
 def _split_source_grounded(key,spec):
     errors=[]
     dart=None
@@ -230,6 +255,11 @@ def _split_source_grounded(key,spec):
         bbox=part.getbbox()
         if bbox: part=part.crop(bbox)
         parts[name]=part
+
+    flight_texture,flight_source_url=_prepare_flat_flight_texture(spec)
+    if flight_texture is not None:
+        parts['flight-plane-a']=flight_texture
+
     # Plane B is intentionally only an approximation. Do not mirror source artwork:
     # mirrored text/logo would falsely imply known reverse-side pixels.
     parts['flight-plane-b-approx']=backface(parts['flight-plane-a'])
@@ -246,6 +276,14 @@ def _split_source_grounded(key,spec):
         'sourceFile':source_name,
         'sourceUrl':source_url,
         'sourcePage':spec['officialPage'],
+        'flightProductPage':spec.get('flightProductPage'),
+        'componentSources':{
+            'point':source_url,
+            'barrel':source_url,
+            'rear-shaft' if spec['integrated'] else 'shaft':source_url,
+            'flight-plane-a':flight_source_url or source_url,
+            'flight-plane-b-approx':'derived approximation; no independent source',
+        },
         'originalPixels':True,
         'processing':[
             'temporary web download',
@@ -254,6 +292,7 @@ def _split_source_grounded(key,spec):
             'orientation normalisation (tip left)',
             'alpha silhouette extraction',
             'component crop only; RGB pixels not redrawn',
+            'when an exact flat flight source exists, Plane A is replaced by that flat source before 3D mapping',
         ],
         'splitFractions':spec['splits'],
         'splitsPx':[p1,p2,p3],
