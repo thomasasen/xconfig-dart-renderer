@@ -210,6 +210,27 @@ def _best_elongated_roi(image):
         )
     return result
 
+def _mask_to_flight_profile(image, profile):
+    rgba=image.convert('RGBA')
+    w,h=rgba.size
+    # Build alpha exclusively from the canonical flight geometry. This preserves white
+    # printed artwork even when the catalogue background is also white.
+    scale=4
+    mask=Image.new('L',(w*scale,h*scale),0)
+    draw=ImageDraw.Draw(mask)
+    pts=[]
+    for u,v in profile:
+        x=float(u)*(w-1)*scale
+        y=(0.5-float(v)*0.5)*(h-1)*scale
+        pts.append((x,y))
+    draw.polygon(pts,fill=255)
+    mask=mask.resize((w,h),Image.Resampling.LANCZOS)
+    source_alpha=rgba.getchannel('A')
+    alpha=np.minimum(np.asarray(source_alpha,dtype=np.uint8),np.asarray(mask,dtype=np.uint8))
+    out=np.asarray(rgba).copy()
+    out[:,:,3]=alpha
+    return Image.fromarray(out,'RGBA')
+
 def _prepare_flat_flight_texture(spec):
     urls=spec.get('flightSources') or []
     if not urls:
@@ -226,6 +247,7 @@ def _prepare_flat_flight_texture(spec):
     # Product face is photographed upright; rotate to the canonical xConfig convention
     # where the flight root is on the left and the trailing edge on the right.
     rgba=rgba.transpose(Image.Transpose.ROTATE_270)
+    rgba=_mask_to_flight_profile(rgba,spec['profile'])
     return rgba,source_url
 
 def _split_source_grounded(key,spec):
