@@ -59,7 +59,7 @@ def flight(id,name,shape,product,evidence=None,renderLength=42,renderRadius=18,p
 def rear(id,name,system,length,shape,product,evidence=None,renderFlightLength=42,renderRadius=18,safe=(-18,18),planeAStatus=SRC,visualAuthoring='SOURCE-GROUNDED'):
  fm=flight_meta(product)
  rears[id]={'kind':'RearSystemDefinition','id':id,'name':visible_preset_name(name),'rearThread':'2BA','integrated':True,'system':system,'shaftLengthMm':length,'flightShape':shape,'renderShaftLengthMm':length or 20,'renderShaftDiameterMm':5.2,'renderFlightLengthMm':renderFlightLength,'renderFlightRadiusMm':renderRadius,'shaftTexture':tex(product,'rear-shaft'),'planeProfile':profile(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'planeAProvenance':fm['planeAProvenance'],'planeBProvenance':fm['planeBProvenance'],'flightExtractionMode':fm['flightExtractionMode'],'flightApproximation':fm['flightApproximation'],'visualAuthoring':visualAuthoring,'safeRollMinDeg':safe[0],'safeRollMaxDeg':safe[1],'evidence':evidence or []}
-WEIGHT_RE=re.compile(r'\\s+(\\d+(?:[.,]\\d+)?)\\s*g\\b',re.IGNORECASE)
+WEIGHT_RE=re.compile(r'\s+(\d+(?:[.,]\d+)?)\s*g\b',re.IGNORECASE)
 
 def visible_preset_name(name):
  # Weight is variant metadata, never part of the user-facing render-design identity.
