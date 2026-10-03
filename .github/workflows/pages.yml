@@ -44,6 +44,9 @@ jobs:
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
 
+      - name: Install Chromium for browser QA
+        run: python -m playwright install --with-deps chromium
+
       - name: Validate catalog, geometry and source contracts
         run: npm run validate
 
@@ -51,6 +54,9 @@ jobs:
         run: |
           python scripts/qa_static.py
           python scripts/software_pose_qa.py
+
+      - name: Run browser and WebGL QA
+        run: python scripts/browser_qa.py
 
       - name: Upload V1.3 QA artifact
         if: github.event_name == 'pull_request'
@@ -73,6 +79,10 @@ jobs:
             outputs/gallery/pose-clemens-95k-23.jpg
             outputs/qa/static-qa.json
             outputs/qa/software-pose-qa.json
+            outputs/qa/browser-qa.json
+            outputs/qa/builder-ui.png
+            outputs/qa/seam-clemens-g2-23.png
+            outputs/qa/seam-clemens-95k-23.png
 
       - name: Build static Pages site
         if: github.event_name != 'pull_request'
