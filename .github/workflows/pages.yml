@@ -67,6 +67,8 @@ jobs:
             assets/source/web-clemens-95k-source-grounded.png
             outputs/comparisons/clemens-g2-23.jpg
             outputs/comparisons/clemens-95k-23.jpg
+            outputs/comparisons/clemens-g2-23-v1.3-triptych.jpg
+            outputs/comparisons/clemens-95k-23-v1.3-triptych.jpg
             outputs/gallery/pose-clemens-g2-23.jpg
             outputs/gallery/pose-clemens-95k-23.jpg
             outputs/qa/static-qa.json
