@@ -18,7 +18,7 @@ def flight_meta(product):
  m=meta.get(product,{})
  provenance=m.get('componentProvenance',{})
  return {
-  'planeAProvenance':m.get('flightPlaneAProvenance') or provenance.get('flight-plane-a') or 'SOURCE-GROUNDED',
+  'planeAProvenance':m.get('flightPlaneAProvenance') or provenance.get('flight-plane-a') or ('HEURISTIC' if str(m.get('authoringStatus','')).startswith('WEB-REFERENCED-RECONSTRUCTION') else 'SOURCE-GROUNDED'),
   'planeBProvenance':m.get('flightPlaneBProvenance') or provenance.get('flight-plane-b-approx') or 'APPROXIMATED',
   'flightExtractionMode':m.get('flightExtractionMode','DIRECT_SOURCE_FACE'),
   'flightApproximation':m.get('flightApproximation'),
@@ -77,19 +77,19 @@ def preset(id,name,source,pointId,barrelId,shaftId=None,flightId=None,rearId=Non
 # Prodigy 23g exact variant
 point('target-swiss-dx-gold-26','Target Swiss DX Gold 26 mm','SWISS_POINT',26,2.1,'prodigy',evidence=[ev(WEB,'26-mm Swiss DX is the fitted point; 30 mm also supplied.','https://www.targetdarts.com/eu/luke-littler-g1-prodigy-sp')])
 barrel('prodigy-23-barrel','Luke Littler G1 Prodigy 23g Barrel','SWISS_POINT',52,6.5,'prodigy','straight',evidence=[ev(WEB,'23g: 52 x 6.5 mm; current official material 90%.','https://www.targetdarts.com/eu/luke-littler-g1-prodigy-sp'),ev(UNK,'Local filename says 95; not treated as manufacturer fact.')])
-rear('prodigy-kflex-no2-short','Prodigy Purple K-Flex No.2 Short','K-FLEX',19,'No.2','prodigy',evidence=[ev(WEB,'No.2 K-Flex Short 19 mm.','https://www.targetdarts.com/eu/luke-littler-g1-prodigy-sp')],renderFlightLength=43,renderRadius=18.5,safe=(-20,20))
+rear('prodigy-kflex-no2-short','Prodigy Purple K-Flex No.2 Short','K-FLEX',19,'No.2','prodigy',evidence=[ev(WEB,'No.2 K-Flex Short 19 mm.','https://www.targetdarts.com/eu/luke-littler-g1-prodigy-sp')],renderFlightLength=43,renderRadius=18.5,safe=(-12,12))
 preset('prodigy-23','Target Luke Littler G1 Prodigy 23g','target-luke-littler-g1-prodigy-95-swiss-23-gram_3.webp','target-swiss-dx-gold-26','prodigy-23-barrel',rearId='prodigy-kflex-no2-short',notes=['Local file says 95; current manufacturer page says 90%. Conflict is surfaced, not reconciled silently.'])
 
 # Shift: image weight unresolved. Length constant; render diameter heuristic.
 point('target-swiss-grd-black-30','Target Swiss GRD Black 30 mm','SWISS_POINT',30,2.1,'shift',evidence=[ev(WEB,'30-mm Swiss GRD fitted; 35-mm options in box.','https://www.targetdarts.de/shift-sp')])
 barrel('shift-barrel','Target Shift SP Barrel (source weight unresolved)','SWISS_POINT',50,None,'shift','straight',evidence=[ev(WEB,'50 mm for 23/24/25g; diameters 6.7/6.8/7.0 mm.','https://www.targetdarts.de/shift-sp'),ev(UNK,'Local source does not identify weight; exact diameter unknown.')],renderDiam=6.8)
-rear('shift-kshift-no6-short','Target K-Shift No.6 Short','K-SHIFT',19,'No.6','shift',evidence=[ev(WEB,'K-Shift is an integrated flight+shaft; fitted Short 19 mm, No.6.','https://www.targetdarts.de/shift-sp')],renderFlightLength=41.5,renderRadius=17.2,safe=(-25,25))
+rear('shift-kshift-no6-short','Target K-Shift No.6 Short','K-SHIFT',19,'No.6','shift',evidence=[ev(WEB,'K-Shift is an integrated flight+shaft; fitted Short 19 mm, No.6.','https://www.targetdarts.de/shift-sp')],renderFlightLength=41.5,renderRadius=17.2,safe=(-12,12))
 preset('shift','Target Shift SP','target-shift-sp-steeltip-90_3.webp','target-swiss-grd-black-30','shift-barrel',rearId='shift-kshift-no6-short',notes=['Barrel diameter uses 6.8 mm as render heuristic because source weight is unknown.'])
 
 # World Champion exact 23g
 point('target-swiss-slk-gold-35','Target Swiss SLK Gold 35 mm','SWISS_POINT',35,2.1,'world',evidence=[ev(WEB,'Fitted 35-mm Swiss SLK; 42-mm alternative included.','https://www.targetdarts.com/us/luke-littler-world-champion-sp')])
 barrel('world-champ-23-barrel','Luke Littler G1 World Champion 23g Barrel','SWISS_POINT',52,6.5,'world','straight',evidence=[ev(WEB,'23g only: 52 x 6.5 mm, 90% tungsten.','https://www.targetdarts.com/us/luke-littler-world-champion-sp')])
-rear('world-kflex-no6-short','World Champion K-Flex No.6 Short','K-FLEX',19,'No.6','world',evidence=[ev(WEB,'World Champion No.6 K-Flex, Short.','https://www.targetdarts.com/us/luke-littler-world-champion-sp')],renderFlightLength=41.5,renderRadius=17.2,safe=(-18,18))
+rear('world-kflex-no6-short','World Champion K-Flex No.6 Short','K-FLEX',19,'No.6','world',evidence=[ev(WEB,'World Champion No.6 K-Flex, Short.','https://www.targetdarts.com/us/luke-littler-world-champion-sp')],renderFlightLength=41.5,renderRadius=17.2,safe=(-10,10))
 preset('world-champion','Target Luke Littler G1 World Champion 23g','target-luke-littler-world-champion-90-swiss-23-gram_3.webp','target-swiss-slk-gold-35','world-champ-23-barrel',rearId='world-kflex-no6-short')
 
 # Chrono source variant unknown
@@ -161,7 +161,7 @@ WEB_SOURCE='SOURCE-GROUNDED-WEB-EXTRACT'
 point('clemens-g2-storm-nano-26','Gabriel Clemens G2 Swiss Storm Nano 26 mm','SWISS_POINT',26,2.1,'clemens-g2',evidence=[ev(WEB,'Target specifies fitted 26-mm Storm Nano Swiss Points.','https://www.target-darts.co.uk/gabriel-clemens-g2-sp'),ev(SRC,'Local point texture is cropped from the recorded real product-image source; RGB detail is not redrawn.')])
 barrel('clemens-g2-23-barrel','Gabriel Clemens G2 23g Barrel','SWISS_POINT',52,6.9,'clemens-g2','straight',evidence=[ev(WEB,'Target: 23g = 52 x 6.9 mm, 90% tungsten.','https://www.target-darts.co.uk/gabriel-clemens-g2-sp'),ev(SRC,'Local barrel texture uses original product-image pixels from the recorded authoring source.')])
 shaft('clemens-g2-progrip-short','Gabriel Clemens G2 Pro Grip Short',None,'clemens-g2',evidence=[ev(WEB,'Target specifies a short Pro Grip shaft; exact millimetre length is not stated on the product page.','https://www.target-darts.co.uk/gabriel-clemens-g2-sp'),ev(SRC,'Local shaft appearance is source-grounded.'),ev(HEU,'30-mm render length remains a builder heuristic; factual length stays null.')],renderLength=30)
-flight('clemens-g2-no6','Gabriel Clemens G2 Edition No.6','No.6','clemens-g2',evidence=[ev(WEB,'Target specifies Gabriel Clemens G2 edition No.6 flights.','https://www.target-darts.co.uk/gabriel-clemens-g2-sp'),ev(SRC,'Plane A uses cropped original product-image pixels.'),ev(APP,'Plane B is deliberately derived as an unknown/backface approximation and is not mirrored.')],renderLength=41.5,renderRadius=17.2,planeAStatus=SRC,visualAuthoring=WEB_SOURCE)
+flight('clemens-g2-no6','Gabriel Clemens G2 Edition No.6','No.6','clemens-g2',evidence=[ev(WEB,'Target specifies Gabriel Clemens G2 edition No.6 flights.','https://www.target-darts.co.uk/gabriel-clemens-g2-sp'),ev(SRC,'Plane A uses cropped original product-image pixels.'),ev(APP,'Plane B is deliberately derived as an unknown/backface approximation and is not mirrored.')],renderLength=41.5,renderRadius=17.2,planeAStatus=SRC,visualAuthoring=WEB_SOURCE,safe=(-12,12))
 preset('clemens-g2-23','Gabriel Clemens G2 23g',meta['clemens-g2']['sourceFile'],'clemens-g2-storm-nano-26','clemens-g2-23-barrel','clemens-g2-progrip-short','clemens-g2-no6',notes=['V1.3 uses a transiently downloaded real product photograph and persists only extracted dart/component pixels. Plane B remains APPROXIMATED.'],sourcePage='https://www.target-darts.co.uk/gabriel-clemens-g2-sp',sourceLabel='Gabriel Clemens G2 · source-grounded product-image extract',sourceType=WEB_SOURCE)
 
 # Gabriel Clemens 95K – integrated K-Flex; the observed plane/body pixels come from
