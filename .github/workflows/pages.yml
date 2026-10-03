@@ -67,51 +67,12 @@ jobs:
           path: |
             data/catalog.json
             data/authoring-metadata.json
-            assets/components/clemens-g2
-            assets/components/clemens-95k
-            assets/components/prodigy
-            assets/components/shift
-            assets/components/world
-            assets/components/humphries-prestige
-            assets/source/web-clemens-g2-source-grounded.png
-            assets/source/web-humphries-prestige-source-grounded.png
-            assets/source/web-clemens-95k-source-grounded.png
-            outputs/comparisons/clemens-g2-23.jpg
-            outputs/comparisons/clemens-95k-23.jpg
-            outputs/comparisons/prodigy-23.jpg
-            outputs/comparisons/shift.jpg
-            outputs/comparisons/world-champion.jpg
-            outputs/comparisons/humphries-prestige-22.jpg
-            outputs/comparisons/clemens-g2-23-v1.3.1-triptych.jpg
-            outputs/comparisons/clemens-95k-23-v1.3.1-triptych.jpg
-            outputs/comparisons/prodigy-23-v1.3.1-triptych.jpg
-            outputs/comparisons/shift-v1.3.1-triptych.jpg
-            outputs/comparisons/world-champion-v1.3.1-triptych.jpg
-            outputs/comparisons/humphries-prestige-22-v1.3.1-triptych.jpg
-            outputs/gallery/pose-clemens-g2-23.jpg
-            outputs/gallery/pose-clemens-95k-23.jpg
-            outputs/gallery/pose-prodigy-23.jpg
-            outputs/gallery/pose-shift.jpg
-            outputs/gallery/pose-world-champion.jpg
-            outputs/gallery/pose-humphries-prestige-22.jpg
-            outputs/qa/flight-textures-clemens-g2-23.png
-            outputs/qa/flight-textures-clemens-95k-23.png
-            outputs/qa/flight-textures-prodigy-23.png
-            outputs/qa/flight-textures-shift.png
-            outputs/qa/flight-textures-world-champion.png
-            outputs/qa/flight-textures-humphries-prestige-22.png
-            outputs/qa/runtime-clemens-g2-23-source-vs-render.png
-            outputs/qa/runtime-clemens-95k-23-source-vs-render.png
-            outputs/qa/runtime-prodigy-23-source-vs-render.png
-            outputs/qa/runtime-shift-source-vs-render.png
-            outputs/qa/runtime-world-champion-source-vs-render.png
-            outputs/qa/runtime-humphries-prestige-22-source-vs-render.png
-            outputs/qa/static-qa.json
-            outputs/qa/software-pose-qa.json
-            outputs/qa/browser-qa.json
-            outputs/qa/builder-ui.png
-            outputs/qa/seam-clemens-g2-23.png
-            outputs/qa/seam-clemens-95k-23.png
+            assets/components
+            assets/source/web-*-source-grounded.png
+            outputs/comparisons/*.jpg
+            outputs/gallery/*.jpg
+            outputs/qa/*.png
+            outputs/qa/*.json
 
       - name: Build static Pages site
         if: github.event_name != 'pull_request'
