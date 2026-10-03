@@ -302,7 +302,9 @@ def _canonicalize_integrated_flight_face(image):
         fill=((arr[y_top,x,:3].astype(np.uint16)+arr[y_bot,x,:3].astype(np.uint16))//2).astype(np.uint8)
         ya=max(0,center-band); yb=min(h,center+band+1)
         valid=arr[ya:yb,x,3]>0
-        arr[ya:yb,x,:3][valid]=fill
+        segment=arr[ya:yb,x,:3].copy()
+        segment[valid]=fill
+        arr[ya:yb,x,:3]=segment
         approx_pixels+=int(valid.sum())
 
     out=Image.fromarray(arr,'RGBA')
