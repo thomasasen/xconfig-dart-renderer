@@ -142,11 +142,11 @@ def _best_elongated_roi(image):
         gmajor=max(gw,gh); gminor=max(1,min(gw,gh)); gratio=gmajor/gminor
         foreground_fraction=float((mask[gy0:gy1,gx0:gx1]>0).mean())
         if gmajor >= max(w,h)*0.35 and gratio >= 3.3 and foreground_fraction < 0.72:
-            # Slight score boost: when the whole image is a single broadside this is
-            # more robust than a morphology-dependent contour.
             candidates.append((gmajor*gratio*1.15,gx0,gy0,gw,gh,'global'))
 
-    # Build two detection masks so a horizontal or vertical dart can be found.
+    # Product sheets can contain a huge barrel close-up and a smaller complete dart.
+    # Keep all plausible elongated candidates. Selection happens only after the
+    # full-dart tail/flight signature has been validated for each candidate.
     for orientation,kernel in [
         ('horizontal',np.ones((max(3,h//220),max(15,w//45)),np.uint8)),
         ('vertical',np.ones((max(15,h//45),max(3,w//220)),np.uint8)),
@@ -159,74 +159,75 @@ def _best_elongated_roi(image):
             major=max(cw,ch); minor=max(1,min(cw,ch)); ratio=major/minor
             if major < max(w,h)*0.25 or ratio < 4.0:
                 continue
-            # Prefer long/slender objects over boxes and packaging panels.
             score=major*ratio*(0.6+min(1.0,cv2.contourArea(contour)/(cw*ch+1)))
             candidates.append((score,x,y,cw,ch,orientation))
     if not candidates:
         raise RuntimeError('No sufficiently elongated dart candidate found in product image')
-    _,x,y,cw,ch,orientation=max(candidates,key=lambda item:item[0])
-    pad=max(4,round(min(cw,ch)*0.20))
-    x0=max(0,x-pad); y0=max(0,y-pad); x1=min(w,x+cw+pad); y1=min(h,y+ch+pad)
-    crop=image.crop((x0,y0,x1,y1)).convert('RGBA')
-    if crop.height > crop.width:
-        crop=crop.transpose(Image.Transpose.ROTATE_270)
 
-    # Ensure point is left and flight is right. The flight end has much larger
-    # foreground vertical coverage than the point end.
-    cmask,cdist,calpha=_foreground_mask(crop)
-    band=max(2,round(crop.width*0.14))
-    def end_span(m):
-        ys=np.where(m>0)[0]
-        return 0 if len(ys)==0 else int(ys.max()-ys.min()+1)
-    left=end_span(cmask[:,:band]); right=end_span(cmask[:,-band:])
-    if left > right*1.15:
-        crop=crop.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-        cmask,cdist,calpha=_foreground_mask(crop)
+    errors=[]
+    for score,x,y,cw,ch,orientation in sorted(candidates,key=lambda item:item[0],reverse=True):
+        try:
+            pad=max(4,round(min(cw,ch)*0.20))
+            x0=max(0,x-pad); y0=max(0,y-pad); x1=min(w,x+cw+pad); y1=min(h,y+ch+pad)
+            crop=image.crop((x0,y0,x1,y1)).convert('RGBA')
+            if crop.height > crop.width:
+                crop=crop.transpose(Image.Transpose.ROTATE_270)
 
-    # Build alpha from the detected silhouette. Filling between top/bottom foreground
-    # pixels per x preserves genuinely white flight artwork that colour-keying alone
-    # would incorrectly erase. RGB pixels remain untouched original source pixels.
-    silhouette=np.zeros_like(cmask)
-    for xcol in range(cmask.shape[1]):
-        ys=np.where(cmask[:,xcol]>0)[0]
-        if len(ys):
-            silhouette[ys.min():ys.max()+1,xcol]=255
-    silhouette=cv2.morphologyEx(
-        silhouette,cv2.MORPH_CLOSE,
-        np.ones((max(3,crop.height//90),max(3,crop.width//250)),np.uint8)
+            cmask,cdist,calpha=_foreground_mask(crop)
+            end_band=max(2,round(crop.width*0.14))
+            def end_span(m):
+                ys=np.where(m>0)[0]
+                return 0 if len(ys)==0 else int(ys.max()-ys.min()+1)
+            left=end_span(cmask[:,:end_band]); right=end_span(cmask[:,-end_band:])
+            if left > right*1.15:
+                crop=crop.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+                cmask,cdist,calpha=_foreground_mask(crop)
+
+            silhouette=np.zeros_like(cmask)
+            for xcol in range(cmask.shape[1]):
+                ys=np.where(cmask[:,xcol]>0)[0]
+                if len(ys):
+                    silhouette[ys.min():ys.max()+1,xcol]=255
+            silhouette=cv2.morphologyEx(
+                silhouette,cv2.MORPH_CLOSE,
+                np.ones((max(3,crop.height//90),max(3,crop.width//250)),np.uint8)
+            )
+            silhouette=cv2.GaussianBlur(silhouette,(0,0),0.65)
+            rgba=np.asarray(crop).copy()
+            rgba[:,:,3]=np.minimum(np.asarray(crop)[:,:,3],silhouette).astype(np.uint8)
+            result=Image.fromarray(rgba,'RGBA')
+            bbox=result.getbbox()
+            if not bbox:
+                raise ValueError('empty alpha')
+            result=result.crop(bbox)
+            if result.width/result.height < 3.2:
+                raise ValueError(f'not dart-like enough: {result.size}')
+
+            # Reject barrel-only close-ups. A complete dart must become materially
+            # taller in the rear/flight section than in its central body section.
+            rmask,_,_=_foreground_mask(result)
+            spans=[]
+            for xcol in range(rmask.shape[1]):
+                ys=np.where(rmask[:,xcol]>0)[0]
+                spans.append(0 if len(ys)==0 else int(ys.max()-ys.min()+1))
+            n=len(spans)
+            body=np.array([v for v in spans[int(n*.30):int(n*.62)] if v>0],dtype=float)
+            tail=np.array([v for v in spans[int(n*.82):] if v>0],dtype=float)
+            if len(body)==0 or len(tail)==0:
+                raise ValueError('lacks measurable body/tail silhouette')
+            body_span=float(np.median(body))
+            tail_span=float(np.percentile(tail,75))
+            if tail_span < body_span*1.45:
+                raise ValueError(
+                    f'tail span {tail_span:.1f}px vs body {body_span:.1f}px (need >= 1.45x)'
+                )
+            return result
+        except Exception as exc:
+            errors.append(f'{orientation}@{x},{y},{cw}x{ch}: {exc}')
+
+    raise RuntimeError(
+        'No complete dart candidate passed the tail/flight signature. ' + ' | '.join(errors[:8])
     )
-    silhouette=cv2.GaussianBlur(silhouette,(0,0),0.65)
-    rgba=np.asarray(crop).copy()
-    rgba[:,:,3]=np.minimum(np.asarray(crop)[:,:,3],silhouette).astype(np.uint8)
-    result=Image.fromarray(rgba,'RGBA')
-    bbox=result.getbbox()
-    if not bbox:
-        raise RuntimeError('Extracted dart candidate has empty alpha')
-    result=result.crop(bbox)
-    if result.width/result.height < 3.2:
-        raise RuntimeError(f'Extracted candidate is not dart-like enough: {result.size}')
-
-    # A barrel close-up is also long and slender, so aspect ratio alone is not enough.
-    # Require a genuine tail/flight signature: the rear end must be substantially taller
-    # than the central body band. This rejects barrel-only manufacturer hero images.
-    rmask,_,_=_foreground_mask(result)
-    spans=[]
-    for xcol in range(rmask.shape[1]):
-        ys=np.where(rmask[:,xcol]>0)[0]
-        spans.append(0 if len(ys)==0 else int(ys.max()-ys.min()+1))
-    n=len(spans)
-    body=np.array([v for v in spans[int(n*.30):int(n*.62)] if v>0],dtype=float)
-    tail=np.array([v for v in spans[int(n*.82):] if v>0],dtype=float)
-    if len(body)==0 or len(tail)==0:
-        raise RuntimeError('Extracted candidate lacks measurable body/tail silhouette')
-    body_span=float(np.median(body))
-    tail_span=float(np.percentile(tail,75))
-    if tail_span < body_span*1.45:
-        raise RuntimeError(
-            f'Candidate looks like barrel/body only: tail span {tail_span:.1f}px '
-            f'vs body {body_span:.1f}px (need >= 1.45x)'
-        )
-    return result
 
 def _mask_to_flight_profile(image, profile):
     rgba=image.convert('RGBA')
