@@ -101,7 +101,7 @@ check('gabriel-clemens-95k-steel-tip-dart-sp-03.jpg' in k95_author.get('sourceUr
 # Side-view integrated systems must no longer feed a photographed composite flight
 # directly into a renderer plane. Plane A is de-occluded at the source-hidden cross-fin
 # band; Plane B deliberately suppresses readable front-side artwork.
-for product in ('prodigy','shift','gary','chrono','world','auro','supa','mandalorian','atat'):
+for product in ('prodigy','shift','gary','chrono','world','auro','supa','atat'):
     info=author.get(product,{})
     check(info.get('flightExtractionMode')=='PRIMARY_FACE_DEOCCLUDED',f'{product}: photographed composite flight was not canonicalized')
     check(info.get('flightPlaneAProvenance')=='SOURCE-GROUNDED+APPROXIMATED-OCCLUSION',f'{product}: Plane A provenance does not disclose de-occlusion')
@@ -110,6 +110,21 @@ for product in ('prodigy','shift','gary','chrono','world','auro','supa','mandalo
     check(approx.get('deocclusionMethod')=='STRIP_COLLAPSE_RESAMPLE',f'{product}: wrong de-occlusion method {approx.get("deocclusionMethod")}')
     frac=float(approx.get('approximatedPixelFraction',0))
     check(0 < frac < .45,f'{product}: de-occlusion fraction implausible: {frac}')
+
+mandalorian_author=author.get('mandalorian',{})
+check(mandalorian_author.get('flightExtractionMode')=='DEDICATED_FRONTAL_KFLEX_SOURCE','mandalorian: must use a dedicated frontal K-Flex source instead of the infographic composite crop')
+check((mandalorian_author.get('flightApproximation') or {}).get('deocclusionMethod')=='FRONTAL_RIDGE_STRIP_COLLAPSE','mandalorian: frontal K-Flex ridge removal is not active')
+check('360523_Target_StarWars_Mandalorian_SP_Steeldarts_1Set.png' in (mandalorian_author.get('flightSourceUrl') or '') or 'mandalorian95.png' in (mandalorian_author.get('flightSourceUrl') or ''),'mandalorian: unexpected dedicated blue No.2 flight source')
+check((ROOT/'assets/source/web-mandalorian-kflex-frontal-source-grounded.png').exists(),'mandalorian: dedicated frontal QA source missing')
+check((mandalorian_author.get('flightApproximation') or {}).get('design')=='MANDALORIAN_BLUE_SOURCE_ARTWORK','mandalorian: dedicated flight source is not tagged as blue Mandalorian artwork')
+check((mandalorian_author.get('flightApproximation') or {}).get('canonicalProfile')=='NO6_SUPPLIED_INFOGRAPHIC','mandalorian: dedicated flight is not masked to supplied No.6 profile')
+check((mandalorian_author.get('flightApproximation') or {}).get('profileMaskApplied') is True,'mandalorian: No.6 profile mask was not applied')
+mando_rear=c['rearSystems'].get('mandalorian-kflex-short',{})
+check(mando_rear.get('flightShape')=='No.6',f"mandalorian: mounted flight shape must follow supplied infographic No.6, got {mando_rear.get('flightShape')}")
+check(abs(float(mando_rear.get('renderFlightLengthMm',0))-41.5)<1e-9,'mandalorian: No.6 render length must be 41.5 mm')
+check(abs(float(mando_rear.get('renderFlightRadiusMm',0))-17.2)<1e-9,'mandalorian: No.6 render radius must be 17.2 mm')
+m_frac=float((mandalorian_author.get('flightApproximation') or {}).get('approximatedPixelFraction',0))
+check(.15 < m_frac < .35,f'mandalorian: dedicated-source approximation fraction implausible: {m_frac}')
 
 check(k95_author.get('flightExtractionMode')=='PRIMARY_FACE_DEOCCLUDED','clemens-95k: composite K-Flex face must be de-occluded')
 check((k95_author.get('flightApproximation') or {}).get('deocclusionMethod')=='STRIP_COLLAPSE_RESAMPLE','clemens-95k: wrong de-occlusion method')

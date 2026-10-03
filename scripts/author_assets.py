@@ -1,5 +1,7 @@
 from __future__ import annotations
 import json, shutil, math
+from io import BytesIO
+from urllib.request import Request, urlopen
 from pathlib import Path
 import numpy as np
 from PIL import Image, ImageEnhance, ImageFilter, ImageDraw, ImageFont
@@ -20,7 +22,20 @@ SPECS={
  'world': dict(file='target-luke-littler-world-champion-90-swiss-23-gram_3.webp', rotate=True, bg='white', splits=[0.20625,0.55,0.7375], rear=True, canonicalFlight=True),
  'auro': dict(file='shot-alchemy-auro-90_3.webp', rotate=True, bg='white', splits=[0.20,0.53125,0.73125], rear=False, canonicalFlight=True),
  'supa': dict(file='PW2022_SupaVenom_Steel_LEFT.webp', rotate=False, bg='alpha', splits=[0.15,0.525,0.7625], rear=False, canonicalFlight=True),
- 'mandalorian': dict(file='190840STARWARSMANDALORIAN95_STEElTIP_GALLERY_DE_PT01.webp', rotate=False, bg='dark-roi', roi=(38,175,765,350), splits=[0.19,0.565,0.725], rear=True, canonicalFlight=True),
+ 'mandalorian': dict(
+   file='190840STARWARSMANDALORIAN95_STEElTIP_GALLERY_DE_PT01.webp',
+   rotate=False, bg='dark-roi', roi=(38,175,765,350),
+   splits=[0.19,0.565,0.725], rear=True, canonicalFlight=False, rearVerticalTrim='SATURATION',
+   flightWebMode='KFLEX_CENTER_DART_FRONT',
+   flightProductPage='https://www.target-darts.co.uk/star-wars-mandalorian-sp',
+   flightWebSources=[
+      # Exact blue No.2 K-Flex supplied with the Mandalorian SP. The central dart is
+      # photographed front-on, so its broad plane can be used without side-view
+      # perspective or the wrong black No.6 gift-set artwork.
+      'https://mcdart.de/media/2240x2240x100/e8/52/d4/1775636511/360523_Target_StarWars_Mandalorian_SP_Steeldarts_1Set.png?ts=1775687705',
+      'https://arrowheadz.co.uk/cdn/shop/files/mandalorian95.png?v=1776884701&width=1500',
+   ],
+),
  'atat': dict(file='190843-STARWARSAT-AT90_STEELTIP_GALLERY_DE_PT01.webp', rotate=False, bg='dark-roi', roi=(35,180,765,350), splits=[0.19,0.54,0.73], rear=False, canonicalFlight=True),
  'edge': dict(file='PT02_ffd9f2ed-6a52-43e8-9f62-027742ec8be4.webp', rotate=False, bg='dark-roi', roi=(34,175,766,352), splits=[0.19,0.56,0.73], rear=True, canonicalFlight=True),
  'vader': dict(file='PT01_a83f80b3-c589-4f2e-85c1-7cf911048504.webp', rotate=False, bg='dark-roi', roi=(35,175,765,352), splits=[0.19,0.56,0.73], rear=True, canonicalFlight=True),
@@ -38,6 +53,24 @@ def alpha_white(img: Image.Image)->Image.Image:
     alpha=np.where(keep,np.maximum(alpha,220),alpha).astype(np.uint8)
     arr[:,:,3]=alpha
     return Image.fromarray(arr,'RGBA')
+
+def alpha_connected_white_background(img:Image.Image)->Image.Image:
+    """Remove only border-connected catalogue white, preserving white printed artwork."""
+    arr=np.array(img.convert('RGBA')).copy()
+    rgb=arr[:,:,:3].astype(np.int16)
+    lo=rgb.min(axis=2); hi=rgb.max(axis=2); chroma=hi-lo
+    candidate=((lo>242)&(chroma<12)).astype(np.uint8)
+    n,labels,_,_=cv2.connectedComponentsWithStats(candidate,8)
+    border_labels=set(np.unique(np.concatenate([labels[0,:],labels[-1,:],labels[:,0],labels[:,-1]])))
+    bg=np.zeros(candidate.shape,np.uint8)
+    for lab in border_labels:
+        if lab==0: continue
+        bg[labels==lab]=255
+    # Slightly feather only the outside boundary; enclosed white logos remain opaque.
+    bg=Image.fromarray(bg,'L').filter(ImageFilter.GaussianBlur(.65))
+    alpha=255-np.asarray(bg,dtype=np.uint8)
+    arr[:,:,3]=np.minimum(arr[:,:,3],alpha).astype(np.uint8)
+    return trim_alpha(Image.fromarray(arr,'RGBA'),3)
 
 def alpha_dark_roi(img: Image.Image, roi)->Image.Image:
     # Tight infographic extraction. We deliberately reject panel rules/text and keep only
@@ -136,9 +169,191 @@ def clean_large_component(img: Image.Image)->Image.Image:
     arr[:,:,3]=np.minimum(alpha,keep).astype(np.uint8)
     return trim_alpha(Image.fromarray(arr,'RGBA'),3)
 
+def suppress_low_alpha_haze(img:Image.Image, cutoff=72):
+    """Remove semi-transparent infographic background without hard-clipping real edges."""
+    arr=np.array(img.convert('RGBA')).copy()
+    a=arr[:,:,3].astype(np.float32)
+    a=np.clip((a-cutoff)*255.0/max(1,255-cutoff),0,255).astype(np.uint8)
+    arr[:,:,3]=a
+    return trim_alpha(Image.fromarray(arr,'RGBA'),3)
+
+def trim_rear_by_saturation(img:Image.Image):
+    """Crop dark infographic residue around a coloured integrated shaft.
+
+    The Mandalorian shaft itself is strongly blue/saturated while the infographic
+    residue is neutral grey. Only vertical canvas is trimmed; shaft RGB is untouched.
+    """
+    rgba=img.convert('RGBA')
+    arr=np.array(rgba)
+    rgb=arr[:,:,:3].astype(np.int16)
+    sat=rgb.max(axis=2)-rgb.min(axis=2)
+    row_score=(sat>15).sum(axis=1)
+    threshold=max(4,int(round(rgba.width*.18)))
+    ys=np.where(row_score>=threshold)[0]
+    if len(ys)==0:
+        return trim_alpha(rgba,3)
+    y0=max(0,int(ys.min())-3)
+    y1=min(rgba.height,int(ys.max())+4)
+    return trim_alpha(rgba.crop((0,y0,rgba.width,y1)),3)
+
 def save_component(img, path):
     path.parent.mkdir(parents=True,exist_ok=True)
     trim_alpha(img,3).save(path)
+
+def download_reference_image(urls):
+    errors=[]
+    for url in urls or []:
+        try:
+            req=Request(url,headers={
+                'User-Agent':'Mozilla/5.0 xConfig-Dart-Renderer/1.3.2',
+                'Accept':'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+            })
+            with urlopen(req,timeout=30) as response:
+                raw=response.read()
+            im=Image.open(BytesIO(raw)).convert('RGBA')
+            if im.width < 300 or im.height < 300:
+                raise RuntimeError(f'image too small: {im.size}')
+            return im,url
+        except Exception as exc:
+            errors.append(f'{url}: {exc}')
+    raise RuntimeError('No dedicated flight reference could be downloaded. ' + ' | '.join(errors))
+
+def largest_alpha_component(img:Image.Image, threshold=24):
+    rgba=np.array(img.convert('RGBA')).copy()
+    binary=(rgba[:,:,3]>threshold).astype(np.uint8)
+    n,labels,stats,_=cv2.connectedComponentsWithStats(binary,8)
+    if n<=1:return trim_alpha(img,threshold)
+    idx=1+int(np.argmax(stats[1:,cv2.CC_STAT_AREA]))
+    keep=(labels==idx).astype(np.uint8)*255
+    keep=cv2.dilate(keep,np.ones((3,3),np.uint8),iterations=1)
+    rgba[:,:,3]=np.minimum(rgba[:,:,3],keep).astype(np.uint8)
+    return trim_alpha(Image.fromarray(rgba,'RGBA'),threshold)
+
+NO6_PROFILE=[[0.00,0.00],[0.08,0.30],[0.22,0.90],[0.68,1.00],[0.94,0.72],[1.00,0.35],[1.00,-0.35],[0.94,-0.72],[0.68,-1.00],[0.22,-0.90],[0.08,-0.30]]
+
+def mask_to_flight_profile(image:Image.Image, profile):
+    rgba=image.convert('RGBA')
+    w,h=rgba.size
+    scale=4
+    mask=Image.new('L',(w*scale,h*scale),0)
+    draw=ImageDraw.Draw(mask)
+    pts=[]
+    for u,v in profile:
+        x=float(u)*(w-1)*scale
+        y=(0.5-float(v)*0.5)*(h-1)*scale
+        pts.append((x,y))
+    draw.polygon(pts,fill=255)
+    mask=mask.resize((w,h),Image.Resampling.LANCZOS)
+    arr=np.asarray(rgba).copy()
+    arr[:,:,3]=np.minimum(arr[:,:,3],np.asarray(mask,dtype=np.uint8)).astype(np.uint8)
+    return trim_alpha(Image.fromarray(arr,'RGBA'),3)
+
+def collapse_cross_fin_band(img:Image.Image, half_band_ratio=.022):
+    """Remove the edge-on perpendicular fin from an otherwise frontal K-Flex face.
+
+    The two source-grounded halves above/below the ridge are joined geometrically.
+    No opposite-face artwork is mirrored or copied. The removed strip is the only
+    approximated region.
+    """
+    base=trim_alpha(img.convert('RGBA'),3)
+    arr=np.array(base).copy(); alpha=arr[:,:,3]
+    h,w=alpha.shape
+    center=h//2
+    band=max(1,int(round(h*half_band_ratio)))
+    y0=max(0,center-band); y1=min(h,center+band+1)
+    removed=int((alpha[y0:y1,:]>3).sum())
+    before=max(1,int((alpha>3).sum()))
+    collapsed=np.concatenate([arr[:y0,:,:],arr[y1:,:,:]],axis=0)
+    if collapsed.shape[0]<8:
+        raise RuntimeError('cross-fin collapse removed too much of the texture')
+    restored=Image.fromarray(collapsed,'RGBA').resize((w,h),Image.Resampling.LANCZOS)
+    return trim_alpha(restored,3),{
+        'deocclusionMethod':'FRONTAL_RIDGE_STRIP_COLLAPSE',
+        'centreBandHalfWidthPx':band,
+        'approximatedPixelFraction':round(removed/before,4),
+    }
+
+def prepare_dedicated_flight_face(spec):
+    mode=spec.get('flightWebMode')
+    if mode not in ('KFLEX_FRONTAL_LEFT','KFLEX_CENTER_DART_FRONT'):
+        return None,None
+    raw,url=download_reference_image(spec.get('flightWebSources'))
+
+    if mode=='KFLEX_CENTER_DART_FRONT':
+        # Blue Mandalorian artwork reference: isolate the central/front-facing
+        # dart. Geometry is NOT taken from this retail image: the supplied infographic
+        # explicitly defines the mounted flight as No.6, so a No.6 mask is applied later.
+        x0=int(round(raw.width*.28)); x1=int(round(raw.width*.72))
+        y1=int(round(raw.height*.48))
+        central=raw.crop((x0,0,x1,max(1,y1)))
+        isolated=largest_alpha_component(alpha_connected_white_background(central),20)
+        a=np.array(isolated.getchannel('A'))
+        widths=[]; bounds=[]
+        for y in range(isolated.height):
+            xs=np.where(a[y,:]>25)[0]
+            if len(xs):
+                widths.append(int(xs.max()-xs.min()+1)); bounds.append((int(xs.min()),int(xs.max())))
+            else:
+                widths.append(0); bounds.append(None)
+        max_width=max(widths) if widths else 0
+        if max_width<30:
+            raise RuntimeError(f'dedicated blue K-Flex foreground too small: {isolated.size}')
+        broad_threshold=max(12,int(round(max_width*.38)))
+        broad=[i for i,v in enumerate(widths) if v>=broad_threshold]
+        if not broad:
+            raise RuntimeError('blue K-Flex source has no broad frontal flight face')
+        top=max(0,min(broad)-3)
+        last=max(broad)
+        # Include the tapered flight root, but stop before the long narrow shaft.
+        narrow_limit=max(6,int(round(max_width*.16)))
+        bottom=last
+        low_run=0
+        for y in range(last+1,isolated.height):
+            if widths[y] <= narrow_limit:
+                low_run += 1
+                if low_run>=5:
+                    bottom=max(last,y-low_run+1)
+                    break
+            else:
+                low_run=0; bottom=y
+        face=trim_alpha(isolated.crop((0,top,isolated.width,min(isolated.height,bottom+2))),3)
+        # Shaft points down in the reference; clockwise rotation makes the flight root
+        # point left, matching the xConfig canonical texture convention.
+        horizontal=trim_alpha(face.transpose(Image.Transpose.ROTATE_270),3)
+    else:
+        # Fallback helper retained for other future frontal pair references.
+        left=raw.crop((0,0,max(1,raw.width//2),raw.height))
+        isolated=largest_alpha_component(alpha_connected_white_background(left),20)
+        horizontal=trim_alpha(isolated.transpose(Image.Transpose.ROTATE_270),3)
+        a=np.array(horizontal.getchannel('A'))
+        spans=[]
+        for x in range(horizontal.width):
+            ys=np.where(a[:,x]>25)[0]
+            spans.append((int(ys.max()-ys.min()+1) if len(ys) else 0))
+        max_span=max(spans) if spans else 0
+        broad_threshold=max(8,int(round(max_span*.42)))
+        broad=[i for i,s in enumerate(spans) if s>=broad_threshold]
+        if not broad:
+            raise RuntimeError('dedicated K-Flex source has no broad flight face')
+        horizontal=trim_alpha(horizontal.crop((max(0,min(broad)-2),0,horizontal.width,horizontal.height)),3)
+
+    # The front-facing artwork reference still contains the perpendicular K-Flex plane
+    # edge-on across the axis. Remove ±10% around the axis. The two remaining halves
+    # retain source pixels; canonical outer geometry comes from the supplied No.6 infographic.
+    clean,qc=collapse_cross_fin_band(horizontal,half_band_ratio=.10)
+    clean=mask_to_flight_profile(clean,NO6_PROFILE)
+    qc.update({
+        'mode':'DEDICATED_FRONTAL_KFLEX_SOURCE',
+        'sourceUrl':url,
+        'sourcePage':spec.get('flightProductPage'),
+        'sourceImageSize':[raw.width,raw.height],
+        'sourceGrounded':True,
+        'design':'MANDALORIAN_BLUE_SOURCE_ARTWORK',
+        'canonicalProfile':'NO6_SUPPLIED_INFOGRAPHIC',
+        'profileMaskApplied':True,
+    })
+    save_component(horizontal,SRC/'web-mandalorian-kflex-frontal-source-grounded.png')
+    return clean,qc
 
 def canonicalize_integrated_flight_face(img:Image.Image):
     """Extract the dominant broad flight face from a photographed integrated rear.
@@ -242,9 +457,18 @@ for key,spec in SPECS.items():
       'flight-plane-a': im.crop((p3,0,W,im.height)),
     }
     if spec['bg']=='dark-roi':
+        for component_name in ('point','barrel','rear-shaft','shaft'):
+            if component_name in crops:
+                crops[component_name]=suppress_low_alpha_haze(crops[component_name])
+        if spec.get('rearVerticalTrim')=='SATURATION' and 'rear-shaft' in crops:
+            crops['rear-shaft']=trim_rear_by_saturation(crops['rear-shaft'])
         crops['flight-plane-a']=mask_flight_polygon(clean_large_component(crops['flight-plane-a']))
     flight_qc=None
-    if spec.get('canonicalFlight'):
+    dedicated_flight,dedicated_qc=prepare_dedicated_flight_face(spec)
+    if dedicated_flight is not None:
+        crops['flight-plane-a']=dedicated_flight
+        flight_qc=dedicated_qc
+    elif spec.get('canonicalFlight'):
         crops['flight-plane-a'],flight_qc=canonicalize_integrated_flight_face(crops['flight-plane-a'])
     for name,c in crops.items(): save_component(c,OUT/key/f'{name}.png')
     flight=trim_alpha(crops['flight-plane-a'],3)
@@ -258,10 +482,13 @@ for key,spec in SPECS.items():
       'flightProfile':flight_profile(flight),
       'rearIntegrated':spec['rear'],
       'flightExtractionMode':(flight_qc or {}).get('mode','DIRECT_SOURCE_FACE'),
-      'flightPlaneAProvenance':'SOURCE-GROUNDED+APPROXIMATED-OCCLUSION' if flight_qc and flight_qc.get('mode')=='PRIMARY_FACE_DEOCCLUDED' else 'SOURCE-GROUNDED',
+      'flightPlaneAProvenance':'SOURCE-GROUNDED+APPROXIMATED-OCCLUSION' if flight_qc and (flight_qc.get('mode') in ('PRIMARY_FACE_DEOCCLUDED','DEDICATED_FRONTAL_KFLEX_SOURCE')) else 'SOURCE-GROUNDED',
       'flightPlaneBProvenance':'APPROXIMATED',
+      'flightSourceUrl':(flight_qc or {}).get('sourceUrl'),
+      'flightSourcePage':(flight_qc or {}).get('sourcePage'),
+      'flightQaSourceFile':'web-mandalorian-kflex-frontal-source-grounded.png' if (flight_qc or {}).get('mode')=='DEDICATED_FRONTAL_KFLEX_SOURCE' else None,
       'flightApproximation':flight_qc,
-      'authoringStatus':'SOURCE-GROUNDED component split; integrated flight Plane A de-occludes only source-hidden cross-fin pixels when required',
+      'authoringStatus':'SOURCE-GROUNDED component split; dedicated frontal flight sources are preferred over photographed composite side views; only explicitly recorded occlusion strips are approximated',
     }
 
 # Generic geometry-only Slim flight reference. It is intentionally not a product preset.

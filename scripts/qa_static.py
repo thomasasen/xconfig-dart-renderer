@@ -5,6 +5,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 ROOT=Path(__file__).resolve().parents[1]
 CAT=json.loads((ROOT/'data/catalog.json').read_text())
+AUTHOR=json.loads((ROOT/'data/authoring-metadata.json').read_text())
 OUT=ROOT/'outputs'
 for _dir in ('comparisons','gallery','qa'):
     (OUT/_dir).mkdir(parents=True,exist_ok=True)
@@ -50,9 +51,32 @@ def high_frequency_energy(im):
     if arr.shape[0]<2 or arr.shape[1]<2:return 0.0
     return float(np.abs(np.diff(arr,axis=0)).mean()+np.abs(np.diff(arr,axis=1)).mean())
 
+def center_ridge_score(im):
+    rgba=np.asarray(im.convert('RGBA'))
+    gray=np.asarray(im.convert('L'),dtype=np.float32)
+    alpha=rgba[:,:,3]
+    h,w=alpha.shape
+    if h<16 or w<16:return 0.0
+    cy=h//2
+    delta=max(4,int(round(h*.075)))
+    y0=max(0,cy-delta); y1=min(h-1,cy+delta)
+    valid=(alpha[cy]>30)&(alpha[y0]>30)&(alpha[y1]>30)
+    # Ignore the outer 8% where the silhouette itself dominates the metric.
+    x0=int(round(w*.08)); x1=max(x0+1,int(round(w*.92)))
+    valid[:x0]=False; valid[x1:]=False
+    if not valid.any():return 0.0
+    expected=(gray[y0]+gray[y1])*.5
+    residual=np.abs(gray[cy]-expected)[valid]
+    return float(np.mean(residual))
+
 def flight_texture_audit(pid,p):
     a=assembly_for(p); tail=a['rearSystem'] or a['flight']
-    source=fit(img(p['sourceImage']),(520,360),(245,245,245,255))
+    source_path=p['sourceImage']
+    if pid=='mandalorian-24':
+        qa_file=(AUTHOR.get('mandalorian') or {}).get('flightQaSourceFile')
+        candidate=ROOT/'assets/source'/qa_file if qa_file else None
+        if candidate and candidate.exists(): source_path='./assets/source/'+qa_file
+    source=fit(img(source_path),(520,360),(245,245,245,255))
     plane_a_raw=img(tail['planeATexture']); plane_b_raw=img(tail['planeBTexture'])
     plane_a=fit(plane_a_raw,(420,360),(25,29,37,255))
     plane_b=fit(plane_b_raw,(420,360),(25,29,37,255))
@@ -65,7 +89,8 @@ def flight_texture_audit(pid,p):
     canvas.alpha_composite(source,(0,50)); canvas.alpha_composite(plane_a,(520,50)); canvas.alpha_composite(plane_b,(940,50)); canvas.alpha_composite(build,(1360,50))
     ea=high_frequency_energy(plane_a_raw); eb=high_frequency_energy(plane_b_raw)
     ratio=(eb/ea) if ea>1e-6 else 0.0
-    d.text((540,405),f'high-frequency A={ea:.2f} · B={eb:.2f} · ratio={ratio:.2f}',fill=(180,195,215))
+    ridge=center_ridge_score(plane_a_raw)
+    d.text((540,405),f'high-frequency A={ea:.2f} · B={eb:.2f} · ratio={ratio:.2f} · center-ridge={ridge:.2f}',fill=(180,195,215))
     canvas.convert('RGB').save(OUT/'qa'/f'flight-textures-{pid}.png')
     return {
       'name':p['name'],
@@ -75,6 +100,8 @@ def flight_texture_audit(pid,p):
       'planeAHighFrequency':ea,
       'planeBHighFrequency':eb,
       'backfaceDetailRatio':ratio,
+      'centerRidgeScore':ridge,
+      'qaSource':source_path,
     }
 
 qa={'presets':{},'freeCombinations':[],'flightTextureQA':{}}
