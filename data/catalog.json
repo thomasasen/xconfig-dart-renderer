@@ -371,7 +371,7 @@
       "prodigy-23-barrel": {
         "kind": "BarrelDefinition",
         "id": "prodigy-23-barrel",
-        "name": "Luke Littler G1 Prodigy 23g Barrel",
+        "name": "Luke Littler G1 Prodigy Barrel",
         "pointInterface": "SWISS_POINT",
         "rearThread": "2BA",
         "lengthMm": 52,
@@ -419,7 +419,7 @@
       "world-champ-23-barrel": {
         "kind": "BarrelDefinition",
         "id": "world-champ-23-barrel",
-        "name": "Luke Littler G1 World Champion 23g Barrel",
+        "name": "Luke Littler G1 World Champion Barrel",
         "pointInterface": "SWISS_POINT",
         "rearThread": "2BA",
         "lengthMm": 52,
@@ -535,7 +535,7 @@
       "mandalorian-24-barrel": {
         "kind": "BarrelDefinition",
         "id": "mandalorian-24-barrel",
-        "name": "Star Wars Mandalorian 24g Barrel",
+        "name": "Star Wars Mandalorian Barrel",
         "pointInterface": "SWISS_POINT",
         "rearThread": "2BA",
         "lengthMm": 52,
@@ -559,7 +559,7 @@
       "atat-23-barrel": {
         "kind": "BarrelDefinition",
         "id": "atat-23-barrel",
-        "name": "Star Wars AT-AT 23g Barrel",
+        "name": "Star Wars AT-AT Barrel",
         "pointInterface": "SWISS_POINT",
         "rearThread": "2BA",
         "lengthMm": 47.55,
@@ -579,7 +579,7 @@
       "clemens-g2-23-barrel": {
         "kind": "BarrelDefinition",
         "id": "clemens-g2-23-barrel",
-        "name": "Gabriel Clemens G2 23g Barrel",
+        "name": "Gabriel Clemens G2 Barrel",
         "pointInterface": "SWISS_POINT",
         "rearThread": "2BA",
         "lengthMm": 52,
@@ -603,7 +603,7 @@
       "clemens-95k-23-barrel": {
         "kind": "BarrelDefinition",
         "id": "clemens-95k-23-barrel",
-        "name": "Gabriel Clemens 95K 23g Barrel",
+        "name": "Gabriel Clemens 95K Barrel",
         "pointInterface": "SWISS_POINT",
         "rearThread": "2BA",
         "lengthMm": 52,
@@ -627,7 +627,7 @@
       "cross-95k-23-barrel": {
         "kind": "BarrelDefinition",
         "id": "cross-95k-23-barrel",
-        "name": "Rob Cross 95K 23g Barrel",
+        "name": "Rob Cross 95K Barrel",
         "pointInterface": "SWISS_POINT",
         "rearThread": "2BA",
         "lengthMm": 48,
@@ -651,7 +651,7 @@
       "aspinall-95k-22-barrel": {
         "kind": "BarrelDefinition",
         "id": "aspinall-95k-22-barrel",
-        "name": "Nathan Aspinall 95K 22g Barrel",
+        "name": "Nathan Aspinall 95K Barrel",
         "pointInterface": "SWISS_POINT",
         "rearThread": "2BA",
         "lengthMm": 50,
@@ -675,7 +675,7 @@
       "bunting-95k-23-barrel": {
         "kind": "BarrelDefinition",
         "id": "bunting-95k-23-barrel",
-        "name": "Stephen Bunting 95K 23g Barrel",
+        "name": "Stephen Bunting 95K Barrel",
         "pointInterface": "SWISS_POINT",
         "rearThread": "2BA",
         "lengthMm": 47,
@@ -699,7 +699,7 @@
       "mvg-signature-22-barrel": {
         "kind": "BarrelDefinition",
         "id": "mvg-signature-22-barrel",
-        "name": "Michael van Gerwen Signature 22g Barrel",
+        "name": "Michael van Gerwen Signature Barrel",
         "pointInterface": "PRESS_FIT",
         "rearThread": "2BA",
         "lengthMm": 53,
@@ -728,7 +728,7 @@
       "humphries-prestige-22-barrel": {
         "kind": "BarrelDefinition",
         "id": "humphries-prestige-22-barrel",
-        "name": "Luke Humphries Prestige 22g Barrel",
+        "name": "Luke Humphries Prestige Barrel",
         "pointInterface": "PRESS_FIT",
         "rearThread": "2BA",
         "lengthMm": 43.18,
