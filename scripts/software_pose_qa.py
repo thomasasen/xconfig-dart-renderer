@@ -83,7 +83,7 @@ for k,(pid,row) in enumerate(rows):
 master.convert('RGB').save(ROOT/'outputs/gallery'/'pose-gallery-all-presets.jpg',quality=90)
 # V1.3.1 visual review triptychs: the four user-reported designs plus Clemens 95K
 # as an integrated source-grounded regression check.
-REVIEW_PRESETS=('clemens-g2-23','prodigy-23','shift','world-champion','clemens-95k-23')
+REVIEW_PRESETS=('clemens-g2-23','prodigy-23','shift','world-champion','humphries-prestige-22','clemens-95k-23')
 for pid in REVIEW_PRESETS:
     preset=CAT['presets'][pid]; a=assembly(preset)
     source=Image.open(ROOT/preset['sourceImage'].replace('./','')).convert('RGBA')
