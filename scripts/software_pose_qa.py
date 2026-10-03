@@ -6,6 +6,8 @@ from PIL import Image, ImageDraw
 ROOT=Path(__file__).resolve().parents[1]
 CAT=json.loads((ROOT/'data/catalog.json').read_text())
 W,H=789,331; TIP=np.array([0.0,212.0]); SCALE=3.35; CAM=800.0
+for _dir in ('comparisons','gallery','qa'):
+    (ROOT/'outputs'/_dir).mkdir(parents=True,exist_ok=True)
 
 def load_rgba(path): return np.array(Image.open(ROOT/path.replace('./','')).convert('RGBA'))
 def assembly(p):
@@ -79,5 +81,21 @@ cw,ch=789*2,365*math.ceil(len(rows)/2);master=Image.new('RGBA',(cw,ch),(10,13,18
 for k,(pid,row) in enumerate(rows):
     thumb=row.copy();thumb.thumbnail((789,350),Image.Resampling.LANCZOS);master.alpha_composite(thumb,((k%2)*789,(k//2)*365))
 master.convert('RGB').save(ROOT/'outputs/gallery'/'pose-gallery-all-presets.jpg',quality=90)
+# V1.3 visual review triptychs: source-grounded extract vs orthogonal render vs posed render.
+for pid in ('clemens-g2-23','clemens-95k-23'):
+    preset=CAT['presets'][pid]; a=assembly(preset)
+    source=Image.open(ROOT/preset['sourceImage'].replace('./','')).convert('RGBA')
+    orthogonal,_=render(a,0,0)
+    pose=preset.get('defaultPose',{})
+    posed,_=render(a,float(pose.get('incidenceDeg',35)),float(pose.get('rollDeg',0)))
+    cards=[
+        panel(source,'SOURCE-GROUNDED extracted product pixels'),
+        panel(orthogonal,'Orthogonal builder projection'),
+        panel(posed,f'Posed projection · incidence={pose.get("incidenceDeg",35)}° · roll={pose.get("rollDeg",0)}°'),
+    ]
+    sheet=Image.new('RGBA',(789*3,365),(10,13,18,255))
+    for i,card in enumerate(cards): sheet.alpha_composite(card,(i*789,0))
+    sheet.convert('RGB').save(ROOT/'outputs/comparisons'/f'{pid}-v1.3-triptych.jpg',quality=92)
+
 (ROOT/'outputs/qa'/'software-pose-qa.json').write_text(json.dumps(qa,indent=2),encoding='utf8')
 print('rendered',len(rows),'preset pose galleries; max drift',max(m['tipDriftPx'] for arr in qa.values() for m in arr))
