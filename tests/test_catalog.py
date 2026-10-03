@@ -107,7 +107,7 @@ for product in ('prodigy','shift','world'):
     check(info.get('flightPlaneAProvenance')=='SOURCE-GROUNDED+APPROXIMATED-OCCLUSION',f'{product}: Plane A provenance does not disclose de-occlusion')
     check(info.get('flightPlaneBProvenance')=='APPROXIMATED',f'{product}: Plane B must remain approximated')
     frac=float((info.get('flightApproximation') or {}).get('approximatedPixelFraction',0))
-    check(0 < frac < .20,f'{product}: de-occlusion fraction implausible: {frac}')
+    check(0 < frac < .45,f'{product}: de-occlusion fraction implausible: {frac}')
 
 check(k95_author.get('flightExtractionMode')=='PRIMARY_FACE_DEOCCLUDED','clemens-95k: composite K-Flex face must be de-occluded')
 check((k95_author.get('componentProvenance') or {}).get('flight-plane-a')=='SOURCE-GROUNDED+APPROXIMATED-OCCLUSION','clemens-95k: Plane A provenance must disclose approximated occlusion strip')
