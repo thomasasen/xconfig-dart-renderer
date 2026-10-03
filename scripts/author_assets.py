@@ -166,6 +166,14 @@ def clean_large_component(img: Image.Image)->Image.Image:
     arr[:,:,3]=np.minimum(alpha,keep).astype(np.uint8)
     return trim_alpha(Image.fromarray(arr,'RGBA'),3)
 
+def suppress_low_alpha_haze(img:Image.Image, cutoff=72):
+    """Remove semi-transparent infographic background without hard-clipping real edges."""
+    arr=np.array(img.convert('RGBA')).copy()
+    a=arr[:,:,3].astype(np.float32)
+    a=np.clip((a-cutoff)*255.0/max(1,255-cutoff),0,255).astype(np.uint8)
+    arr[:,:,3]=a
+    return trim_alpha(Image.fromarray(arr,'RGBA'),3)
+
 def save_component(img, path):
     path.parent.mkdir(parents=True,exist_ok=True)
     trim_alpha(img,3).save(path)
@@ -364,6 +372,9 @@ for key,spec in SPECS.items():
       'flight-plane-a': im.crop((p3,0,W,im.height)),
     }
     if spec['bg']=='dark-roi':
+        for component_name in ('point','barrel','rear-shaft','shaft'):
+            if component_name in crops:
+                crops[component_name]=suppress_low_alpha_haze(crops[component_name])
         crops['flight-plane-a']=mask_flight_polygon(clean_large_component(crops['flight-plane-a']))
     flight_qc=None
     dedicated_flight,dedicated_qc=prepare_dedicated_flight_face(spec)
