@@ -243,8 +243,11 @@ function updateSource(preset = catalog.presets[currentPresetId]) {
   }
 
   if (remoteReference) {
+    const visualStatus = preset.sourceType === 'SOURCE-GROUNDED-WEB-EXTRACT'
+      ? 'SOURCE-GROUNDED Originalpixel-Extract'
+      : preset.sourceType || 'WEB-REFERENCED';
     caption.append(document.createTextNode(
-      `${preset.name} · recherchiertes externes Produktfoto · lokaler Fallback: WEB-REFERENCED RECONSTRUCTION`
+      `${preset.name} · recherchiertes externes Produktfoto · lokales Renderdesign: ${visualStatus}`
     ));
   } else {
     const label = preset.sourceLabel || 'supplied source';
