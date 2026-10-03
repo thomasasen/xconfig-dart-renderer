@@ -71,9 +71,13 @@ SOURCE_GROUNDED_SPECS = {
         'splits': [0.22, 0.51, 0.72],
         'officialPage': 'https://winmau.com/en-de/products/luke-humphries-prestige-darts',
         'sources': [
-            # Red Dragon/Winmau catalogue broadside used by the existing research record.
-            'https://www.reddragondarts.com/cdn/shop/files/2823_LUKEH_Prestige22gImage_3.jpg?v=1775031981&width=2667',
-            'https://www.bullydarts.co.uk/cdn/shop/files/2823_LUKEH_Prestige22gImage_3.jpg?v=1775031981&width=2667',
+            # Retail copy of the official Red Dragon media sheet. It contains one long,
+            # clean horizontal assembled dart; the elongated-object gate extracts only
+            # that dart and discards the surrounding packaging/component panels.
+            'https://www.flightclub.ie/cdn/shop/files/2823_LUKEH_Prestige22gImage_5.webp?v=1737470308&width=1445',
+            # Angled fallback. The geometry gate will reject it if it is not sufficiently
+            # broadside for component extraction.
+            'https://aviddarts.com.au/cdn/shop/files/LukeHumphries-Prestige-3.jpg?v=1734126420&width=1500',
         ],
     },
 }
