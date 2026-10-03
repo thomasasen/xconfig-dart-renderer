@@ -101,16 +101,23 @@ check('gabriel-clemens-95k-steel-tip-dart-sp-03.jpg' in k95_author.get('sourceUr
 # Side-view integrated systems must no longer feed a photographed composite flight
 # directly into a renderer plane. Plane A is de-occluded at the source-hidden cross-fin
 # band; Plane B deliberately suppresses readable front-side artwork.
-for product in ('prodigy','shift','world'):
+for product in ('prodigy','shift','gary','chrono','world','auro','supa','mandalorian','atat'):
     info=author.get(product,{})
-    check(info.get('flightExtractionMode')=='PRIMARY_FACE_DEOCCLUDED',f'{product}: composite flight was not canonicalized')
+    check(info.get('flightExtractionMode')=='PRIMARY_FACE_DEOCCLUDED',f'{product}: photographed composite flight was not canonicalized')
     check(info.get('flightPlaneAProvenance')=='SOURCE-GROUNDED+APPROXIMATED-OCCLUSION',f'{product}: Plane A provenance does not disclose de-occlusion')
     check(info.get('flightPlaneBProvenance')=='APPROXIMATED',f'{product}: Plane B must remain approximated')
-    frac=float((info.get('flightApproximation') or {}).get('approximatedPixelFraction',0))
+    approx=info.get('flightApproximation') or {}
+    check(approx.get('deocclusionMethod')=='STRIP_COLLAPSE_RESAMPLE',f'{product}: wrong de-occlusion method {approx.get("deocclusionMethod")}')
+    frac=float(approx.get('approximatedPixelFraction',0))
     check(0 < frac < .45,f'{product}: de-occlusion fraction implausible: {frac}')
 
 check(k95_author.get('flightExtractionMode')=='PRIMARY_FACE_DEOCCLUDED','clemens-95k: composite K-Flex face must be de-occluded')
+check((k95_author.get('flightApproximation') or {}).get('deocclusionMethod')=='STRIP_COLLAPSE_RESAMPLE','clemens-95k: wrong de-occlusion method')
 check((k95_author.get('componentProvenance') or {}).get('flight-plane-a')=='SOURCE-GROUNDED+APPROXIMATED-OCCLUSION','clemens-95k: Plane A provenance must disclose approximated occlusion strip')
+
+humphries_author=author.get('humphries-prestige',{})
+check(humphries_author.get('flightExtractionMode')=='PRIMARY_FACE_DEOCCLUDED','humphries-prestige: product side-view flight must be canonicalized')
+check((humphries_author.get('flightApproximation') or {}).get('deocclusionMethod')=='STRIP_COLLAPSE_RESAMPLE','humphries-prestige: wrong de-occlusion method')
 
 def high_frequency_energy(path):
     im=Image.open(ROOT/path.replace('./','')).convert('L')
