@@ -1,4 +1,4 @@
-import { resolveBarrelRearSeam } from './geometry.js';
+import { buildSmoothJoinProfile, profileEndpointSlope, resolveBarrelRearSeam } from './geometry.js';
 
 let THREE = null;
 const THREE_VERSION = '0.180.0';
@@ -281,7 +281,7 @@ export class SharedDartComponentRenderer {
   }
 
   #measureEdgeCoverage(texture, side) {
-    const cacheKey = `${texture.uuid}|${side}`;
+    const cacheKey = `${texture.uuid}|${side}|join-band-v2`;
     if (this.edgeCoverageCache.has(cacheKey)) {
       return this.edgeCoverageCache.get(cacheKey);
     }
@@ -301,11 +301,20 @@ export class SharedDartComponentRenderer {
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       ctx.drawImage(image, 0, 0, width, height);
       const data = ctx.getImageData(0, 0, width, height).data;
-      const sampleColumns = Math.max(2, Math.min(8, Math.ceil(width * 0.035)));
+
+      // Do not use the literal first/last pixel columns as a physical connector gauge.
+      // Product-image extracts often contain bevels, anti-aliasing, shadow or transparent
+      // padding there. Measure a short internal band close to the connection and use its
+      // median visible alpha span instead.
+      const sampleCount = Math.max(5, Math.min(13, Math.round(width * 0.06)));
+      const bandStart = side === 'right' ? 0.86 : 0.04;
+      const bandEnd = side === 'right' ? 0.96 : 0.14;
       const spans = [];
 
-      for (let offset = 0; offset < sampleColumns; offset += 1) {
-        const x = side === 'right' ? width - 1 - offset : offset;
+      for (let sample = 0; sample < sampleCount; sample += 1) {
+        const t = sampleCount === 1 ? 0.5 : sample / (sampleCount - 1);
+        const u = bandStart + (bandEnd - bandStart) * t;
+        const x = Math.min(width - 1, Math.max(0, Math.round(u * (width - 1))));
         let minY = height;
         let maxY = -1;
         for (let y = 0; y < height; y += 1) {
@@ -443,15 +452,39 @@ export class SharedDartComponentRenderer {
     });
     const barrelBodyEnvelopeMm = barrelDiameter / Math.max(.15, barrelBodyCoverage);
     const rearBodyEnvelopeMm = rearDiameterSafe / Math.max(.15, rearBodyCoverage);
+    const barrelProfile = buildSmoothJoinProfile({
+      bodyDiameterMm: barrelBodyEnvelopeMm,
+      joinDiameterMm: seam.barrelEndEnvelopeMm,
+      lengthMm: barrelLength,
+      side: 'rear',
+      transitionMm: Math.min(3.2, barrelLength * 0.09),
+      flatJoinMm: Math.min(1.2, barrelLength * 0.035),
+      samples: 10,
+    });
+    const rearProfile = buildSmoothJoinProfile({
+      bodyDiameterMm: rearBodyEnvelopeMm,
+      joinDiameterMm: seam.rearStartEnvelopeMm,
+      lengthMm: rearLengthSafe,
+      side: 'front',
+      transitionMm: Math.min(2.8, rearLengthSafe * 0.12),
+      flatJoinMm: Math.min(1.2, rearLengthSafe * 0.05),
+      samples: 10,
+    });
+    const barrelJoinSlope = profileEndpointSlope(barrelProfile, barrelLength, 'rear');
+    const rearJoinSlope = profileEndpointSlope(rearProfile, rearLengthSafe, 'front');
+
     this.jointMetrics = {
       ...seam,
       barrelBodyCoverage,
       rearBodyCoverage,
       barrelBodyEnvelopeMm,
       rearBodyEnvelopeMm,
+      barrelJoinSlopeMmPerMm: barrelJoinSlope,
+      rearJoinSlopeMmPerMm: rearJoinSlope,
+      joinSlopeDeltaMmPerMm: Math.abs(barrelJoinSlope - rearJoinSlope),
       barrelId: assembly.barrel?.id,
       rearId: rearObject?.id,
-      policy: 'VISIBLE_ALPHA_SEAM_MATCH_TO_REAR_NOMINAL_DIAMETER',
+      policy: 'INTERNAL_ALPHA_BAND + SMOOTHSTEP + FLAT_TANGENT_JOIN',
     };
 
     let x = 0;
@@ -471,23 +504,13 @@ export class SharedDartComponentRenderer {
         name: 'barrel',
         length: barrelLength,
         texture: barrelTexture,
-        profile: bodyProfile({
-          bodyDiameterMm: barrelBodyEnvelopeMm,
-          rearDiameterMm: seam.barrelEndEnvelopeMm,
-          lengthMm: barrelLength,
-          rearBlendMm: Math.min(5.5, barrelLength * 0.16),
-        }),
+        profile: barrelProfile,
       },
       {
         name: assembly.rearSystem ? 'rear-shaft' : 'shaft',
         length: rearLengthSafe,
         texture: rearTexture,
-        profile: bodyProfile({
-          bodyDiameterMm: rearBodyEnvelopeMm,
-          frontDiameterMm: seam.rearStartEnvelopeMm,
-          lengthMm: rearLengthSafe,
-          frontBlendMm: Math.min(4, rearLengthSafe * 0.2),
-        }),
+        profile: rearProfile,
       },
     ];
 
