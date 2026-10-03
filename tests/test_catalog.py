@@ -1,5 +1,5 @@
 from pathlib import Path
-import json, sys, math
+import json, sys, math, re
 ROOT=Path(__file__).resolve().parents[1]
 cat=json.loads((ROOT/'data/catalog.json').read_text())
 errors=[]
@@ -60,15 +60,27 @@ for group,items in c.items():
 # requirement and is covered in both a classic and integrated rear setup.
 web_sources={x['presetId']:x for x in cat.get('webPlayerSources',[])}
 check({'clemens-g2-23','clemens-95k-23'} <= set(web_sources),'Gabriel Clemens web presets missing')
+source_grounded_players={'clemens-g2-23','clemens-95k-23'}
 for pid,entry in web_sources.items():
     p=cat['presets'].get(pid)
     check(p is not None,f'web source points at missing preset {pid}')
     if not p: continue
-    check(p.get('sourceType')=='WEB-REFERENCED-RECONSTRUCTION',f'{pid}: wrong source type')
+    expected='SOURCE-GROUNDED-WEB-EXTRACT' if pid in source_grounded_players else 'WEB-REFERENCED-RECONSTRUCTION'
+    check(p.get('sourceType')==expected,f'{pid}: wrong source type {p.get("sourceType")} != {expected}')
     check(bool(p.get('sourcePage')),f'{pid}: missing official/source page')
     check(bool(entry.get('imageReference')),f'{pid}: missing researched image reference')
     src=p.get('sourceImage','').replace('./','')
-    check((ROOT/src).exists(),f'{pid}: missing local reconstruction panel {src}')
+    check((ROOT/src).exists(),f'{pid}: missing local source panel {src}')
+    if pid in source_grounded_players:
+        check(entry.get('originalPixels') is True,f'{pid}: source-grounded entry must assert originalPixels=true')
+        provenance=entry.get('componentProvenance',{})
+        check(provenance.get('barrel')=='SOURCE-GROUNDED',f'{pid}: barrel not source-grounded')
+        check(provenance.get('flight-plane-a')=='SOURCE-GROUNDED',f'{pid}: plane A not source-grounded')
+        check(provenance.get('flight-plane-b-approx')=='APPROXIMATED',f'{pid}: plane B must remain approximated')
+
+# Visible preset labels are render-design identities, not SKU/weight identities.
+for pid,p in cat['presets'].items():
+    check(re.search(r'\\b\\d+(?:[.,]\\d+)?g\\b',p.get('name',''),re.I) is None,f'{pid}: visible preset name still contains gram weight: {p.get("name")}')
 
 # Explicit uncertainty checks prevent accidental laundering of heuristic dimensions into facts.
 check(c['barrels']['shift-barrel']['diameterMm'] is None,'Shift source weight unresolved: factual diameter must stay null')
