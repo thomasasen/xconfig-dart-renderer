@@ -30,6 +30,10 @@ SOURCE_GROUNDED_SPECS = {
             # Manufacturer first. Retail broadside is a fallback if the official box-content
             # composition does not contain a usable complete assembled dart.
             'https://www.target-darts.co.uk/media/catalog/product/g/a/gabriel-clemens-g2-sp-darts-set-box-contents-main-image.jpg?fit=bounds&height=1200&quality=80&width=1200',
+            # Kilo80 provides a clean orthogonal product-family broadside on white.
+            # The URL contains the 23g GTIN (5050807076109), while product design is
+            # common to the G2 weight variants.
+            'https://kilo80.de/media/image/53/3f/fa/5050807076109_N003_2000x2000.jpg',
             'https://www.klickers-fanoase.de/media/02/42/fe/1773054178/25137_190181_GABRIEL_CLEMENS_G2_21G_SP_STEELTIP_DARTS_2023-1.jpg',
             'https://www.doubletopdartshop.com/cdn/shop/files/190181_GabrielClemensG2SP.jpg?v=1728566875&width=1214',
         ],
@@ -42,6 +46,10 @@ SOURCE_GROUNDED_SPECS = {
         'officialPage': 'https://www.target-darts.co.uk/gabriel-clemens-95k-sp',
         'sources': [
             'https://www.target-darts.co.uk/media/catalog/product/g/a/gabriel-clemens-95k-steel-tip-dart-sp-01.jpg?fit=bounds&height=1200&quality=80&width=1200',
+            # Retail fallback with complete assembled darts; used only if the official
+            # manufacturer hero image fails the full-dart silhouette gate.
+            'https://www.flightclub.ie/cdn/shop/files/download_31.png?v=1727272211',
+            'https://dartshop-bonn.de/WebRoot/Store21/Shops/1be89036-dc4e-4547-8d3b-58f763e72e84/6709/06AB/5F9D/F017/838C/0A48/352D/E048/target-gabriel-clemens-95k-95-swiss.jpg',
             'https://www.dartswarehouse.nl/media/catalog/product/cache/f20831aa4fe732f409bd1d4a248f932d/image/314593a22/target-gabriel-clemens-95k-95-swiss.jpg',
         ],
     },
