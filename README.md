@@ -2,6 +2,8 @@
 
 Research, authoring tools and a lightweight 2.5D/3D rendering pipeline for realistic dart visualization in [autodarts-xconfig](https://github.com/thomasasen/autodarts-xconfig).
 
+**Live-Test:** [xConfig Dart Renderer auf GitHub Pages öffnen](https://thomasasen.github.io/xconfig-dart-renderer/)
+
 > **Status:** Experimental / Research & Development  
 > This repository is currently a standalone development project and is not yet part of the production xConfig runtime.
 
