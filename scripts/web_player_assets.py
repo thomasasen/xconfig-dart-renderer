@@ -1,13 +1,334 @@
 from __future__ import annotations
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont, ImageEnhance
+from PIL import Image, ImageDraw, ImageFont, ImageEnhance, ImageFilter
 import json, math
+from io import BytesIO
+from urllib.request import Request, urlopen
+import numpy as np
+import cv2
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'assets' / 'components'
 SRC = ROOT / 'assets' / 'source'
 OUT.mkdir(parents=True, exist_ok=True)
 SRC.mkdir(parents=True, exist_ok=True)
+
+# V1.3: Gabriel Clemens G2 and 95K use real product-image pixels.
+# Full third-party product photographs are never persisted. The authoring step downloads
+# them transiently, extracts only the dart/component pixels required by the renderer,
+# records the exact source URL, and discards the original response bytes.
+SOURCE_GROUNDED_WEB='SOURCE-GROUNDED-WEB-EXTRACT'
+
+SOURCE_GROUNDED_SPECS = {
+    'clemens-g2': {
+        'integrated': False,
+        'shape': 'No.6',
+        'profile': None,  # filled after NO6 is defined
+        'splits': [0.17, 0.51, 0.73],
+        'officialPage': 'https://www.target-darts.co.uk/gabriel-clemens-g2-sp',
+        'flightProductPage': 'https://www.target-darts.co.uk/gabriel-clemens-g2-flights',
+        'flightSources': [
+            # Exact G2 Pro.Ultra No.6 (SKU 336870), photographed flat. This is used
+            # instead of the assembled-dart composite flight crop.
+            'https://www.bullydarts.co.uk/cdn/shop/files/336870GABRIELCLEMENSG2x3SETSPRO.ULTRANO.6FLIGHTBAGGED2023FLAT_1.jpg?v=1694594825&width=3111',
+            'https://dartgott.de/media/02/e0/25/1718815398/target-gabriel-clemens-g2-pro-ultra-no6-flights-3-sets.webp?ts=1781909020',
+        ],
+        'sources': [
+            # Manufacturer first. Retail broadside is a fallback if the official box-content
+            # composition does not contain a usable complete assembled dart.
+            'https://www.target-darts.co.uk/media/catalog/product/g/a/gabriel-clemens-g2-sp-darts-set-box-contents-main-image.jpg?fit=bounds&height=1200&quality=80&width=1200',
+            # Kilo80 provides a clean orthogonal product-family broadside on white.
+            # The URL contains the 23g GTIN (5050807076109), while product design is
+            # common to the G2 weight variants.
+            'https://kilo80.de/media/image/53/3f/fa/5050807076109_N003_2000x2000.jpg',
+            'https://www.klickers-fanoase.de/media/02/42/fe/1773054178/25137_190181_GABRIEL_CLEMENS_G2_21G_SP_STEELTIP_DARTS_2023-1.jpg',
+            'https://www.doubletopdartshop.com/cdn/shop/files/190181_GabrielClemensG2SP.jpg?v=1728566875&width=1214',
+        ],
+    },
+    'clemens-95k': {
+        'integrated': True,
+        'shape': 'No.6',
+        'profile': None,  # filled after NO6 is defined
+        'splits': [0.19, 0.565, 0.705],
+        'officialPage': 'https://www.target-darts.co.uk/gabriel-clemens-95k-sp',
+        'sources': [
+            # Official Target side view: full assembled dart from point through No.6 K-Flex.
+            'https://www.target-darts.co.uk/media/catalog/product/g/a/gabriel-clemens-95k-steel-tip-dart-sp-03.jpg?fit=bounds&height=1200&quality=80&width=1200',
+            'https://www.target-darts.co.uk/media/catalog/product/g/a/gabriel-clemens-95k-steel-tip-dart-sp-01.jpg?fit=bounds&height=1200&quality=80&width=1200',
+            # Retail fallback with complete assembled darts; used only if the official
+            # manufacturer hero image fails the full-dart silhouette gate.
+            'https://www.flightclub.ie/cdn/shop/files/download_31.png?v=1727272211',
+            'https://dartshop-bonn.de/WebRoot/Store21/Shops/1be89036-dc4e-4547-8d3b-58f763e72e84/6709/06AB/5F9D/F017/838C/0A48/352D/E048/target-gabriel-clemens-95k-95-swiss.jpg',
+            'https://www.dartswarehouse.nl/media/catalog/product/cache/f20831aa4fe732f409bd1d4a248f932d/image/314593a22/target-gabriel-clemens-95k-95-swiss.jpg',
+        ],
+    },
+}
+
+def _download_product_image(urls):
+    errors=[]
+    for url in urls:
+        try:
+            req=Request(url,headers={
+                'User-Agent':'Mozilla/5.0 (compatible; xConfig-Dart-Renderer-Research/1.3)',
+                'Accept':'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+            })
+            with urlopen(req,timeout=25) as response:
+                data=response.read()
+            image=Image.open(BytesIO(data)).convert('RGBA')
+            if image.width < 300 or image.height < 300:
+                raise ValueError(f'image too small: {image.size}')
+            return image,url
+        except Exception as exc:
+            errors.append(f'{url}: {exc}')
+    raise RuntimeError('No usable product image source could be downloaded. ' + ' | '.join(errors))
+
+def _corner_background(rgb):
+    h,w,_=rgb.shape
+    bh=max(4,h//20); bw=max(4,w//20)
+    sample=np.concatenate([
+        rgb[:bh,:bw].reshape(-1,3),
+        rgb[:bh,-bw:].reshape(-1,3),
+        rgb[-bh:,:bw].reshape(-1,3),
+        rgb[-bh:,-bw:].reshape(-1,3),
+    ],axis=0)
+    return np.median(sample,axis=0)
+
+def _foreground_mask(image):
+    arr=np.asarray(image.convert('RGBA'))
+    rgb=arr[:,:,:3].astype(np.float32)
+    alpha=arr[:,:,3]
+    bg=_corner_background(rgb)
+    dist=np.linalg.norm(rgb-bg[None,None,:],axis=2)
+    # Real product photos are typically neutral-background catalogue images. Keep
+    # coloured/metallic/dark detail, then bridge the thin point/shaft gaps only for
+    # object detection; source RGB itself is never painted or reconstructed.
+    mask=((dist>19) & (alpha>10)).astype(np.uint8)*255
+    k=max(3,round(min(image.width,image.height)*0.004))
+    k += 1-k%2
+    mask=cv2.morphologyEx(mask,cv2.MORPH_OPEN,np.ones((k,k),np.uint8))
+    return mask,dist,alpha
+
+def _best_elongated_roi(image):
+    mask,dist,source_alpha=_foreground_mask(image)
+    h,w=mask.shape
+    candidates=[]
+
+    # Clean catalogue broadside images often contain exactly one dart whose physical
+    # components are separated by tiny antialiased gaps. Treat the bounding box of all
+    # foreground pixels as an additional candidate instead of requiring connectivity.
+    ys_all,xs_all=np.where(mask>0)
+    if len(xs_all):
+        gx0,gx1=int(xs_all.min()),int(xs_all.max())+1
+        gy0,gy1=int(ys_all.min()),int(ys_all.max())+1
+        gw,gh=gx1-gx0,gy1-gy0
+        gmajor=max(gw,gh); gminor=max(1,min(gw,gh)); gratio=gmajor/gminor
+        foreground_fraction=float((mask[gy0:gy1,gx0:gx1]>0).mean())
+        if gmajor >= max(w,h)*0.35 and gratio >= 3.3 and foreground_fraction < 0.72:
+            # Slight score boost: when the whole image is a single broadside this is
+            # more robust than a morphology-dependent contour.
+            candidates.append((gmajor*gratio*1.15,gx0,gy0,gw,gh,'global'))
+
+    # Build two detection masks so a horizontal or vertical dart can be found.
+    for orientation,kernel in [
+        ('horizontal',np.ones((max(3,h//220),max(15,w//45)),np.uint8)),
+        ('vertical',np.ones((max(15,h//45),max(3,w//220)),np.uint8)),
+    ]:
+        joined=cv2.morphologyEx(mask,cv2.MORPH_CLOSE,kernel,iterations=2)
+        joined=cv2.dilate(joined,np.ones((3,3),np.uint8),iterations=1)
+        contours,_=cv2.findContours(joined,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+        for contour in contours:
+            x,y,cw,ch=cv2.boundingRect(contour)
+            major=max(cw,ch); minor=max(1,min(cw,ch)); ratio=major/minor
+            if major < max(w,h)*0.25 or ratio < 4.0:
+                continue
+            # Prefer long/slender objects over boxes and packaging panels.
+            score=major*ratio*(0.6+min(1.0,cv2.contourArea(contour)/(cw*ch+1)))
+            candidates.append((score,x,y,cw,ch,orientation))
+    if not candidates:
+        raise RuntimeError('No sufficiently elongated dart candidate found in product image')
+    _,x,y,cw,ch,orientation=max(candidates,key=lambda item:item[0])
+    pad=max(4,round(min(cw,ch)*0.20))
+    x0=max(0,x-pad); y0=max(0,y-pad); x1=min(w,x+cw+pad); y1=min(h,y+ch+pad)
+    crop=image.crop((x0,y0,x1,y1)).convert('RGBA')
+    if crop.height > crop.width:
+        crop=crop.transpose(Image.Transpose.ROTATE_270)
+
+    # Ensure point is left and flight is right. The flight end has much larger
+    # foreground vertical coverage than the point end.
+    cmask,cdist,calpha=_foreground_mask(crop)
+    band=max(2,round(crop.width*0.14))
+    def end_span(m):
+        ys=np.where(m>0)[0]
+        return 0 if len(ys)==0 else int(ys.max()-ys.min()+1)
+    left=end_span(cmask[:,:band]); right=end_span(cmask[:,-band:])
+    if left > right*1.15:
+        crop=crop.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+        cmask,cdist,calpha=_foreground_mask(crop)
+
+    # Build alpha from the detected silhouette. Filling between top/bottom foreground
+    # pixels per x preserves genuinely white flight artwork that colour-keying alone
+    # would incorrectly erase. RGB pixels remain untouched original source pixels.
+    silhouette=np.zeros_like(cmask)
+    for xcol in range(cmask.shape[1]):
+        ys=np.where(cmask[:,xcol]>0)[0]
+        if len(ys):
+            silhouette[ys.min():ys.max()+1,xcol]=255
+    silhouette=cv2.morphologyEx(
+        silhouette,cv2.MORPH_CLOSE,
+        np.ones((max(3,crop.height//90),max(3,crop.width//250)),np.uint8)
+    )
+    silhouette=cv2.GaussianBlur(silhouette,(0,0),0.65)
+    rgba=np.asarray(crop).copy()
+    rgba[:,:,3]=np.minimum(np.asarray(crop)[:,:,3],silhouette).astype(np.uint8)
+    result=Image.fromarray(rgba,'RGBA')
+    bbox=result.getbbox()
+    if not bbox:
+        raise RuntimeError('Extracted dart candidate has empty alpha')
+    result=result.crop(bbox)
+    if result.width/result.height < 3.2:
+        raise RuntimeError(f'Extracted candidate is not dart-like enough: {result.size}')
+
+    # A barrel close-up is also long and slender, so aspect ratio alone is not enough.
+    # Require a genuine tail/flight signature: the rear end must be substantially taller
+    # than the central body band. This rejects barrel-only manufacturer hero images.
+    rmask,_,_=_foreground_mask(result)
+    spans=[]
+    for xcol in range(rmask.shape[1]):
+        ys=np.where(rmask[:,xcol]>0)[0]
+        spans.append(0 if len(ys)==0 else int(ys.max()-ys.min()+1))
+    n=len(spans)
+    body=np.array([v for v in spans[int(n*.30):int(n*.62)] if v>0],dtype=float)
+    tail=np.array([v for v in spans[int(n*.82):] if v>0],dtype=float)
+    if len(body)==0 or len(tail)==0:
+        raise RuntimeError('Extracted candidate lacks measurable body/tail silhouette')
+    body_span=float(np.median(body))
+    tail_span=float(np.percentile(tail,75))
+    if tail_span < body_span*1.45:
+        raise RuntimeError(
+            f'Candidate looks like barrel/body only: tail span {tail_span:.1f}px '
+            f'vs body {body_span:.1f}px (need >= 1.45x)'
+        )
+    return result
+
+def _mask_to_flight_profile(image, profile):
+    rgba=image.convert('RGBA')
+    w,h=rgba.size
+    # Build alpha exclusively from the canonical flight geometry. This preserves white
+    # printed artwork even when the catalogue background is also white.
+    scale=4
+    mask=Image.new('L',(w*scale,h*scale),0)
+    draw=ImageDraw.Draw(mask)
+    pts=[]
+    for u,v in profile:
+        x=float(u)*(w-1)*scale
+        y=(0.5-float(v)*0.5)*(h-1)*scale
+        pts.append((x,y))
+    draw.polygon(pts,fill=255)
+    mask=mask.resize((w,h),Image.Resampling.LANCZOS)
+    source_alpha=rgba.getchannel('A')
+    alpha=np.minimum(np.asarray(source_alpha,dtype=np.uint8),np.asarray(mask,dtype=np.uint8))
+    out=np.asarray(rgba).copy()
+    out[:,:,3]=alpha
+    return Image.fromarray(out,'RGBA')
+
+def _prepare_flat_flight_texture(spec):
+    urls=spec.get('flightSources') or []
+    if not urls:
+        return None,None
+    image,source_url=_download_product_image(urls)
+    rgba=image.convert('RGBA')
+    # Flat accessory photos are intentionally not colour-keyed: white artwork is part
+    # of the printed flight and must not disappear into a white catalogue background.
+    # Geometry supplies the No.6 silhouette, so only trim a tiny outer catalogue margin.
+    w,h=rgba.size
+    margin=max(0,round(min(w,h)*0.005))
+    if margin and w>margin*2 and h>margin*2:
+        rgba=rgba.crop((margin,margin,w-margin,h-margin))
+    # Product face is photographed upright; rotate to the canonical xConfig convention
+    # where the flight root is on the left and the trailing edge on the right.
+    rgba=rgba.transpose(Image.Transpose.ROTATE_270)
+    rgba=_mask_to_flight_profile(rgba,spec['profile'])
+    return rgba,source_url
+
+def _split_source_grounded(key,spec):
+    errors=[]
+    dart=None
+    source_url=None
+    for candidate_url in spec['sources']:
+        try:
+            raw,_=_download_product_image([candidate_url])
+            candidate=_best_elongated_roi(raw)
+            dart=candidate
+            source_url=candidate_url
+            break
+        except Exception as exc:
+            errors.append(f'{candidate_url}: {exc}')
+    if dart is None:
+        raise RuntimeError(f'{key}: no full-dart source passed visual-geometry checks. ' + ' | '.join(errors))
+    w=dart.width
+    p1,p2,p3=[max(1,min(w-1,round(v*w))) for v in spec['splits']]
+    if not (0 < p1 < p2 < p3 < w):
+        raise RuntimeError(f'{key}: invalid component split {[p1,p2,p3]} for width {w}')
+    names=['point','barrel','rear-shaft' if spec['integrated'] else 'shaft','flight-plane-a']
+    ranges=[(0,p1),(p1,p2),(p2,p3),(p3,w)]
+    parts={}
+    for name,(x0,x1) in zip(names,ranges):
+        part=dart.crop((x0,0,x1,dart.height))
+        bbox=part.getbbox()
+        if bbox: part=part.crop(bbox)
+        parts[name]=part
+
+    flight_texture,flight_source_url=_prepare_flat_flight_texture(spec)
+    if flight_texture is not None:
+        parts['flight-plane-a']=flight_texture
+
+    # Plane B is intentionally only an approximation. Do not mirror source artwork:
+    # mirrored text/logo would falsely imply known reverse-side pixels.
+    parts['flight-plane-b-approx']=backface(parts['flight-plane-a'])
+
+    d=OUT/key
+    d.mkdir(parents=True,exist_ok=True)
+    for name,part in parts.items():
+        save(part,d/f'{name}.png')
+    # The UI comparison gets only the extracted dart strip, not the full manufacturer
+    # photo/box-art. This keeps the research bundle narrowly scoped to required pixels.
+    source_name=f'web-{key}-source-grounded.png'
+    save(dart,SRC/source_name)
+    return {
+        'sourceFile':source_name,
+        'sourceUrl':source_url,
+        'sourcePage':spec['officialPage'],
+        'flightProductPage':spec.get('flightProductPage'),
+        'componentSources':{
+            'point':source_url,
+            'barrel':source_url,
+            'rear-shaft' if spec['integrated'] else 'shaft':source_url,
+            'flight-plane-a':flight_source_url or source_url,
+            'flight-plane-b-approx':'derived approximation; no independent source',
+        },
+        'originalPixels':True,
+        'processing':[
+            'temporary web download',
+            'neutral-background foreground detection',
+            'automatic elongated-dart crop',
+            'orientation normalisation (tip left)',
+            'alpha silhouette extraction',
+            'component crop only; RGB pixels not redrawn',
+            'when an exact flat flight source exists, Plane A is replaced by that flat source before 3D mapping',
+        ],
+        'splitFractions':spec['splits'],
+        'splitsPx':[p1,p2,p3],
+        'flightProfile':spec['profile'],
+        'rearIntegrated':spec['integrated'],
+        'componentProvenance':{
+            'point':'SOURCE-GROUNDED',
+            'barrel':'SOURCE-GROUNDED',
+            'rear-shaft' if spec['integrated'] else 'shaft':'SOURCE-GROUNDED',
+            'flight-plane-a':'SOURCE-GROUNDED',
+            'flight-plane-b-approx':'APPROXIMATED',
+        },
+        'authoringStatus':SOURCE_GROUNDED_WEB,
+    }
 
 # These are deliberately WEB-REFERENCED RECONSTRUCTIONS, not downloaded source pixels.
 # They are locally authored from inspected product images so the POC stays self-contained.
@@ -16,6 +337,8 @@ SRC.mkdir(parents=True, exist_ok=True)
 NO6 = [[0.00,0.00],[0.08,0.30],[0.22,0.90],[0.68,1.00],[0.94,0.72],[1.00,0.35],[1.00,-0.35],[0.94,-0.72],[0.68,-1.00],[0.22,-0.90],[0.08,-0.30]]
 NO2 = [[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[1.00,-0.45],[0.90,-0.82],[0.60,-1.00],[0.18,-0.96],[0.06,-0.34]]
 STD = NO2
+SOURCE_GROUNDED_SPECS['clemens-g2']['profile']=NO6
+SOURCE_GROUNDED_SPECS['clemens-95k']['profile']=NO6
 
 def font(size=24, bold=False):
     paths = ['/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf' if bold else '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf']
@@ -209,8 +532,12 @@ PLAYERS={
 def generate():
     meta={}
     for key,s in PLAYERS.items():
+        if key in SOURCE_GROUNDED_SPECS:
+            meta[key]=_split_source_grounded(key,SOURCE_GROUNDED_SPECS[key])
+            continue
+
         d=OUT/key; d.mkdir(parents=True,exist_ok=True)
-        point_black=key in ('clemens-95k','aspinall-95k','humphries-prestige')
+        point_black=key in ('aspinall-95k','humphries-prestige')
         point_gold=key in ('cross-95k','bunting-95k')
         p=draw_point(color=(202,163,65,255) if point_gold else (178,180,180,255),black=point_black)
         save(p,d/'point.png')

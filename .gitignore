@@ -4,6 +4,7 @@ node_modules/
 # Generated renderer assets
 assets/components/
 assets/source/web-*-reconstruction.png
+assets/source/web-*-source-grounded.png
 
 # Generated QA/output artifacts
 outputs/

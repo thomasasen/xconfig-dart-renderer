@@ -243,8 +243,11 @@ function updateSource(preset = catalog.presets[currentPresetId]) {
   }
 
   if (remoteReference) {
+    const visualStatus = preset.sourceType === 'SOURCE-GROUNDED-WEB-EXTRACT'
+      ? 'SOURCE-GROUNDED Originalpixel-Extract'
+      : preset.sourceType || 'WEB-REFERENCED';
     caption.append(document.createTextNode(
-      `${preset.name} · recherchiertes externes Produktfoto · lokaler Fallback: WEB-REFERENCED RECONSTRUCTION`
+      `${preset.name} · recherchiertes externes Produktfoto · lokales Renderdesign: ${visualStatus}`
     ));
   } else {
     const label = preset.sourceLabel || 'supplied source';
@@ -444,6 +447,7 @@ async function renderAll() {
         tipDriftPx: orthogonal.tipDriftPx,
         axisYErrorPx: orthogonal.canonicalAxisYErrorPx,
         jointMetrics: orthogonal.jointMetrics,
+        jointSprite: orthogonal.jointSprite,
       },
       posed: {
         tipDriftPx: posed.tipDriftPx,
@@ -451,6 +455,7 @@ async function renderAll() {
         axis: posed.axis,
         flightFacing: posed.flightFacing,
         jointMetrics: posed.jointMetrics,
+        jointSprite: posed.jointSprite,
       },
       screenPreview,
       flightPlaneModel: posed.flightPlaneModel,
@@ -464,11 +469,16 @@ async function renderAll() {
       selection: { ...selection },
       validation,
       pose: { screenRotationDeg: screenRotation, incidenceDeg: incidence, rollDeg: roll },
-      ortho: { tipDriftPx: orthogonal.tipDriftPx },
+      ortho: {
+        tipDriftPx: orthogonal.tipDriftPx,
+        jointMetrics: orthogonal.jointMetrics,
+        jointSprite: orthogonal.jointSprite,
+      },
       posed: {
         tipDriftPx: posed.tipDriftPx,
         flightFacing: posed.flightFacing,
         jointMetrics: posed.jointMetrics,
+        jointSprite: posed.jointSprite,
       },
       screenPreview,
     };

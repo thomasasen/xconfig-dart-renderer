@@ -44,8 +44,45 @@ jobs:
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
 
+      - name: Install Chromium for browser QA
+        run: python -m playwright install --with-deps chromium
+
       - name: Validate catalog, geometry and source contracts
         run: npm run validate
+
+      - name: Run deterministic visual QA
+        run: |
+          python scripts/qa_static.py
+          python scripts/software_pose_qa.py
+
+      - name: Run browser and WebGL QA
+        run: python scripts/browser_qa.py
+
+      - name: Upload V1.3 QA artifact
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1.3-renderer-qa
+          if-no-files-found: error
+          path: |
+            data/catalog.json
+            data/authoring-metadata.json
+            assets/components/clemens-g2
+            assets/components/clemens-95k
+            assets/source/web-clemens-g2-source-grounded.png
+            assets/source/web-clemens-95k-source-grounded.png
+            outputs/comparisons/clemens-g2-23.jpg
+            outputs/comparisons/clemens-95k-23.jpg
+            outputs/comparisons/clemens-g2-23-v1.3-triptych.jpg
+            outputs/comparisons/clemens-95k-23-v1.3-triptych.jpg
+            outputs/gallery/pose-clemens-g2-23.jpg
+            outputs/gallery/pose-clemens-95k-23.jpg
+            outputs/qa/static-qa.json
+            outputs/qa/software-pose-qa.json
+            outputs/qa/browser-qa.json
+            outputs/qa/builder-ui.png
+            outputs/qa/seam-clemens-g2-23.png
+            outputs/qa/seam-clemens-95k-23.png
 
       - name: Build static Pages site
         if: github.event_name != 'pull_request'
