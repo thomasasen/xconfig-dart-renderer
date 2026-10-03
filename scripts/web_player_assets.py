@@ -293,19 +293,25 @@ def _canonicalize_integrated_flight_face(image):
             envelope[y0:y1+1,x]=255
     arr[:,:,3]=np.minimum(alpha,envelope).astype(np.uint8)
 
-    band=max(1,int(round(max_span*.035)))
+    # Side-view product photos already contain the perpendicular fin as a broad
+    # horizontal occluder. Replace the full occluded band, not only a hairline, or the
+    # photographed cross-fin becomes visible a second time after geometric Plane B.
+    band=max(2,int(round(max_span*.14)))
+    sample_gap=max(2,int(round(max_span*.025)))
     approx_pixels=0
     for x in range(face_start,face_end+1):
         if spans[x]<broad_threshold: continue
-        y_top=max(0,center-band-2); y_bot=min(h-1,center+band+2)
+        y_top=max(0,center-band-sample_gap)
+        y_bot=min(h-1,center+band+sample_gap)
         if y_bot<=y_top: continue
-        fill=((arr[y_top,x,:3].astype(np.uint16)+arr[y_bot,x,:3].astype(np.uint16))//2).astype(np.uint8)
+        top=arr[y_top,x,:3].astype(np.float32)
+        bot=arr[y_bot,x,:3].astype(np.float32)
         ya=max(0,center-band); yb=min(h,center+band+1)
-        valid=arr[ya:yb,x,3]>0
-        segment=arr[ya:yb,x,:3].copy()
-        segment[valid]=fill
-        arr[ya:yb,x,:3]=segment
-        approx_pixels+=int(valid.sum())
+        for y in range(ya,yb):
+            if arr[y,x,3]==0: continue
+            t=(y-y_top)/max(1,(y_bot-y_top))
+            arr[y,x,:3]=np.clip(top*(1.0-t)+bot*t,0,255).astype(np.uint8)
+            approx_pixels+=1
 
     out=Image.fromarray(arr,'RGBA')
     bbox=out.getbbox()
