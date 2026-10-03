@@ -26,11 +26,14 @@ SPECS={
    file='190840STARWARSMANDALORIAN95_STEElTIP_GALLERY_DE_PT01.webp',
    rotate=False, bg='dark-roi', roi=(38,175,765,350),
    splits=[0.19,0.565,0.725], rear=True, canonicalFlight=False,
-   flightWebMode='KFLEX_FRONTAL_LEFT',
-   flightProductPage='https://a-zdarts.com/products/target-star-wars-mandalorian-k-flex-flight-system-no6-short',
+   flightWebMode='KFLEX_CENTER_DART_FRONT',
+   flightProductPage='https://www.target-darts.co.uk/star-wars-mandalorian-sp',
    flightWebSources=[
-      'https://a-zdarts.com/cdn/shop/files/15-410623_01.jpg?v=1776815492&width=960',
-      'https://a-zdarts.com/cdn/shop/files/15-410624_01.jpg?v=1776815674&width=960',
+      # Exact blue No.2 K-Flex supplied with the Mandalorian SP. The central dart is
+      # photographed front-on, so its broad plane can be used without side-view
+      # perspective or the wrong black No.6 gift-set artwork.
+      'https://mcdart.de/media/2240x2240x100/e8/52/d4/1775636511/360523_Target_StarWars_Mandalorian_SP_Steeldarts_1Set.png?ts=1775687705',
+      'https://arrowheadz.co.uk/cdn/shop/files/mandalorian95.png?v=1776884701&width=1500',
    ],
 ),
  'atat': dict(file='190843-STARWARSAT-AT90_STEELTIP_GALLERY_DE_PT01.webp', rotate=False, bg='dark-roi', roi=(35,180,765,350), splits=[0.19,0.54,0.73], rear=False, canonicalFlight=True),
@@ -233,40 +236,78 @@ def collapse_cross_fin_band(img:Image.Image, half_band_ratio=.022):
     }
 
 def prepare_dedicated_flight_face(spec):
-    if spec.get('flightWebMode')!='KFLEX_FRONTAL_LEFT':
+    mode=spec.get('flightWebMode')
+    if mode not in ('KFLEX_FRONTAL_LEFT','KFLEX_CENTER_DART_FRONT'):
         return None,None
     raw,url=download_reference_image(spec.get('flightWebSources'))
-    # The selected catalogue image is a clean front view with the black K-Flex on
-    # the left and a clear/red K-Flex on the right. Work only with the black half.
-    left=raw.crop((0,0,max(1,raw.width//2),raw.height))
-    isolated=largest_alpha_component(alpha_connected_white_background(left),20)
-    # Catalogue orientation: shaft points down. Rotate clockwise so the flight root
-    # points left, matching the xConfig canonical component convention.
-    horizontal=trim_alpha(isolated.transpose(Image.Transpose.ROTATE_270),3)
-    a=np.array(horizontal.getchannel('A'))
-    spans=[]
-    for x in range(horizontal.width):
-        ys=np.where(a[:,x]>25)[0]
-        spans.append((int(ys.max()-ys.min()+1) if len(ys) else 0))
-    max_span=max(spans) if spans else 0
-    if max_span<20:
-        raise RuntimeError(f'dedicated K-Flex foreground too small: {horizontal.size}')
-    broad_threshold=max(8,int(round(max_span*.42)))
-    broad=[i for i,s in enumerate(spans) if s>=broad_threshold]
-    if not broad:
-        raise RuntimeError('dedicated K-Flex source has no broad flight face')
-    x0=max(0,min(broad)-2)
-    face=trim_alpha(horizontal.crop((x0,0,horizontal.width,horizontal.height)),3)
-    clean,qc=collapse_cross_fin_band(face)
+
+    if mode=='KFLEX_CENTER_DART_FRONT':
+        # Exact Mandalorian SP blue No.2 reference: isolate the central/front-facing
+        # dart. The broad flight face sits at the top; the narrow shaft/barrel continues
+        # below and is rejected by row-width geometry.
+        x0=int(round(raw.width*.28)); x1=int(round(raw.width*.72))
+        y1=int(round(raw.height*.48))
+        central=raw.crop((x0,0,x1,max(1,y1)))
+        isolated=largest_alpha_component(alpha_connected_white_background(central),20)
+        a=np.array(isolated.getchannel('A'))
+        widths=[]; bounds=[]
+        for y in range(isolated.height):
+            xs=np.where(a[y,:]>25)[0]
+            if len(xs):
+                widths.append(int(xs.max()-xs.min()+1)); bounds.append((int(xs.min()),int(xs.max())))
+            else:
+                widths.append(0); bounds.append(None)
+        max_width=max(widths) if widths else 0
+        if max_width<30:
+            raise RuntimeError(f'dedicated blue K-Flex foreground too small: {isolated.size}')
+        broad_threshold=max(12,int(round(max_width*.38)))
+        broad=[i for i,v in enumerate(widths) if v>=broad_threshold]
+        if not broad:
+            raise RuntimeError('blue K-Flex source has no broad frontal flight face')
+        top=max(0,min(broad)-3)
+        last=max(broad)
+        # Include the tapered flight root, but stop before the long narrow shaft.
+        narrow_limit=max(6,int(round(max_width*.16)))
+        bottom=last
+        low_run=0
+        for y in range(last+1,isolated.height):
+            if widths[y] <= narrow_limit:
+                low_run += 1
+                if low_run>=5:
+                    bottom=max(last,y-low_run+1)
+                    break
+            else:
+                low_run=0; bottom=y
+        face=trim_alpha(isolated.crop((0,top,isolated.width,min(isolated.height,bottom+2))),3)
+        # Shaft points down in the reference; clockwise rotation makes the flight root
+        # point left, matching the xConfig canonical texture convention.
+        horizontal=trim_alpha(face.transpose(Image.Transpose.ROTATE_270),3)
+    else:
+        # Fallback helper retained for other future frontal pair references.
+        left=raw.crop((0,0,max(1,raw.width//2),raw.height))
+        isolated=largest_alpha_component(alpha_connected_white_background(left),20)
+        horizontal=trim_alpha(isolated.transpose(Image.Transpose.ROTATE_270),3)
+        a=np.array(horizontal.getchannel('A'))
+        spans=[]
+        for x in range(horizontal.width):
+            ys=np.where(a[:,x]>25)[0]
+            spans.append((int(ys.max()-ys.min()+1) if len(ys) else 0))
+        max_span=max(spans) if spans else 0
+        broad_threshold=max(8,int(round(max_span*.42)))
+        broad=[i for i,s in enumerate(spans) if s>=broad_threshold]
+        if not broad:
+            raise RuntimeError('dedicated K-Flex source has no broad flight face')
+        horizontal=trim_alpha(horizontal.crop((max(0,min(broad)-2),0,horizontal.width,horizontal.height)),3)
+
+    clean,qc=collapse_cross_fin_band(horizontal)
     qc.update({
         'mode':'DEDICATED_FRONTAL_KFLEX_SOURCE',
         'sourceUrl':url,
         'sourcePage':spec.get('flightProductPage'),
         'sourceImageSize':[raw.width,raw.height],
         'sourceGrounded':True,
+        'design':'MANDALORIAN_BLUE_NO2',
     })
-    # Persist only the isolated/cropped K-Flex reference needed for QA, not the
-    # full retailer catalogue image.
     save_component(horizontal,SRC/'web-mandalorian-kflex-frontal-source-grounded.png')
     return clean,qc
 
