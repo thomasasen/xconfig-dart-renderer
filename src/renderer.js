@@ -187,6 +187,8 @@ export class SharedDartComponentRenderer {
     this.edgeCoverageCache = new Map();
     this.spriteCache = new Map();
     this.invalid = false;
+    this.contextLossCount = 0;
+    this.contextRestoreCount = 0;
     this.assembly = null;
     this.assemblyKey = '';
     this.jointMetrics = null;
@@ -239,11 +241,13 @@ export class SharedDartComponentRenderer {
 
     this.renderer.domElement.addEventListener('webglcontextlost', (event) => {
       event.preventDefault();
+      this.contextLossCount += 1;
       this.invalid = true;
       this.spriteCache.clear();
       this.onStatus('context-lost · renderer invalid');
     });
     this.renderer.domElement.addEventListener('webglcontextrestored', () => {
+      this.contextRestoreCount += 1;
       this.spriteCache.clear();
       for (const texture of this.textureCache.values()) texture.needsUpdate = true;
       this.invalid = false;
@@ -759,12 +763,20 @@ export class SharedDartComponentRenderer {
     };
   }
 
+  contextStats() {
+    return {
+      lost: this.contextLossCount,
+      restored: this.contextRestoreCount,
+      invalid: this.invalid,
+    };
+  }
+
   simulateContextLoss() {
     const gl = this.renderer.getContext();
     const extension = gl.getExtension('WEBGL_lose_context');
-    if (!extension) return { supported: false };
+    if (!extension) return { supported: false, ...this.contextStats() };
     extension.loseContext();
     setTimeout(() => extension.restoreContext(), 350);
-    return { supported: true };
+    return { supported: true, ...this.contextStats() };
   }
 }
