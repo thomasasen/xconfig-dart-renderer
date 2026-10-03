@@ -1,5 +1,7 @@
 from __future__ import annotations
 import json, shutil, math
+from io import BytesIO
+from urllib.request import Request, urlopen
 from pathlib import Path
 import numpy as np
 from PIL import Image, ImageEnhance, ImageFilter, ImageDraw, ImageFont
@@ -20,7 +22,17 @@ SPECS={
  'world': dict(file='target-luke-littler-world-champion-90-swiss-23-gram_3.webp', rotate=True, bg='white', splits=[0.20625,0.55,0.7375], rear=True, canonicalFlight=True),
  'auro': dict(file='shot-alchemy-auro-90_3.webp', rotate=True, bg='white', splits=[0.20,0.53125,0.73125], rear=False, canonicalFlight=True),
  'supa': dict(file='PW2022_SupaVenom_Steel_LEFT.webp', rotate=False, bg='alpha', splits=[0.15,0.525,0.7625], rear=False, canonicalFlight=True),
- 'mandalorian': dict(file='190840STARWARSMANDALORIAN95_STEElTIP_GALLERY_DE_PT01.webp', rotate=False, bg='dark-roi', roi=(38,175,765,350), splits=[0.19,0.565,0.725], rear=True, canonicalFlight=True),
+ 'mandalorian': dict(
+   file='190840STARWARSMANDALORIAN95_STEElTIP_GALLERY_DE_PT01.webp',
+   rotate=False, bg='dark-roi', roi=(38,175,765,350),
+   splits=[0.19,0.565,0.725], rear=True, canonicalFlight=False,
+   flightWebMode='KFLEX_FRONTAL_LEFT',
+   flightProductPage='https://a-zdarts.com/products/target-star-wars-mandalorian-k-flex-flight-system-no6-short',
+   flightWebSources=[
+      'https://a-zdarts.com/cdn/shop/files/15-410623_01.jpg?v=1776815492&width=960',
+      'https://a-zdarts.com/cdn/shop/files/15-410624_01.jpg?v=1776815674&width=960',
+   ],
+),
  'atat': dict(file='190843-STARWARSAT-AT90_STEELTIP_GALLERY_DE_PT01.webp', rotate=False, bg='dark-roi', roi=(35,180,765,350), splits=[0.19,0.54,0.73], rear=False, canonicalFlight=True),
  'edge': dict(file='PT02_ffd9f2ed-6a52-43e8-9f62-027742ec8be4.webp', rotate=False, bg='dark-roi', roi=(34,175,766,352), splits=[0.19,0.56,0.73], rear=True, canonicalFlight=True),
  'vader': dict(file='PT01_a83f80b3-c589-4f2e-85c1-7cf911048504.webp', rotate=False, bg='dark-roi', roi=(35,175,765,352), splits=[0.19,0.56,0.73], rear=True, canonicalFlight=True),
@@ -140,6 +152,98 @@ def save_component(img, path):
     path.parent.mkdir(parents=True,exist_ok=True)
     trim_alpha(img,3).save(path)
 
+def download_reference_image(urls):
+    errors=[]
+    for url in urls or []:
+        try:
+            req=Request(url,headers={
+                'User-Agent':'Mozilla/5.0 xConfig-Dart-Renderer/1.3.2',
+                'Accept':'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+            })
+            with urlopen(req,timeout=30) as response:
+                raw=response.read()
+            im=Image.open(BytesIO(raw)).convert('RGBA')
+            if im.width < 300 or im.height < 300:
+                raise RuntimeError(f'image too small: {im.size}')
+            return im,url
+        except Exception as exc:
+            errors.append(f'{url}: {exc}')
+    raise RuntimeError('No dedicated flight reference could be downloaded. ' + ' | '.join(errors))
+
+def largest_alpha_component(img:Image.Image, threshold=24):
+    rgba=np.array(img.convert('RGBA')).copy()
+    binary=(rgba[:,:,3]>threshold).astype(np.uint8)
+    n,labels,stats,_=cv2.connectedComponentsWithStats(binary,8)
+    if n<=1:return trim_alpha(img,threshold)
+    idx=1+int(np.argmax(stats[1:,cv2.CC_STAT_AREA]))
+    keep=(labels==idx).astype(np.uint8)*255
+    keep=cv2.dilate(keep,np.ones((3,3),np.uint8),iterations=1)
+    rgba[:,:,3]=np.minimum(rgba[:,:,3],keep).astype(np.uint8)
+    return trim_alpha(Image.fromarray(rgba,'RGBA'),threshold)
+
+def collapse_cross_fin_band(img:Image.Image, half_band_ratio=.022):
+    """Remove the edge-on perpendicular fin from an otherwise frontal K-Flex face.
+
+    The two source-grounded halves above/below the ridge are joined geometrically.
+    No opposite-face artwork is mirrored or copied. The removed strip is the only
+    approximated region.
+    """
+    base=trim_alpha(img.convert('RGBA'),3)
+    arr=np.array(base).copy(); alpha=arr[:,:,3]
+    h,w=alpha.shape
+    center=h//2
+    band=max(1,int(round(h*half_band_ratio)))
+    y0=max(0,center-band); y1=min(h,center+band+1)
+    removed=int((alpha[y0:y1,:]>3).sum())
+    before=max(1,int((alpha>3).sum()))
+    collapsed=np.concatenate([arr[:y0,:,:],arr[y1:,:,:]],axis=0)
+    if collapsed.shape[0]<8:
+        raise RuntimeError('cross-fin collapse removed too much of the texture')
+    restored=Image.fromarray(collapsed,'RGBA').resize((w,h),Image.Resampling.LANCZOS)
+    return trim_alpha(restored,3),{
+        'deocclusionMethod':'FRONTAL_RIDGE_STRIP_COLLAPSE',
+        'centreBandHalfWidthPx':band,
+        'approximatedPixelFraction':round(removed/before,4),
+    }
+
+def prepare_dedicated_flight_face(spec):
+    if spec.get('flightWebMode')!='KFLEX_FRONTAL_LEFT':
+        return None,None
+    raw,url=download_reference_image(spec.get('flightWebSources'))
+    # The selected catalogue image is a clean front view with the black K-Flex on
+    # the left and a clear/red K-Flex on the right. Work only with the black half.
+    left=raw.crop((0,0,max(1,raw.width//2),raw.height))
+    isolated=largest_alpha_component(alpha_white(left),20)
+    # Catalogue orientation: shaft points down. Rotate clockwise so the flight root
+    # points left, matching the xConfig canonical component convention.
+    horizontal=trim_alpha(isolated.transpose(Image.Transpose.ROTATE_270),3)
+    a=np.array(horizontal.getchannel('A'))
+    spans=[]
+    for x in range(horizontal.width):
+        ys=np.where(a[:,x]>25)[0]
+        spans.append((int(ys.max()-ys.min()+1) if len(ys) else 0))
+    max_span=max(spans) if spans else 0
+    if max_span<20:
+        raise RuntimeError(f'dedicated K-Flex foreground too small: {horizontal.size}')
+    broad_threshold=max(8,int(round(max_span*.42)))
+    broad=[i for i,s in enumerate(spans) if s>=broad_threshold]
+    if not broad:
+        raise RuntimeError('dedicated K-Flex source has no broad flight face')
+    x0=max(0,min(broad)-2)
+    face=trim_alpha(horizontal.crop((x0,0,horizontal.width,horizontal.height)),3)
+    clean,qc=collapse_cross_fin_band(face)
+    qc.update({
+        'mode':'DEDICATED_FRONTAL_KFLEX_SOURCE',
+        'sourceUrl':url,
+        'sourcePage':spec.get('flightProductPage'),
+        'sourceImageSize':[raw.width,raw.height],
+        'sourceGrounded':True,
+    })
+    # Persist only the isolated/cropped K-Flex reference needed for QA, not the
+    # full retailer catalogue image.
+    save_component(horizontal,SRC/'web-mandalorian-kflex-frontal-source-grounded.png')
+    return clean,qc
+
 def canonicalize_integrated_flight_face(img:Image.Image):
     """Extract the dominant broad flight face from a photographed integrated rear.
 
@@ -244,7 +348,11 @@ for key,spec in SPECS.items():
     if spec['bg']=='dark-roi':
         crops['flight-plane-a']=mask_flight_polygon(clean_large_component(crops['flight-plane-a']))
     flight_qc=None
-    if spec.get('canonicalFlight'):
+    dedicated_flight,dedicated_qc=prepare_dedicated_flight_face(spec)
+    if dedicated_flight is not None:
+        crops['flight-plane-a']=dedicated_flight
+        flight_qc=dedicated_qc
+    elif spec.get('canonicalFlight'):
         crops['flight-plane-a'],flight_qc=canonicalize_integrated_flight_face(crops['flight-plane-a'])
     for name,c in crops.items(): save_component(c,OUT/key/f'{name}.png')
     flight=trim_alpha(crops['flight-plane-a'],3)
@@ -258,10 +366,12 @@ for key,spec in SPECS.items():
       'flightProfile':flight_profile(flight),
       'rearIntegrated':spec['rear'],
       'flightExtractionMode':(flight_qc or {}).get('mode','DIRECT_SOURCE_FACE'),
-      'flightPlaneAProvenance':'SOURCE-GROUNDED+APPROXIMATED-OCCLUSION' if flight_qc and flight_qc.get('mode')=='PRIMARY_FACE_DEOCCLUDED' else 'SOURCE-GROUNDED',
+      'flightPlaneAProvenance':'SOURCE-GROUNDED+APPROXIMATED-OCCLUSION' if flight_qc and (flight_qc.get('mode') in ('PRIMARY_FACE_DEOCCLUDED','DEDICATED_FRONTAL_KFLEX_SOURCE')) else 'SOURCE-GROUNDED',
       'flightPlaneBProvenance':'APPROXIMATED',
+      'flightSourceUrl':(flight_qc or {}).get('sourceUrl'),
+      'flightSourcePage':(flight_qc or {}).get('sourcePage'),
       'flightApproximation':flight_qc,
-      'authoringStatus':'SOURCE-GROUNDED component split; integrated flight Plane A de-occludes only source-hidden cross-fin pixels when required',
+      'authoringStatus':'SOURCE-GROUNDED component split; dedicated frontal flight sources are preferred over photographed composite side views; only explicitly recorded occlusion strips are approximated',
     }
 
 # Generic geometry-only Slim flight reference. It is intentionally not a product preset.
