@@ -25,7 +25,7 @@ SPECS={
  'mandalorian': dict(
    file='190840STARWARSMANDALORIAN95_STEElTIP_GALLERY_DE_PT01.webp',
    rotate=False, bg='dark-roi', roi=(38,175,765,350),
-   splits=[0.19,0.565,0.725], rear=True, canonicalFlight=False,
+   splits=[0.19,0.565,0.725], rear=True, canonicalFlight=False, rearVerticalTrim='SATURATION',
    flightWebMode='KFLEX_CENTER_DART_FRONT',
    flightProductPage='https://www.target-darts.co.uk/star-wars-mandalorian-sp',
    flightWebSources=[
@@ -177,6 +177,25 @@ def suppress_low_alpha_haze(img:Image.Image, cutoff=72):
     arr[:,:,3]=a
     return trim_alpha(Image.fromarray(arr,'RGBA'),3)
 
+def trim_rear_by_saturation(img:Image.Image):
+    """Crop dark infographic residue around a coloured integrated shaft.
+
+    The Mandalorian shaft itself is strongly blue/saturated while the infographic
+    residue is neutral grey. Only vertical canvas is trimmed; shaft RGB is untouched.
+    """
+    rgba=img.convert('RGBA')
+    arr=np.array(rgba)
+    rgb=arr[:,:,:3].astype(np.int16)
+    sat=rgb.max(axis=2)-rgb.min(axis=2)
+    row_score=(sat>15).sum(axis=1)
+    threshold=max(4,int(round(rgba.width*.18)))
+    ys=np.where(row_score>=threshold)[0]
+    if len(ys)==0:
+        return trim_alpha(rgba,3)
+    y0=max(0,int(ys.min())-3)
+    y1=min(rgba.height,int(ys.max())+4)
+    return trim_alpha(rgba.crop((0,y0,rgba.width,y1)),3)
+
 def save_component(img, path):
     path.parent.mkdir(parents=True,exist_ok=True)
     trim_alpha(img,3).save(path)
@@ -210,7 +229,7 @@ def largest_alpha_component(img:Image.Image, threshold=24):
     rgba[:,:,3]=np.minimum(rgba[:,:,3],keep).astype(np.uint8)
     return trim_alpha(Image.fromarray(rgba,'RGBA'),threshold)
 
-NO2_PROFILE=[[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[1.00,-0.45],[0.90,-0.82],[0.60,-1.00],[0.18,-0.96],[0.06,-0.34]]
+NO6_PROFILE=[[0.00,0.00],[0.08,0.30],[0.22,0.90],[0.68,1.00],[0.94,0.72],[1.00,0.35],[1.00,-0.35],[0.94,-0.72],[0.68,-1.00],[0.22,-0.90],[0.08,-0.30]]
 
 def mask_to_flight_profile(image:Image.Image, profile):
     rgba=image.convert('RGBA')
@@ -261,9 +280,9 @@ def prepare_dedicated_flight_face(spec):
     raw,url=download_reference_image(spec.get('flightWebSources'))
 
     if mode=='KFLEX_CENTER_DART_FRONT':
-        # Exact Mandalorian SP blue No.2 reference: isolate the central/front-facing
-        # dart. The broad flight face sits at the top; the narrow shaft/barrel continues
-        # below and is rejected by row-width geometry.
+        # Blue Mandalorian artwork reference: isolate the central/front-facing
+        # dart. Geometry is NOT taken from this retail image: the supplied infographic
+        # explicitly defines the mounted flight as No.6, so a No.6 mask is applied later.
         x0=int(round(raw.width*.28)); x1=int(round(raw.width*.72))
         y1=int(round(raw.height*.48))
         central=raw.crop((x0,0,x1,max(1,y1)))
@@ -318,20 +337,19 @@ def prepare_dedicated_flight_face(spec):
             raise RuntimeError('dedicated K-Flex source has no broad flight face')
         horizontal=trim_alpha(horizontal.crop((max(0,min(broad)-2),0,horizontal.width,horizontal.height)),3)
 
-    # The front-facing product image still contains the perpendicular K-Flex plane
-    # edge-on across the axis. For this exact Mandalorian source that occluder occupies
-    # roughly one fifth of total height, so remove ±10% around the axis. The remaining
-    # upper/lower surfaces are the two source-grounded halves of the same No.2 plane.
+    # The front-facing artwork reference still contains the perpendicular K-Flex plane
+    # edge-on across the axis. Remove ±10% around the axis. The two remaining halves
+    # retain source pixels; canonical outer geometry comes from the supplied No.6 infographic.
     clean,qc=collapse_cross_fin_band(horizontal,half_band_ratio=.10)
-    clean=mask_to_flight_profile(clean,NO2_PROFILE)
+    clean=mask_to_flight_profile(clean,NO6_PROFILE)
     qc.update({
         'mode':'DEDICATED_FRONTAL_KFLEX_SOURCE',
         'sourceUrl':url,
         'sourcePage':spec.get('flightProductPage'),
         'sourceImageSize':[raw.width,raw.height],
         'sourceGrounded':True,
-        'design':'MANDALORIAN_BLUE_NO2',
-        'canonicalProfile':'NO2',
+        'design':'MANDALORIAN_BLUE_SOURCE_ARTWORK',
+        'canonicalProfile':'NO6_SUPPLIED_INFOGRAPHIC',
         'profileMaskApplied':True,
     })
     save_component(horizontal,SRC/'web-mandalorian-kflex-frontal-source-grounded.png')
@@ -442,6 +460,8 @@ for key,spec in SPECS.items():
         for component_name in ('point','barrel','rear-shaft','shaft'):
             if component_name in crops:
                 crops[component_name]=suppress_low_alpha_haze(crops[component_name])
+        if spec.get('rearVerticalTrim')=='SATURATION' and 'rear-shaft' in crops:
+            crops['rear-shaft']=trim_rear_by_saturation(crops['rear-shaft'])
         crops['flight-plane-a']=mask_flight_polygon(clean_large_component(crops['flight-plane-a']))
     flight_qc=None
     dedicated_flight,dedicated_qc=prepare_dedicated_flight_face(spec)
