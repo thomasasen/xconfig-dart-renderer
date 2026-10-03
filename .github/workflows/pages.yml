@@ -58,25 +58,47 @@ jobs:
       - name: Run browser and WebGL QA
         run: python scripts/browser_qa.py
 
-      - name: Upload V1.3 QA artifact
+      - name: Upload V1.3.1 QA artifact
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: v1.3-renderer-qa
+          name: v1.3.1-renderer-qa
           if-no-files-found: error
           path: |
             data/catalog.json
             data/authoring-metadata.json
             assets/components/clemens-g2
             assets/components/clemens-95k
+            assets/components/prodigy
+            assets/components/shift
+            assets/components/world
             assets/source/web-clemens-g2-source-grounded.png
             assets/source/web-clemens-95k-source-grounded.png
             outputs/comparisons/clemens-g2-23.jpg
             outputs/comparisons/clemens-95k-23.jpg
-            outputs/comparisons/clemens-g2-23-v1.3-triptych.jpg
-            outputs/comparisons/clemens-95k-23-v1.3-triptych.jpg
+            outputs/comparisons/prodigy-23.jpg
+            outputs/comparisons/shift.jpg
+            outputs/comparisons/world-champion.jpg
+            outputs/comparisons/clemens-g2-23-v1.3.1-triptych.jpg
+            outputs/comparisons/clemens-95k-23-v1.3.1-triptych.jpg
+            outputs/comparisons/prodigy-23-v1.3.1-triptych.jpg
+            outputs/comparisons/shift-v1.3.1-triptych.jpg
+            outputs/comparisons/world-champion-v1.3.1-triptych.jpg
             outputs/gallery/pose-clemens-g2-23.jpg
             outputs/gallery/pose-clemens-95k-23.jpg
+            outputs/gallery/pose-prodigy-23.jpg
+            outputs/gallery/pose-shift.jpg
+            outputs/gallery/pose-world-champion.jpg
+            outputs/qa/flight-textures-clemens-g2-23.png
+            outputs/qa/flight-textures-clemens-95k-23.png
+            outputs/qa/flight-textures-prodigy-23.png
+            outputs/qa/flight-textures-shift.png
+            outputs/qa/flight-textures-world-champion.png
+            outputs/qa/runtime-clemens-g2-23-source-vs-render.png
+            outputs/qa/runtime-clemens-95k-23-source-vs-render.png
+            outputs/qa/runtime-prodigy-23-source-vs-render.png
+            outputs/qa/runtime-shift-source-vs-render.png
+            outputs/qa/runtime-world-champion-source-vs-render.png
             outputs/qa/static-qa.json
             outputs/qa/software-pose-qa.json
             outputs/qa/browser-qa.json
