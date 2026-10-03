@@ -62,6 +62,20 @@ SOURCE_GROUNDED_SPECS = {
             'https://www.dartswarehouse.nl/media/catalog/product/cache/f20831aa4fe732f409bd1d4a248f932d/image/314593a22/target-gabriel-clemens-95k-95-swiss.jpg',
         ],
     },
+    'humphries-prestige': {
+        'integrated': False,
+        'shape': 'Standard',
+        'profile': None,  # filled after STD is defined
+        # Geometry ratio follows the verified 22g barrel plus the existing conservative
+        # point/shaft render assumptions. It is used only to split the source pixels.
+        'splits': [0.22, 0.51, 0.72],
+        'officialPage': 'https://winmau.com/en-de/products/luke-humphries-prestige-darts',
+        'sources': [
+            # Red Dragon/Winmau catalogue broadside used by the existing research record.
+            'https://www.reddragondarts.com/cdn/shop/files/2823_LUKEH_Prestige22gImage_3.jpg?v=1775031981&width=2667',
+            'https://www.bullydarts.co.uk/cdn/shop/files/2823_LUKEH_Prestige22gImage_3.jpg?v=1775031981&width=2667',
+        ],
+    },
 }
 
 def _download_product_image(urls):
@@ -358,7 +372,10 @@ def _split_source_grounded(key,spec):
     if flight_texture is not None:
         parts['flight-plane-a']=flight_texture
         flight_qc={'mode':'FLAT_FLIGHT_SOURCE','approximatedPixelFraction':0.0}
-    elif spec['integrated']:
+    else:
+        # A side-view classic flight can contain the same photographed fold/cross-fin
+        # problem as an integrated K-Flex. Canonicalize any side-view Plane A for which
+        # no dedicated flat flight photograph is available.
         parts['flight-plane-a'],flight_qc=_canonicalize_integrated_flight_face(parts['flight-plane-a'])
 
     # Plane B is intentionally only an approximation. Do not mirror/copy source
@@ -426,6 +443,7 @@ NO2 = [[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[
 STD = NO2
 SOURCE_GROUNDED_SPECS['clemens-g2']['profile']=NO6
 SOURCE_GROUNDED_SPECS['clemens-95k']['profile']=NO6
+SOURCE_GROUNDED_SPECS['humphries-prestige']['profile']=STD
 
 def font(size=24, bold=False):
     paths = ['/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf' if bold else '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf']
