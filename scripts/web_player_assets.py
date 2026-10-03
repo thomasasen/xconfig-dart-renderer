@@ -183,29 +183,22 @@ def _best_elongated_roi(image):
                 crop=crop.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
                 cmask,cdist,calpha=_foreground_mask(crop)
 
-            # Product sheets may put spare shafts, barrels or another dart inside the
-            # candidate crop. If all foreground rows are fed into the per-column fill,
-            # separate objects become one large rectangular alpha block. Keep only the
-            # horizontally widest connected dart component before silhouette filling.
-            join_w=max(9,round(crop.width*0.025))
-            joined_primary=cv2.morphologyEx(
-                cmask,cv2.MORPH_CLOSE,np.ones((3,join_w),np.uint8),iterations=2
-            )
-            nlabels,labels,stats,_=cv2.connectedComponentsWithStats(joined_primary,8)
-            ranked=[]
-            for label in range(1,nlabels):
-                cw0=stats[label,cv2.CC_STAT_WIDTH]
-                ch0=stats[label,cv2.CC_STAT_HEIGHT]
-                area0=stats[label,cv2.CC_STAT_AREA]
-                if cw0 < crop.width*.30:
-                    continue
-                score0=cw0*max(1.0,cw0/max(1,ch0))*(.5+area0/max(1,cw0*ch0))
-                ranked.append((score0,label))
-            if ranked:
-                _,primary=max(ranked)
-                component=(labels==primary).astype(np.uint8)*255
-                component=cv2.dilate(component,np.ones((5,5),np.uint8),iterations=1)
-                cmask=np.where(component>0,cmask,0).astype(np.uint8)
+            # Product sheets may place spare shafts/barrels above or below the full
+            # assembled dart. Anchor a corridor on the main dart's body axis using only
+            # the central x-range, then discard off-axis foreground before per-column
+            # silhouette filling. This keeps the real flight while preventing a second
+            # product row from turning into a rectangular alpha bridge.
+            x_body0=max(0,int(cmask.shape[1]*.18))
+            x_body1=max(x_body0+1,int(cmask.shape[1]*.72))
+            row_score=(cmask[:,x_body0:x_body1]>0).sum(axis=1)
+            if row_score.max()>0:
+                axis_row=int(np.argmax(row_score))
+                corridor_half=max(12,int(round(cmask.shape[0]*.32)))
+                ylo=max(0,axis_row-corridor_half)
+                yhi=min(cmask.shape[0],axis_row+corridor_half+1)
+                corridor=np.zeros_like(cmask)
+                corridor[ylo:yhi,:]=255
+                cmask=np.where(corridor>0,cmask,0).astype(np.uint8)
 
             silhouette=np.zeros_like(cmask)
             for xcol in range(cmask.shape[1]):
