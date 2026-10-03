@@ -130,6 +130,9 @@ for group in ('flights','rearSystems'):
 weight_re=re.compile(r'\b\d+(?:[.,]\d+)?\s*g\b',re.I)
 for pid,p in cat['presets'].items():
     check(weight_re.search(p.get('name','')) is None,f'{pid}: visible preset name still contains gram weight: {p.get("name")}')
+for group,items in c.items():
+    for cid,obj in items.items():
+        check(weight_re.search(obj.get('name','')) is None,f'{group}/{cid}: visible component name still contains gram weight: {obj.get("name")}')
 expected_names={
     'prodigy-23':'Target Luke Littler G1 Prodigy',
     'shift':'Target Shift SP',
