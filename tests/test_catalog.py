@@ -63,7 +63,7 @@ for group,items in c.items():
 # requirement and is covered in both a classic and integrated rear setup.
 web_sources={x['presetId']:x for x in cat.get('webPlayerSources',[])}
 check({'clemens-g2-23','clemens-95k-23'} <= set(web_sources),'Gabriel Clemens web presets missing')
-source_grounded_players={'clemens-g2-23','clemens-95k-23'}
+source_grounded_players={'clemens-g2-23','clemens-95k-23','humphries-prestige-22'}
 for pid,entry in web_sources.items():
     p=cat['presets'].get(pid)
     check(p is not None,f'web source points at missing preset {pid}')
@@ -82,8 +82,8 @@ for pid,entry in web_sources.items():
             check(provenance.get('flight-plane-a')=='SOURCE-GROUNDED',f'{pid}: flat-source Plane A must remain source-grounded')
             check(entry.get('flightExtractionMode')=='FLAT_FLIGHT_SOURCE',f'{pid}: expected dedicated flat-flight extraction')
         else:
-            check(provenance.get('flight-plane-a')=='SOURCE-GROUNDED+APPROXIMATED-OCCLUSION',f'{pid}: integrated side-view Plane A must disclose de-occlusion approximation')
-            check(entry.get('flightExtractionMode')=='PRIMARY_FACE_DEOCCLUDED',f'{pid}: integrated side-view must de-occlude photographed cross-fin')
+            check(provenance.get('flight-plane-a')=='SOURCE-GROUNDED+APPROXIMATED-OCCLUSION',f'{pid}: side-view Plane A must disclose de-occlusion approximation')
+            check(entry.get('flightExtractionMode')=='PRIMARY_FACE_DEOCCLUDED',f'{pid}: side-view must de-occlude photographed cross-fin')
         check(provenance.get('flight-plane-b-approx')=='APPROXIMATED',f'{pid}: plane B must remain approximated')
 
 # G2 Plane A must come from the exact flat No.6 source, not from the assembled
@@ -139,6 +139,7 @@ expected_names={
     'world-champion':'Target Luke Littler G1 World Champion',
     'clemens-g2-23':'Gabriel Clemens G2',
     'clemens-95k-23':'Gabriel Clemens 95K',
+    'humphries-prestige-22':'Luke Humphries Prestige',
 }
 for pid,name in expected_names.items():
     check(cat['presets'][pid]['name']==name,f'{pid}: wrong visible name {cat["presets"][pid]["name"]!r}')
