@@ -81,7 +81,7 @@ qa={'presets':{},'freeCombinations':[],'flightTextureQA':{}}
 for pid,p in CAT['presets'].items():
     qa['presets'][pid]=composite_compare(pid,p)
 
-REVIEW_PRESETS=('clemens-g2-23','prodigy-23','shift','world-champion','clemens-95k-23')
+REVIEW_PRESETS=('clemens-g2-23','prodigy-23','shift','world-champion','humphries-prestige-22','clemens-95k-23')
 for pid in REVIEW_PRESETS:
     qa['flightTextureQA'][pid]=flight_texture_audit(pid,CAT['presets'][pid])
 
