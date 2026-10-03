@@ -45,6 +45,8 @@ SOURCE_GROUNDED_SPECS = {
         'splits': [0.19, 0.565, 0.705],
         'officialPage': 'https://www.target-darts.co.uk/gabriel-clemens-95k-sp',
         'sources': [
+            # Official Target side view: full assembled dart from point through No.6 K-Flex.
+            'https://www.target-darts.co.uk/media/catalog/product/g/a/gabriel-clemens-95k-steel-tip-dart-sp-03.jpg?fit=bounds&height=1200&quality=80&width=1200',
             'https://www.target-darts.co.uk/media/catalog/product/g/a/gabriel-clemens-95k-steel-tip-dart-sp-01.jpg?fit=bounds&height=1200&quality=80&width=1200',
             # Retail fallback with complete assembled darts; used only if the official
             # manufacturer hero image fails the full-dart silhouette gate.
