@@ -14,6 +14,16 @@ def tex(product,name): return f'./assets/components/{product}/{name}.png'
 
 def profile(product): return meta[product]['flightProfile']
 
+def flight_meta(product):
+ m=meta.get(product,{})
+ provenance=m.get('componentProvenance',{})
+ return {
+  'planeAProvenance':m.get('flightPlaneAProvenance') or provenance.get('flight-plane-a') or 'SOURCE-GROUNDED',
+  'planeBProvenance':m.get('flightPlaneBProvenance') or provenance.get('flight-plane-b-approx') or 'APPROXIMATED',
+  'flightExtractionMode':m.get('flightExtractionMode','DIRECT_SOURCE_FACE'),
+  'flightApproximation':m.get('flightApproximation'),
+ }
+
 source_analysis=[
  {'file':'190840STARWARSMANDALORIAN95_STEElTIP_GALLERY_DE_PT01.webp','classification':'INTEGRATED_REAR_SYSTEM','identifiedAs':'Target Star Wars Mandalorian SP','confidence':'HIGH','reason':'Infografik benennt K-Flex, 2BA, 30/35-mm Swiss Point, 52-mm Barrel, 19-mm Short und No.6/No.2; damit ist ein integriertes Flight/Shaft-System explizit source-grounded.','evidence':[ev(SRC,'Produkt-/Komponentenangaben sind direkt im Bild lesbar.'),ev(WEB,'Target bestätigt Mandalorian SP, 95% Tungsten, 52-mm Barrel, 30-mm Swiss Storm Point und Short K-Flex.','https://www.targetdarts.com/us/star-wars-mandalorian-sp')]},
  {'file':'190843-STARWARSAT-AT90_STEELTIP_GALLERY_DE_PT01.webp','classification':'CLASSIC_MODULAR','identifiedAs':'Target Star Wars AT-AT SP','confidence':'HIGH','reason':'Infografik zeigt Pro Grip Short plus separate No.6-Flights; kein integriertes Rear-System.','evidence':[ev(SRC,'30-mm Point, 47.55-mm Barrel, 34-mm Short-Shaft, No.6 im Bild.'),ev(WEB,'Target bestätigt 90% Tungsten, Pro Grip Short, No.6 Pro Ultra Flight.','https://www.targetdarts.com/us/star-wars-at-at-sp')]},
@@ -41,10 +51,14 @@ def barrel(id,name,pointInterface,length,diam,product,profileName='straight',evi
  barrels[id]={'kind':'BarrelDefinition','id':id,'name':name,'pointInterface':pointInterface,'rearThread':'2BA','lengthMm':length,'diameterMm':diam,'profile':profileName,'renderLengthMm':renderLength or (length if isinstance(length,(int,float)) else 50),'renderDiameterMm':renderDiam or (diam if isinstance(diam,(int,float)) else 7.0),'texture':tex(product,'barrel'),'evidence':evidence or []}
 def shaft(id,name,length,product,evidence=None,renderLength=None):
  shafts[id]={'kind':'ShaftDefinition','id':id,'name':name,'rearThread':'2BA','flightMount':'FOLDED_FLIGHT_SLOT','lengthMm':length,'renderLengthMm':renderLength or length or 30,'renderDiameterMm':4.8,'texture':tex(product,'shaft'),'evidence':evidence or []}
-def flight(id,name,shape,product,evidence=None,renderLength=42,renderRadius=18,planeAStatus=SRC,visualAuthoring='SOURCE-GROUNDED'):
- flights[id]={'kind':'FlightDefinition','id':id,'name':name,'flightMount':'FOLDED_FLIGHT_SLOT','shape':shape,'renderLengthMm':renderLength,'renderRadiusMm':renderRadius,'planeProfile':profile(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'visualAuthoring':visualAuthoring,'evidence':evidence or []}
+def flight(id,name,shape,product,evidence=None,renderLength=42,renderRadius=18,planeAStatus=SRC,visualAuthoring='SOURCE-GROUNDED',safe=None):
+ fm=flight_meta(product)
+ flights[id]={'kind':'FlightDefinition','id':id,'name':name,'flightMount':'FOLDED_FLIGHT_SLOT','shape':shape,'renderLengthMm':renderLength,'renderRadiusMm':renderRadius,'planeProfile':profile(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'planeAProvenance':fm['planeAProvenance'],'planeBProvenance':fm['planeBProvenance'],'flightExtractionMode':fm['flightExtractionMode'],'flightApproximation':fm['flightApproximation'],'visualAuthoring':visualAuthoring,'evidence':evidence or []}
+ if safe:
+  flights[id]['safeRollMinDeg']=safe[0]; flights[id]['safeRollMaxDeg']=safe[1]
 def rear(id,name,system,length,shape,product,evidence=None,renderFlightLength=42,renderRadius=18,safe=(-18,18),planeAStatus=SRC,visualAuthoring='SOURCE-GROUNDED'):
- rears[id]={'kind':'RearSystemDefinition','id':id,'name':name,'rearThread':'2BA','integrated':True,'system':system,'shaftLengthMm':length,'flightShape':shape,'renderShaftLengthMm':length or 20,'renderShaftDiameterMm':5.2,'renderFlightLengthMm':renderFlightLength,'renderFlightRadiusMm':renderRadius,'shaftTexture':tex(product,'rear-shaft'),'planeProfile':profile(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'visualAuthoring':visualAuthoring,'safeRollMinDeg':safe[0],'safeRollMaxDeg':safe[1],'evidence':evidence or []}
+ fm=flight_meta(product)
+ rears[id]={'kind':'RearSystemDefinition','id':id,'name':name,'rearThread':'2BA','integrated':True,'system':system,'shaftLengthMm':length,'flightShape':shape,'renderShaftLengthMm':length or 20,'renderShaftDiameterMm':5.2,'renderFlightLengthMm':renderFlightLength,'renderFlightRadiusMm':renderRadius,'shaftTexture':tex(product,'rear-shaft'),'planeProfile':profile(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'planeAProvenance':fm['planeAProvenance'],'planeBProvenance':fm['planeBProvenance'],'flightExtractionMode':fm['flightExtractionMode'],'flightApproximation':fm['flightApproximation'],'visualAuthoring':visualAuthoring,'safeRollMinDeg':safe[0],'safeRollMaxDeg':safe[1],'evidence':evidence or []}
 WEIGHT_RE=re.compile(r'\\s+(\\d+(?:[.,]\\d+)?)\\s*g\\b',re.IGNORECASE)
 
 def visible_preset_name(name):
