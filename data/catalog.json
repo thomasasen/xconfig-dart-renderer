@@ -2330,7 +2330,7 @@
       "mandalorian-kflex-short": {
         "kind": "RearSystemDefinition",
         "id": "mandalorian-kflex-short",
-        "name": "Mandalorian K-Flex Short (infographic No.6)",
+        "name": "Mandalorian K-Flex No.6 Short",
         "rearThread": "2BA",
         "integrated": true,
         "system": "K-FLEX",
@@ -2344,115 +2344,115 @@
         "planeProfile": [
           [
             0,
-            0.0323
+            0
           ],
           [
-            0.0761,
-            0.2774
+            0.0771,
+            0.2085
           ],
           [
-            0.1523,
-            0.6258
+            0.1541,
+            0.4298
           ],
           [
-            0.2284,
-            0.9355
+            0.2312,
+            0.6468
           ],
           [
-            0.3096,
-            0.9484
+            0.3083,
+            0.8681
           ],
           [
-            0.3858,
-            0.9613
+            0.3853,
+            0.9447
           ],
           [
-            0.4619,
-            0.9742
+            0.4624,
+            0.9574
           ],
           [
-            0.5381,
-            0.9871
+            0.5376,
+            0.9702
           ],
           [
-            0.6142,
+            0.6147,
+            0.9872
+          ],
+          [
+            0.6917,
             1
           ],
           [
-            0.6904,
-            0.9613
+            0.7688,
+            0.9149
           ],
           [
-            0.7716,
-            0.9484
+            0.8459,
+            0.834
           ],
           [
-            0.8477,
-            0.7935
-          ],
-          [
-            0.9239,
-            0.3806
+            0.9229,
+            0.7106
           ],
           [
             1,
-            -0.0065
+            0.1915
           ],
           [
             1,
-            -0.0968
+            -0.1872
           ],
           [
-            0.9239,
-            -0.6645
+            0.9229,
+            -0.7064
           ],
           [
-            0.8477,
-            -0.7806
+            0.8459,
+            -0.8255
           ],
           [
-            0.7716,
-            -0.9097
+            0.7688,
+            -0.9106
           ],
           [
-            0.6904,
-            -0.9613
+            0.6917,
+            -0.9915
           ],
           [
-            0.6142,
-            -0.9613
+            0.6147,
+            -0.983
           ],
           [
-            0.5381,
-            -0.9484
+            0.5376,
+            -0.9702
           ],
           [
-            0.4619,
-            -0.9355
+            0.4624,
+            -0.9532
           ],
           [
-            0.3858,
-            -0.9226
+            0.3853,
+            -0.9404
           ],
           [
-            0.3096,
-            -0.9097
+            0.3083,
+            -0.8638
           ],
           [
-            0.2284,
-            -0.8968
+            0.2312,
+            -0.6468
           ],
           [
-            0.1523,
-            -0.5871
+            0.1541,
+            -0.4255
           ],
           [
-            0.0761,
-            -0.2387
+            0.0771,
+            -0.2085
           ],
           [
             0,
-            0.0065
+            0
           ]
         ],
         "planeATexture": "./assets/components/mandalorian/flight-plane-a.png",
@@ -2462,19 +2462,46 @@
           "planeB": "APPROXIMATED"
         },
         "visualAuthoring": "SOURCE-GROUNDED",
-        "safeRollMinDeg": -12,
-        "safeRollMaxDeg": 12,
+        "safeRollMinDeg": -10,
+        "safeRollMaxDeg": 10,
         "evidence": [
           {
             "status": "SOURCE-GROUNDED",
-            "note": "Infographic explicitly says K-Flex, 19 mm Short, flight form No.6, extra No.2."
+            "note": "The supplied infographic explicitly labels the mounted blue K-Flex as No.6, Short 19 mm, with No.2 as the extra shape."
+          },
+          {
+            "status": "SOURCE-GROUNDED",
+            "note": "Plane A artwork uses pixels from a separate frontal blue Mandalorian product image; its outer geometry is normalized to the No.6 shape stated by the supplied infographic, and the infographic composite flight is not used as a plane texture."
+          },
+          {
+            "status": "APPROXIMATED",
+            "note": "Only the edge-on cross-fin band removed from the frontal artwork source and the unseen Plane B are approximated."
           },
           {
             "status": "WEB-VERIFIED",
-            "note": "Target set includes Short 19-mm No.2 and No.6 K-Flex variants.",
-            "source": "https://www.targetdarts.com/us/star-wars-mandalorian-sp"
+            "note": "The current Target page lists Blue No.2 and Black No.6; this conflicts with the supplied infographic, so current web copy is not used to override the supplied source geometry.",
+            "source": "https://www.target-darts.co.uk/star-wars-mandalorian-sp"
           }
-        ]
+        ],
+        "planeAProvenance": "SOURCE-GROUNDED+APPROXIMATED-OCCLUSION",
+        "planeBProvenance": "APPROXIMATED",
+        "flightExtractionMode": "DEDICATED_FRONTAL_KFLEX_SOURCE",
+        "flightApproximation": {
+          "deocclusionMethod": "FRONTAL_RIDGE_STRIP_COLLAPSE",
+          "centreBandHalfWidthPx": 48,
+          "approximatedPixelFraction": 0.262,
+          "mode": "DEDICATED_FRONTAL_KFLEX_SOURCE",
+          "sourceUrl": "https://mcdart.de/media/2240x2240x100/e8/52/d4/1775636511/360523_Target_StarWars_Mandalorian_SP_Steeldarts_1Set.png?ts=1775687705",
+          "sourcePage": "https://www.target-darts.co.uk/star-wars-mandalorian-sp",
+          "sourceImageSize": [
+            2240,
+            2240
+          ],
+          "sourceGrounded": true,
+          "design": "MANDALORIAN_BLUE_SOURCE_ARTWORK",
+          "canonicalProfile": "NO6_SUPPLIED_INFOGRAPHIC",
+          "profileMaskApplied": true
+        }
       },
       "clemens-95k-kflex-no6-short": {
         "kind": "RearSystemDefinition",
@@ -2963,7 +2990,7 @@
     "mandalorian-24": {
       "kind": "DartPreset",
       "id": "mandalorian-24",
-      "name": "Target Star Wars Mandalorian (infographic preset)",
+      "name": "Target Star Wars Mandalorian",
       "sourceImage": "./assets/source/190840STARWARSMANDALORIAN95_STEElTIP_GALLERY_DE_PT01.webp",
       "sourcePage": null,
       "sourceLabel": "Supplied source",
@@ -2978,7 +3005,7 @@
         "rollDeg": 0
       },
       "notes": [
-        "Appearance extraction from infographic uses an image-space segmentation heuristic; geometry values are source/web grounded."
+        "Point/barrel/rear-shaft remain based on the supplied infographic. Plane A uses a separate frontal blue Mandalorian artwork source normalized to the supplied No.6 geometry; the photographed composite flight is not reused."
       ],
       "variantWeightG": 24
     },
@@ -3166,7 +3193,7 @@
       "classification": "INTEGRATED_REAR_SYSTEM",
       "identifiedAs": "Target Star Wars Mandalorian SP",
       "confidence": "HIGH",
-      "reason": "Infografik benennt K-Flex, 2BA, 30/35-mm Swiss Point, 52-mm Barrel, 19-mm Short und No.6/No.2; damit ist ein integriertes Flight/Shaft-System explizit source-grounded.",
+      "reason": "Die gelieferte Infografik benennt K-Flex, 2BA, 30/35-mm Swiss Point, 52-mm Barrel und 19-mm Short und bezeichnet den montierten blauen Flight ausdrücklich als No.6 (Extra: No.2). Aktuelle Target-Webdaten widersprechen dieser Zuordnung; für die konkrete Designquelle hat deshalb die gelieferte Infografik Vorrang.",
       "evidence": [
         {
           "status": "SOURCE-GROUNDED",
