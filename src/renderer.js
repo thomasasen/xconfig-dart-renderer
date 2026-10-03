@@ -707,10 +707,12 @@ export class SharedDartComponentRenderer {
       passed:
         maxTip < 1e-8 &&
         maxAxis < 1e-5 &&
-        Number(this.jointMetrics?.visibleDeltaMm || 0) < 1e-8,
+        Number(this.jointMetrics?.visibleDeltaMm || 0) < 1e-8 &&
+        Number(this.jointMetrics?.joinSlopeDeltaMmPerMm || 0) < 1e-8,
       maxTipDriftPx: maxTip,
       maxCanonicalAxisYErrorPx: maxAxis,
       jointVisibleDeltaMm: Number(this.jointMetrics?.visibleDeltaMm || 0),
+      jointSlopeDeltaMmPerMm: Number(this.jointMetrics?.joinSlopeDeltaMmPerMm || 0),
       planeOrientationDeg: [...PLANE_ORIENTATION_DEG],
       flightFacingSamples,
     };
