@@ -103,6 +103,22 @@ def _best_elongated_roi(image):
     mask,dist,source_alpha=_foreground_mask(image)
     h,w=mask.shape
     candidates=[]
+
+    # Clean catalogue broadside images often contain exactly one dart whose physical
+    # components are separated by tiny antialiased gaps. Treat the bounding box of all
+    # foreground pixels as an additional candidate instead of requiring connectivity.
+    ys_all,xs_all=np.where(mask>0)
+    if len(xs_all):
+        gx0,gx1=int(xs_all.min()),int(xs_all.max())+1
+        gy0,gy1=int(ys_all.min()),int(ys_all.max())+1
+        gw,gh=gx1-gx0,gy1-gy0
+        gmajor=max(gw,gh); gminor=max(1,min(gw,gh)); gratio=gmajor/gminor
+        foreground_fraction=float((mask[gy0:gy1,gx0:gx1]>0).mean())
+        if gmajor >= max(w,h)*0.35 and gratio >= 3.3 and foreground_fraction < 0.72:
+            # Slight score boost: when the whole image is a single broadside this is
+            # more robust than a morphology-dependent contour.
+            candidates.append((gmajor*gratio*1.15,gx0,gy0,gw,gh,'global'))
+
     # Build two detection masks so a horizontal or vertical dart can be found.
     for orientation,kernel in [
         ('horizontal',np.ones((max(3,h//220),max(15,w//45)),np.uint8)),
