@@ -442,6 +442,7 @@ export class SharedDartComponentRenderer {
     const pointDiameter = Math.max(.2, Number(assembly.point?.renderDiameterMm) || 2);
     const barrelDiameter = Math.max(.2, Number(assembly.barrel?.renderDiameterMm) || 2);
     const rearDiameterSafe = Math.max(.2, Number(rearDiameter) || 2);
+    this.barrelRearJoinX = pointLength + barrelLength;
 
     const seam = resolveBarrelRearSeam({
       barrelDiameterMm: barrelDiameter,
@@ -646,6 +647,14 @@ export class SharedDartComponentRenderer {
     const mapping = this.tipMapping();
     ctx.drawImage(this.renderer.domElement, mapping.offset.x, mapping.offset.y);
 
+    const jointWorld = new THREE.Vector3(this.barrelRearJoinX || 0, 0, 0)
+      .applyQuaternion(this.root.quaternion);
+    const jointProjected = this.projectWorld(jointWorld);
+    const jointSprite = {
+      x: jointProjected.x + mapping.offset.x,
+      y: jointProjected.y + mapping.offset.y,
+    };
+
     const tipDrift = Math.hypot(
       mapping.source.x + mapping.offset.x,
       mapping.source.y + mapping.offset.y - XCONFIG_SPRITE_CONTRACT.tip.y
@@ -664,6 +673,7 @@ export class SharedDartComponentRenderer {
       contract: XCONFIG_SPRITE_CONTRACT,
       flightPlaneModel: 'TWO_FULL_INTERSECTING_PLANES_SHARED_AXIS_90_DEG',
       flightFacing: this.#flightFacing(),
+      jointSprite,
       jointMetrics: this.jointMetrics,
     };
   }
