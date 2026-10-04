@@ -188,6 +188,80 @@ export function profileEndpointSlope(profile, lengthMm, side = 'rear') {
   return Math.abs(dx) < 1e-12 ? 0 : (b[1] - a[1]) / dx;
 }
 
+const FLIGHT_AXIS_EPSILON = 1e-9;
+
+function clipFlightProfileToAxisHalf(profile, keepPositive) {
+  const points = (Array.isArray(profile) ? profile : [])
+    .map((point) => [Number(point?.[0]), Number(point?.[1])])
+    .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
+  if (points.length < 3) return [];
+
+  const inside = ([, y]) => keepPositive
+    ? y >= -FLIGHT_AXIS_EPSILON
+    : y <= FLIGHT_AXIS_EPSILON;
+  const output = [];
+
+  const intersection = (a, b) => {
+    const dy = b[1] - a[1];
+    if (Math.abs(dy) < FLIGHT_AXIS_EPSILON) return [b[0], 0];
+    const t = -a[1] / dy;
+    return [a[0] + (b[0] - a[0]) * t, 0];
+  };
+
+  for (let index = 0; index < points.length; index += 1) {
+    const current = points[index];
+    const next = points[(index + 1) % points.length];
+    const currentInside = inside(current);
+    const nextInside = inside(next);
+
+    if (currentInside && nextInside) {
+      output.push(next);
+    } else if (currentInside && !nextInside) {
+      output.push(intersection(current, next));
+    } else if (!currentInside && nextInside) {
+      output.push(intersection(current, next), next);
+    }
+  }
+
+  const deduped = [];
+  for (const [x, y] of output) {
+    const point = [x, Math.abs(y) < FLIGHT_AXIS_EPSILON ? 0 : y];
+    const previous = deduped[deduped.length - 1];
+    if (
+      previous &&
+      Math.abs(previous[0] - point[0]) < FLIGHT_AXIS_EPSILON &&
+      Math.abs(previous[1] - point[1]) < FLIGHT_AXIS_EPSILON
+    ) continue;
+    deduped.push(point);
+  }
+  if (
+    deduped.length > 2 &&
+    Math.abs(deduped[0][0] - deduped[deduped.length - 1][0]) < FLIGHT_AXIS_EPSILON &&
+    Math.abs(deduped[0][1] - deduped[deduped.length - 1][1]) < FLIGHT_AXIS_EPSILON
+  ) deduped.pop();
+
+  return deduped;
+}
+
+/**
+ * Split one canonical flight plane on the dart axis.
+ *
+ * Two complete transparent planes cross each other, so no whole-plane painter order can
+ * be correct. Splitting both planes on their physical intersection line creates four
+ * half-fins. Any pair then only shares the axis boundary and can be ordered back-to-front
+ * as a complete transparent surface.
+ */
+export function splitFlightProfile(profile) {
+  const fallback = [[0, 0], [.25, 1], [1, .8], [1, -.8], [.25, -1]];
+  const source = Array.isArray(profile) && profile.length >= 3 ? profile : fallback;
+  const positive = clipFlightProfileToAxisHalf(source, true);
+  const negative = clipFlightProfileToAxisHalf(source, false);
+  if (positive.length < 3 || negative.length < 3) {
+    throw new Error('flight profile must cross the dart axis and produce two valid half-fins');
+  }
+  return { positive, negative };
+}
+
 export function rotatePointAroundPivot(point, rotationDeg, pivot = { x: 0, y: 212 }) {
   const angle = (Number(rotationDeg) || 0) * Math.PI / 180;
   const cos = Math.cos(angle);
