@@ -90,8 +90,8 @@ def tail_texture_audit(pid,p):
         root_label='Rear root · source-derived'
     else:
         root=Image.new('RGBA',(500,320),(25,29,37,255))
-        ImageDraw.Draw(root).text((18,145),'No explicit rear-root (legacy fallback)',fill='white')
-        root_label='Rear root · absent'
+        ImageDraw.Draw(root).text((18,145),'No explicit rear-root; canonical shaft-core remains active',fill='white')
+        root_label='Rear root · absent / shaft-core active'
     plane_a=fit(img(tail['planeATexture']),(500,320),(25,29,37,255))
     plane_b=fit(img(tail['planeBTexture']),(500,320),(25,29,37,255))
     assembly,_=render_assembly(a); assembly=fit(assembly,(500,320),(25,29,37,255))
