@@ -26,11 +26,26 @@ def project(pt):
 def local(axis,ey,ez,x,y=0,z=0): return axis*x+ey*y+ez*z
 
 def warp_quad(canvas, tex, src_quad, dst_quad):
-    src=np.float32(src_quad); dst=np.float32(dst_quad); M=cv2.getPerspectiveTransform(src,dst)
+    src=np.float32(src_quad); dst=np.float32(dst_quad)
+    # A flight plane can become genuinely edge-on. OpenCV's homography on a
+    # degenerate destination quad is undefined and may explode into a full-frame
+    # colour block. In that case the physically correct 2D contribution is zero.
+    area=.5*abs(sum(
+        float(dst[i,0])*float(dst[(i+1)%4,1])-float(dst[(i+1)%4,0])*float(dst[i,1])
+        for i in range(4)
+    ))
+    span_x=float(dst[:,0].max()-dst[:,0].min())
+    span_y=float(dst[:,1].max()-dst[:,1].min())
+    if area < .75 or span_x < .35 or span_y < .35:
+        return False
+    M=cv2.getPerspectiveTransform(src,dst)
+    if not np.isfinite(M).all():
+        return False
     warped=cv2.warpPerspective(tex,M,(W,H),flags=cv2.INTER_LINEAR,borderMode=cv2.BORDER_CONSTANT,borderValue=(0,0,0,0))
     a=warped[:,:,3:4].astype(np.float32)/255.0
     canvas[:,:,:3]=(warped[:,:,:3]*a+canvas[:,:,:3]*(1-a)).astype(np.uint8)
     canvas[:,:,3]=np.maximum(canvas[:,:,3],warped[:,:,3])
+    return True
 
 def render(a,inc=35,roll=0):
     canvas=np.zeros((H,W,4),dtype=np.uint8);axis,ey,ez=basis(inc);x=0.0
@@ -38,15 +53,20 @@ def render(a,inc=35,roll=0):
     for o,L,D,T in [(a['point'],a['point']['renderLengthMm'],a['point']['renderDiameterMm'],a['point']['texture']), (a['barrel'],a['barrel']['renderLengthMm'],a['barrel']['renderDiameterMm'],a['barrel']['texture'])]: bodies.append((x,x+L,D,T));x+=L
     if a['rearSystem']:
         r=a['rearSystem'];L=r['renderShaftLengthMm'];D=r['renderShaftDiameterMm'];T=r['shaftTexture']
+        bodies.append((x,x+L,D,T));x+=L
+        if r.get('rootTexture') and float(r.get('renderRootLengthMm') or 0)>0:
+            RL=float(r['renderRootLengthMm'])
+            RD=max(float(r.get('renderRootFrontDiameterMm') or D),float(r.get('renderRootRearDiameterMm') or D))
+            bodies.append((x,x+RL,RD,r['rootTexture']));x+=RL
     else:
-        s=a['shaft'];L=s['renderLengthMm'];D=s.get('renderDiameterMm',4.8);T=s['texture']
-    bodies.append((x,x+L,D,T));x+=L
+        shaft=a['shaft'];L=shaft['renderLengthMm'];D=shaft.get('renderDiameterMm',4.8);T=shaft['texture']
+        bodies.append((x,x+L,D,T));x+=L
     for x0,x1,d,tpath in bodies:
         tex=load_rgba(tpath);h,w=tex.shape[:2]
         src=[[0,h-1],[w-1,h-1],[w-1,0],[0,0]]
         dst=[project(local(axis,ey,ez,x0,-d/2)),project(local(axis,ey,ez,x1,-d/2)),project(local(axis,ey,ez,x1,d/2)),project(local(axis,ey,ez,x0,d/2))]
         warp_quad(canvas,tex,src,dst)
-    tail=a['rearSystem'] or a['flight']; fl=float(tail.get('renderFlightLengthMm',tail.get('renderLengthMm',42))); rad=float(tail.get('renderFlightRadiusMm',tail.get('renderRadiusMm',18)));root=x-1.5
+    tail=a['rearSystem'] or a['flight']; fl=float(tail.get('renderFlightLengthMm',tail.get('renderLengthMm',42))); rad=float(tail.get('renderFlightRadiusMm',tail.get('renderRadiusMm',18)));root=x-float(tail.get('flightRootOverlapMm',1.5))
     phi=math.radians(roll)
     planes=[]
     for idx,extra in enumerate([0,math.pi/2]):
@@ -62,7 +82,16 @@ def render(a,inc=35,roll=0):
         warp_quad(canvas,tex,src,dst)
     # hard invariant marker, only debug metadata: projected local origin is exactly TIP by formula.
     drift=float(np.linalg.norm(project(np.zeros(3))-TIP))
-    return Image.fromarray(canvas,'RGBA'),{'tipDriftPx':drift,'incidenceDeg':inc,'rollDeg':roll,'planeModel':'TWO_FULL_INTERSECTING_PLANES_SHARED_AXIS_90_DEG'}
+    alpha=canvas[:,:,3]
+    alpha_coverage=float((alpha>3).mean())
+    return Image.fromarray(canvas,'RGBA'),{
+        'tipDriftPx':drift,
+        'incidenceDeg':inc,
+        'rollDeg':roll,
+        'planeModel':'TWO_FULL_INTERSECTING_PLANES_SHARED_AXIS_90_DEG',
+        'alphaCoverage':alpha_coverage,
+        'explodedFrame':alpha_coverage>.25,
+    }
 
 def panel(im,title,size=(789,365)):
     c=Image.new('RGBA',size,(18,22,29,255));thumb=im.copy();thumb.thumbnail((size[0],331),Image.Resampling.LANCZOS);c.alpha_composite(thumb,(0,30));ImageDraw.Draw(c).text((10,8),title,fill='white');return c
@@ -100,4 +129,10 @@ for pid in REVIEW_PRESETS:
     sheet.convert('RGB').save(ROOT/'outputs/comparisons'/f'{pid}-v1.3.1-triptych.jpg',quality=92)
 
 (ROOT/'outputs/qa'/'software-pose-qa.json').write_text(json.dumps(qa,indent=2),encoding='utf8')
-print('rendered',len(rows),'preset pose galleries; max drift',max(m['tipDriftPx'] for arr in qa.values() for m in arr))
+all_metrics=[m for arr in qa.values() for m in arr]
+max_drift=max(m['tipDriftPx'] for m in all_metrics)
+max_coverage=max(m['alphaCoverage'] for m in all_metrics)
+exploded=[(pid,m['incidenceDeg'],m['rollDeg'],m['alphaCoverage']) for pid,arr in qa.items() for m in arr if m['explodedFrame']]
+print('rendered',len(rows),'preset pose galleries; max drift',max_drift,'max alpha coverage',max_coverage)
+if exploded:
+    raise SystemExit(f'FAIL: exploded/degenerate pose frames detected: {exploded}')

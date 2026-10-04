@@ -117,6 +117,8 @@ try:
         max_tip=0.0
         max_visible_delta=0.0
         max_slope_delta=0.0
+        max_root_visible_delta=0.0
+        hard_tail_failures={}
         self_tests=[]
 
         for pid in preset_ids:
@@ -125,6 +127,17 @@ try:
             posed=render.get('posed') or {}
             ortho=render.get('ortho') or {}
             metrics=posed.get('jointMetrics') or {}
+            root_metrics=posed.get('rootMetrics') or {}
+            preset=CAT['presets'][pid]
+            components=CAT['components']
+            tail_definition=(
+                components['rearSystems'][preset['rearSystemId']]
+                if preset.get('rearSystemId')
+                else components['shafts'].get(preset.get('shaftId'),{})
+            )
+            tail_status=tail_definition.get('tailAuthoringStatus')
+            if tail_status and str(tail_status).startswith('FAIL_'):
+                hard_tail_failures[pid]=tail_status
             tip=max(
                 abs(float(posed.get('tipDriftPx',0))),
                 abs(float(ortho.get('tipDriftPx',0))),
@@ -132,9 +145,11 @@ try:
             )
             visible=abs(float(metrics.get('visibleDeltaMm',0)))
             slope=abs(float(metrics.get('joinSlopeDeltaMmPerMm',0)))
+            root_visible=abs(float(root_metrics.get('visibleDeltaMm',0)))
             max_tip=max(max_tip,tip)
             max_visible_delta=max(max_visible_delta,visible)
             max_slope_delta=max(max_slope_delta,slope)
+            max_root_visible_delta=max(max_root_visible_delta,root_visible)
             self_test=page.evaluate('window.__RENDERER__.selfTest()')
             self_tests.append({'presetId':pid,**self_test})
             results.append({
@@ -143,6 +158,8 @@ try:
                 'tipDriftPx':tip,
                 'visibleDeltaMm':visible,
                 'joinSlopeDeltaMmPerMm':slope,
+                'rootVisibleDeltaMm':root_visible,
+                'tailAuthoringStatus':tail_status,
                 'selfTestPassed':bool(self_test.get('passed')),
             })
             if pid in REVIEW_PRESETS:
@@ -217,7 +234,9 @@ try:
             no_js_errors and
             max_tip < 1e-8 and
             max_visible_delta < 1e-8 and
-            max_slope_delta < 1e-8
+            max_slope_delta < 1e-8 and
+            max_root_visible_delta < 1e-8 and
+            not hard_tail_failures
         )
 
         out={
@@ -228,6 +247,8 @@ try:
             'maxTipDriftPx':max_tip,
             'maxJointVisibleDeltaMm':max_visible_delta,
             'maxJoinSlopeDeltaMmPerMm':max_slope_delta,
+            'maxRootVisibleDeltaMm':max_root_visible_delta,
+            'hardTailFailures':hard_tail_failures,
             'poseControlChecks':[pose_changed,pose_changed_2],
             'controlsOk':controls_ok,
             'seamOk':seam_ok,

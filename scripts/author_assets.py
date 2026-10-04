@@ -7,6 +7,8 @@ import numpy as np
 from PIL import Image, ImageEnhance, ImageFilter, ImageDraw, ImageFont
 import cv2
 
+from tail_authoring import author_tail_components
+
 ROOT=Path(__file__).resolve().parents[1]
 SRC=ROOT/'assets/source'
 OUT=ROOT/'assets/components'
@@ -25,7 +27,7 @@ SPECS={
  'mandalorian': dict(
    file='190840STARWARSMANDALORIAN95_STEElTIP_GALLERY_DE_PT01.webp',
    rotate=False, bg='dark-roi', roi=(38,175,765,350),
-   splits=[0.19,0.565,0.725], rear=True, canonicalFlight=False, rearVerticalTrim='SATURATION',
+   splits=[0.19,0.565,0.725], rear=True, canonicalFlight=False,
    flightWebMode='KFLEX_CENTER_DART_FRONT',
    flightProductPage='https://www.target-darts.co.uk/star-wars-mandalorian-sp',
    flightWebSources=[
@@ -445,24 +447,38 @@ def make_backface(front:Image.Image)->Image.Image:
 
 meta={}
 for key,spec in SPECS.items():
-    im=normalize_source(spec)
+    source=normalize_source(spec)
+    tail=author_tail_components(
+        source,
+        seed_range=(spec['splits'][1],spec['splits'][2]),
+        integrated=bool(spec['rear']),
+    )
+    # One global rigid rotation is allowed before component extraction. No local image
+    # warp is used: RGB detail, logos and lettering remain source pixels.
+    im=tail['alignedImage']
     save_component(im, OUT/key/'normalized-source.png')
     W=im.width
     p1,p2,p3=[int(round(v*W)) for v in spec['splits']]
-    # generous vertical canvas but no x overlap: physical component boundaries stay deterministic.
     crops={
       'point': im.crop((0,0,p1,im.height)),
       'barrel': im.crop((p1,0,p2,im.height)),
-      ('rear-shaft' if spec['rear'] else 'shaft'): im.crop((p2,0,p3,im.height)),
       'flight-plane-a': im.crop((p3,0,W,im.height)),
     }
+    if spec['rear']:
+        # Backward-compatible composite tail plus the new physical split used by V1.3.3.
+        crops['rear-shaft']=tail['legacyTail']
+        crops['rear-shaft-core']=tail['shaftCore']
+        if tail['rearRoot'] is not None:
+            crops['rear-root']=tail['rearRoot']
+    else:
+        crops['shaft']=tail['shaftCore']
+
     if spec['bg']=='dark-roi':
-        for component_name in ('point','barrel','rear-shaft','shaft'):
+        for component_name in ('point','barrel','rear-shaft','rear-shaft-core','rear-root','shaft'):
             if component_name in crops:
                 crops[component_name]=suppress_low_alpha_haze(crops[component_name])
-        if spec.get('rearVerticalTrim')=='SATURATION' and 'rear-shaft' in crops:
-            crops['rear-shaft']=trim_rear_by_saturation(crops['rear-shaft'])
         crops['flight-plane-a']=mask_flight_polygon(clean_large_component(crops['flight-plane-a']))
+
     flight_qc=None
     dedicated_flight,dedicated_qc=prepare_dedicated_flight_face(spec)
     if dedicated_flight is not None:
@@ -470,15 +486,28 @@ for key,spec in SPECS.items():
         flight_qc=dedicated_qc
     elif spec.get('canonicalFlight'):
         crops['flight-plane-a'],flight_qc=canonicalize_integrated_flight_face(crops['flight-plane-a'])
-    for name,c in crops.items(): save_component(c,OUT/key/f'{name}.png')
+
+    for name,c in crops.items():
+        save_component(c,OUT/key/f'{name}.png')
     flight=trim_alpha(crops['flight-plane-a'],3)
     back=make_backface(flight)
     save_component(back,OUT/key/'flight-plane-b-approx.png')
+
+    tail_analysis=tail['analysis'].to_dict()
     meta[key]={
       'sourceFile':spec['file'],
       'normalizedWidth':im.width,'normalizedHeight':im.height,
       'splitsPx':[p1,p2,p3],
       'splitFractions':spec['splits'],
+      'axisAuthoring':{
+        'source':tail['axisSource'].to_dict(),
+        'aligned':tail['axisAligned'].to_dict(),
+        'method':'ROBUST_CENTERLINE_FIT_V1',
+      },
+      'tailSegmentation':tail['tailSegmentation'],
+      'tailAuthoring':tail_analysis,
+      'tailAuthoringStatus':tail_analysis['status'],
+      'rearRootAuthored':tail['rearRoot'] is not None,
       'flightProfile':flight_profile(flight),
       'rearIntegrated':spec['rear'],
       'flightExtractionMode':(flight_qc or {}).get('mode','DIRECT_SOURCE_FACE'),
@@ -488,7 +517,14 @@ for key,spec in SPECS.items():
       'flightSourcePage':(flight_qc or {}).get('sourcePage'),
       'flightQaSourceFile':'web-mandalorian-kflex-frontal-source-grounded.png' if (flight_qc or {}).get('mode')=='DEDICATED_FRONTAL_KFLEX_SOURCE' else None,
       'flightApproximation':flight_qc,
-      'authoringStatus':'SOURCE-GROUNDED component split; dedicated frontal flight sources are preferred over photographed composite side views; only explicitly recorded occlusion strips are approximated',
+      'componentProvenance':{
+        'rear-shaft-core':'SOURCE-GROUNDED' if spec['rear'] else None,
+        'rear-root':'SOURCE-GROUNDED' if spec['rear'] and tail['rearRoot'] is not None else None,
+        'shaft':'SOURCE-GROUNDED' if not spec['rear'] else None,
+        'flight-plane-a':'SOURCE-GROUNDED',
+        'flight-plane-b-approx':'APPROXIMATED',
+      },
+      'authoringStatus':'SOURCE-GROUNDED components; dart axis globally normalized before split; shaft core/root separated by AXIS_WIDTH_PROFILE_V1; unknown flight backface remains APPROXIMATED',
     }
 
 # Generic geometry-only Slim flight reference. It is intentionally not a product preset.

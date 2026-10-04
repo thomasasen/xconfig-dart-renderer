@@ -7,6 +7,8 @@ from urllib.request import Request, urlopen
 import numpy as np
 import cv2
 
+from tail_authoring import author_tail_components
+
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'assets' / 'components'
 SRC = ROOT / 'assets' / 'source'
@@ -369,18 +371,35 @@ def _split_source_grounded(key,spec):
             errors.append(f'{candidate_url}: {exc}')
     if dart is None:
         raise RuntimeError(f'{key}: no full-dart source passed visual-geometry checks. ' + ' | '.join(errors))
-    w=dart.width
+
+    tail=author_tail_components(
+        dart,
+        seed_range=(spec['splits'][1],spec['splits'][2]),
+        integrated=bool(spec['integrated']),
+    )
+    authored=tail['alignedImage']
+    w=authored.width
     p1,p2,p3=[max(1,min(w-1,round(v*w))) for v in spec['splits']]
     if not (0 < p1 < p2 < p3 < w):
         raise RuntimeError(f'{key}: invalid component split {[p1,p2,p3]} for width {w}')
-    names=['point','barrel','rear-shaft' if spec['integrated'] else 'shaft','flight-plane-a']
-    ranges=[(0,p1),(p1,p2),(p2,p3),(p3,w)]
-    parts={}
-    for name,(x0,x1) in zip(names,ranges):
-        part=dart.crop((x0,0,x1,dart.height))
+
+    parts={
+        'point': authored.crop((0,0,p1,authored.height)),
+        'barrel': authored.crop((p1,0,p2,authored.height)),
+        'flight-plane-a': authored.crop((p3,0,w,authored.height)),
+    }
+    if spec['integrated']:
+        parts['rear-shaft']=tail['legacyTail']
+        parts['rear-shaft-core']=tail['shaftCore']
+        if tail['rearRoot'] is not None:
+            parts['rear-root']=tail['rearRoot']
+    else:
+        parts['shaft']=tail['shaftCore']
+
+    for name,part in list(parts.items()):
         bbox=part.getbbox()
-        if bbox: part=part.crop(bbox)
-        parts[name]=part
+        if bbox:
+            parts[name]=part.crop(bbox)
 
     flight_texture,flight_source_url=_prepare_flat_flight_texture(spec)
     flight_qc=None
@@ -388,35 +407,58 @@ def _split_source_grounded(key,spec):
         parts['flight-plane-a']=flight_texture
         flight_qc={'mode':'FLAT_FLIGHT_SOURCE','approximatedPixelFraction':0.0}
     else:
-        # A side-view classic flight can contain the same photographed fold/cross-fin
-        # problem as an integrated K-Flex. Canonicalize any side-view Plane A for which
-        # no dedicated flat flight photograph is available.
         parts['flight-plane-a'],flight_qc=_canonicalize_integrated_flight_face(parts['flight-plane-a'])
 
-    # Plane B is intentionally only an approximation. Do not mirror/copy source
-    # artwork: repeated text/logos on a perpendicular fin falsely implies known pixels.
     parts['flight-plane-b-approx']=backface(parts['flight-plane-a'])
 
     d=OUT/key
     d.mkdir(parents=True,exist_ok=True)
     for name,part in parts.items():
         save(part,d/f'{name}.png')
-    # The UI comparison gets only the extracted dart strip, not the full manufacturer
-    # photo/box-art. This keeps the research bundle narrowly scoped to required pixels.
+
+    # Keep the unwarped extracted product strip as QA source. Only the authored
+    # components receive the permitted global axis rotation.
     source_name=f'web-{key}-source-grounded.png'
     save(dart,SRC/source_name)
+    tail_analysis=tail['analysis'].to_dict()
+    component_sources={
+        'point':source_url,
+        'barrel':source_url,
+        'flight-plane-a':flight_source_url or source_url,
+        'flight-plane-b-approx':'derived approximation; no independent source',
+    }
+    if spec['integrated']:
+        component_sources['rear-shaft']=source_url
+        component_sources['rear-shaft-core']=source_url
+        if tail['rearRoot'] is not None:
+            component_sources['rear-root']=source_url
+    else:
+        component_sources['shaft']=source_url
+
+    component_provenance={
+        'point':'SOURCE-GROUNDED',
+        'barrel':'SOURCE-GROUNDED',
+        'flight-plane-a':(
+            'SOURCE-GROUNDED' if flight_qc and flight_qc.get('mode')=='FLAT_FLIGHT_SOURCE'
+            else 'SOURCE-GROUNDED+APPROXIMATED-OCCLUSION' if flight_qc and flight_qc.get('mode')=='PRIMARY_FACE_DEOCCLUDED'
+            else 'SOURCE-GROUNDED'
+        ),
+        'flight-plane-b-approx':'APPROXIMATED',
+    }
+    if spec['integrated']:
+        component_provenance['rear-shaft']='SOURCE-GROUNDED'
+        component_provenance['rear-shaft-core']='SOURCE-GROUNDED'
+        if tail['rearRoot'] is not None:
+            component_provenance['rear-root']='SOURCE-GROUNDED'
+    else:
+        component_provenance['shaft']='SOURCE-GROUNDED'
+
     return {
         'sourceFile':source_name,
         'sourceUrl':source_url,
         'sourcePage':spec['officialPage'],
         'flightProductPage':spec.get('flightProductPage'),
-        'componentSources':{
-            'point':source_url,
-            'barrel':source_url,
-            'rear-shaft' if spec['integrated'] else 'shaft':source_url,
-            'flight-plane-a':flight_source_url or source_url,
-            'flight-plane-b-approx':'derived approximation; no independent source',
-        },
+        'componentSources':component_sources,
         'originalPixels':True,
         'processing':[
             'temporary web download',
@@ -424,6 +466,9 @@ def _split_source_grounded(key,spec):
             'automatic elongated-dart crop',
             'orientation normalisation (tip left)',
             'alpha silhouette extraction',
+            'single global dart-axis rotation before component authoring',
+            'AXIS_WIDTH_PROFILE_V1 shaft-core/root segmentation',
+            'symmetric transparent shaft/root canvas around fitted axis',
             'component crop only; RGB pixels not redrawn',
             'when an exact flat flight source exists, Plane A is replaced by that flat source before 3D mapping',
             'integrated side-view flights are de-occluded only in the source-hidden centre strip before 3D mapping',
@@ -431,21 +476,20 @@ def _split_source_grounded(key,spec):
         ],
         'splitFractions':spec['splits'],
         'splitsPx':[p1,p2,p3],
+        'axisAuthoring':{
+            'source':tail['axisSource'].to_dict(),
+            'aligned':tail['axisAligned'].to_dict(),
+            'method':'ROBUST_CENTERLINE_FIT_V1',
+        },
+        'tailSegmentation':tail['tailSegmentation'],
+        'tailAuthoring':tail_analysis,
+        'tailAuthoringStatus':tail_analysis['status'],
+        'rearRootAuthored':tail['rearRoot'] is not None,
         'flightProfile':spec['profile'],
         'rearIntegrated':spec['integrated'],
         'flightExtractionMode':(flight_qc or {}).get('mode','DIRECT_SOURCE_FACE'),
         'flightApproximation':flight_qc,
-        'componentProvenance':{
-            'point':'SOURCE-GROUNDED',
-            'barrel':'SOURCE-GROUNDED',
-            'rear-shaft' if spec['integrated'] else 'shaft':'SOURCE-GROUNDED',
-            'flight-plane-a':(
-                'SOURCE-GROUNDED' if flight_qc and flight_qc.get('mode')=='FLAT_FLIGHT_SOURCE'
-                else 'SOURCE-GROUNDED+APPROXIMATED-OCCLUSION' if flight_qc and flight_qc.get('mode')=='PRIMARY_FACE_DEOCCLUDED'
-                else 'SOURCE-GROUNDED'
-            ),
-            'flight-plane-b-approx':'APPROXIMATED',
-        },
+        'componentProvenance':component_provenance,
         'authoringStatus':SOURCE_GROUNDED_WEB,
     }
 

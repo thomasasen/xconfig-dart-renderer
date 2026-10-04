@@ -24,6 +24,49 @@ def flight_meta(product):
   'flightApproximation':m.get('flightApproximation'),
  }
 
+def tail_meta(product):
+ m=meta.get(product,{})
+ seg=m.get('tailSegmentation') or {}
+ qa=m.get('tailAuthoring') or {}
+ root=seg.get('rearRootPx')
+ core=seg.get('shaftCorePx')
+ return {
+  'rootAuthored':bool(m.get('rearRootAuthored') and root and core),
+  'segmentation':seg,
+  'qa':qa,
+  'axisAuthoring':m.get('axisAuthoring'),
+  'status':m.get('tailAuthoringStatus') or qa.get('status'),
+ }
+
+def split_rear_render_geometry(product,total_length_mm,shaft_diameter_mm=5.2):
+ tm=tail_meta(product)
+ if not tm['rootAuthored']:
+  return {
+   'shaftLengthMm':total_length_mm or 20,
+   'rootLengthMm':None,
+   'rootFrontDiameterMm':None,
+   'rootRearDiameterMm':None,
+   'flightRootOverlapMm':1.5,
+   'tailMeta':tm,
+  }
+ core=tm['segmentation']['shaftCorePx']
+ root=tm['segmentation']['rearRootPx']
+ core_px=max(1,float(core[1]-core[0]))
+ root_px=max(1,float(root[1]-root[0]))
+ total=max(1.0,float(total_length_mm or 20))
+ fraction=root_px/(core_px+root_px)
+ root_length=max(1.2,min(4.0,total*.25,total*fraction))
+ progression=max(0.0,float((tm['qa'] or {}).get('rootWidthProgression') or 0))
+ rear_diameter=max(shaft_diameter_mm,min(7.6,shaft_diameter_mm*(1+min(.46,max(.12,progression)))))
+ return {
+  'shaftLengthMm':max(1.0,total-root_length),
+  'rootLengthMm':root_length,
+  'rootFrontDiameterMm':shaft_diameter_mm,
+  'rootRearDiameterMm':rear_diameter,
+  'flightRootOverlapMm':.6,
+  'tailMeta':tm,
+ }
+
 source_analysis=[
  {'file':'190840STARWARSMANDALORIAN95_STEElTIP_GALLERY_DE_PT01.webp','classification':'INTEGRATED_REAR_SYSTEM','identifiedAs':'Target Star Wars Mandalorian SP','confidence':'HIGH','reason':'Die gelieferte Infografik benennt K-Flex, 2BA, 30/35-mm Swiss Point, 52-mm Barrel und 19-mm Short und bezeichnet den montierten blauen Flight ausdrücklich als No.6 (Extra: No.2). Aktuelle Target-Webdaten widersprechen dieser Zuordnung; für die konkrete Designquelle hat deshalb die gelieferte Infografik Vorrang.','evidence':[ev(SRC,'Produkt-/Komponentenangaben sind direkt im Bild lesbar.'),ev(WEB,'Target bestätigt Mandalorian SP, 95% Tungsten, 52-mm Barrel, 30-mm Swiss Storm Point und Short K-Flex.','https://www.targetdarts.com/us/star-wars-mandalorian-sp')]},
  {'file':'190843-STARWARSAT-AT90_STEELTIP_GALLERY_DE_PT01.webp','classification':'CLASSIC_MODULAR','identifiedAs':'Target Star Wars AT-AT SP','confidence':'HIGH','reason':'Infografik zeigt Pro Grip Short plus separate No.6-Flights; kein integriertes Rear-System.','evidence':[ev(SRC,'30-mm Point, 47.55-mm Barrel, 34-mm Short-Shaft, No.6 im Bild.'),ev(WEB,'Target bestätigt 90% Tungsten, Pro Grip Short, No.6 Pro Ultra Flight.','https://www.targetdarts.com/us/star-wars-at-at-sp')]},
@@ -50,7 +93,8 @@ def point(id,name,interface,length,diam,product,texname='point',evidence=None,re
 def barrel(id,name,pointInterface,length,diam,product,profileName='straight',evidence=None,renderLength=None,renderDiam=None):
  barrels[id]={'kind':'BarrelDefinition','id':id,'name':visible_preset_name(name),'pointInterface':pointInterface,'rearThread':'2BA','lengthMm':length,'diameterMm':diam,'profile':profileName,'renderLengthMm':renderLength or (length if isinstance(length,(int,float)) else 50),'renderDiameterMm':renderDiam or (diam if isinstance(diam,(int,float)) else 7.0),'texture':tex(product,'barrel'),'evidence':evidence or []}
 def shaft(id,name,length,product,evidence=None,renderLength=None):
- shafts[id]={'kind':'ShaftDefinition','id':id,'name':visible_preset_name(name),'rearThread':'2BA','flightMount':'FOLDED_FLIGHT_SLOT','lengthMm':length,'renderLengthMm':renderLength or length or 30,'renderDiameterMm':4.8,'texture':tex(product,'shaft'),'evidence':evidence or []}
+ tm=tail_meta(product)
+ shafts[id]={'kind':'ShaftDefinition','id':id,'name':visible_preset_name(name),'rearThread':'2BA','flightMount':'FOLDED_FLIGHT_SLOT','lengthMm':length,'renderLengthMm':renderLength or length or 30,'renderDiameterMm':4.8,'texture':tex(product,'shaft'),'tailAuthoring':tm['qa'],'tailSegmentation':tm['segmentation'],'tailAuthoringStatus':tm['status'],'axisAuthoring':tm['axisAuthoring'],'evidence':evidence or []}
 def flight(id,name,shape,product,evidence=None,renderLength=42,renderRadius=18,planeAStatus=SRC,visualAuthoring='SOURCE-GROUNDED',safe=None):
  fm=flight_meta(product)
  flights[id]={'kind':'FlightDefinition','id':id,'name':visible_preset_name(name),'flightMount':'FOLDED_FLIGHT_SLOT','shape':shape,'renderLengthMm':renderLength,'renderRadiusMm':renderRadius,'planeProfile':profile(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'planeAProvenance':fm['planeAProvenance'],'planeBProvenance':fm['planeBProvenance'],'flightExtractionMode':fm['flightExtractionMode'],'flightApproximation':fm['flightApproximation'],'visualAuthoring':visualAuthoring,'evidence':evidence or []}
@@ -58,7 +102,17 @@ def flight(id,name,shape,product,evidence=None,renderLength=42,renderRadius=18,p
   flights[id]['safeRollMinDeg']=safe[0]; flights[id]['safeRollMaxDeg']=safe[1]
 def rear(id,name,system,length,shape,product,evidence=None,renderFlightLength=42,renderRadius=18,safe=(-18,18),planeAStatus=SRC,visualAuthoring='SOURCE-GROUNDED'):
  fm=flight_meta(product)
- rears[id]={'kind':'RearSystemDefinition','id':id,'name':visible_preset_name(name),'rearThread':'2BA','integrated':True,'system':system,'shaftLengthMm':length,'flightShape':shape,'renderShaftLengthMm':length or 20,'renderShaftDiameterMm':5.2,'renderFlightLengthMm':renderFlightLength,'renderFlightRadiusMm':renderRadius,'shaftTexture':tex(product,'rear-shaft'),'planeProfile':profile(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'planeAProvenance':fm['planeAProvenance'],'planeBProvenance':fm['planeBProvenance'],'flightExtractionMode':fm['flightExtractionMode'],'flightApproximation':fm['flightApproximation'],'visualAuthoring':visualAuthoring,'safeRollMinDeg':safe[0],'safeRollMaxDeg':safe[1],'evidence':evidence or []}
+ rg=split_rear_render_geometry(product,length or 20,5.2)
+ root_authored=bool(rg['rootLengthMm'])
+ definition={'kind':'RearSystemDefinition','id':id,'name':visible_preset_name(name),'rearThread':'2BA','integrated':True,'system':system,'shaftLengthMm':length,'flightShape':shape,'renderShaftLengthMm':rg['shaftLengthMm'],'renderShaftDiameterMm':5.2,'renderFlightLengthMm':renderFlightLength,'renderFlightRadiusMm':renderRadius,'shaftTexture':tex(product,'rear-shaft-core') if root_authored else tex(product,'rear-shaft'),'planeProfile':profile(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'planeAProvenance':fm['planeAProvenance'],'planeBProvenance':fm['planeBProvenance'],'flightExtractionMode':fm['flightExtractionMode'],'flightApproximation':fm['flightApproximation'],'visualAuthoring':visualAuthoring,'safeRollMinDeg':safe[0],'safeRollMaxDeg':safe[1],'flightRootOverlapMm':rg['flightRootOverlapMm'],'tailAuthoring':rg['tailMeta']['qa'],'tailSegmentation':rg['tailMeta']['segmentation'],'tailAuthoringStatus':rg['tailMeta']['status'],'axisAuthoring':rg['tailMeta']['axisAuthoring'],'evidence':evidence or []}
+ if root_authored:
+  definition.update({
+   'rootTexture':tex(product,'rear-root'),
+   'renderRootLengthMm':rg['rootLengthMm'],
+   'renderRootFrontDiameterMm':rg['rootFrontDiameterMm'],
+   'renderRootRearDiameterMm':rg['rootRearDiameterMm'],
+  })
+ rears[id]=definition
 WEIGHT_RE=re.compile(r'\s+(\d+(?:[.,]\d+)?)\s*g\b',re.IGNORECASE)
 
 def visible_preset_name(name):

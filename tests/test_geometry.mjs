@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { buildSmoothJoinProfile, profileEndpointSlope, resolveBarrelRearSeam, rotatePointAroundPivot } from '../src/geometry.js';
+import { buildSmoothBridgeProfile, buildSmoothJoinProfile, profileEndpointSlope, resolveBarrelRearSeam, resolveVisibleJoin, rotatePointAroundPivot } from '../src/geometry.js';
 
 const seam = resolveBarrelRearSeam({
   barrelDiameterMm: 6.5,
@@ -56,6 +56,41 @@ for (const c of seamCases) {
   assert.ok(Math.abs(barrelSlope - rearSlope) < 1e-10, `${c.name}: join slope mismatch`);
 }
 
+
+const visibleRootJoin = resolveVisibleJoin({
+  leftNominalDiameterMm: 5.2,
+  rightNominalDiameterMm: 5.2,
+  leftCoverage: .72,
+  rightCoverage: .61,
+  targetVisibleDiameterMm: 5.2,
+});
+assert.ok(visibleRootJoin.visibleDeltaMm < 1e-10);
+assert.ok(Math.abs(visibleRootJoin.leftVisibleAtJoinMm - 5.2) < 1e-10);
+assert.ok(Math.abs(visibleRootJoin.rightVisibleAtJoinMm - 5.2) < 1e-10);
+
+const rootBridge = buildSmoothBridgeProfile({
+  frontDiameterMm: visibleRootJoin.rightEnvelopeMm,
+  rearDiameterMm: 6.4 / .88,
+  lengthMm: 2.7,
+  flatFrontMm: .4,
+  flatRearMm: .4,
+  samples: 14,
+});
+assert.ok(rootBridge.length >= 6);
+assert.ok(Math.abs(profileEndpointSlope(rootBridge, 2.7, 'front')) < 1e-10);
+assert.ok(Math.abs(profileEndpointSlope(rootBridge, 2.7, 'rear')) < 1e-10);
+for (let index = 1; index < rootBridge.length; index += 1) {
+  assert.ok(rootBridge[index][0] >= rootBridge[index - 1][0], 'root profile x must be monotonic');
+}
+// Mesh envelope and visible silhouette are not identical for alpha-trimmed source
+// textures. Validate the visible endpoints instead of assuming the raw envelope
+// itself must monotonically widen.
+const visibleRootFront = rootBridge[0][1] * .61;
+const visibleRootRear = rootBridge[rootBridge.length - 1][1] * .88;
+assert.ok(Math.abs(visibleRootFront - 5.2) < 1e-10);
+assert.ok(Math.abs(visibleRootRear - 6.4) < 1e-10);
+assert.ok(visibleRootRear > visibleRootFront, 'visible root silhouette should open toward the flight');
+
 const alreadyMatched = buildSmoothJoinProfile({
   bodyDiameterMm: 5.2,
   joinDiameterMm: 5.2,
@@ -72,4 +107,4 @@ for (const angle of [-75, -30, 0, 30, 75]) {
 const p = rotatePointAroundPivot({ x: 100, y: 212 }, 90, pivot);
 assert.ok(Math.abs(p.x) < 1e-9);
 assert.ok(Math.abs(p.y - 312) < 1e-9);
-console.log('PASS: seam thickness and tangent continuity hold across representative joins; screen rotation preserves the tip pivot');
+console.log('PASS: barrel/shaft/root joins preserve visible thickness and flat tangents; screen rotation preserves the tip pivot');

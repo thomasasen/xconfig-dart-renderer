@@ -62,7 +62,7 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: v1.3.2-renderer-qa
+          name: v1.3.3-tail-continuity-qa
           if-no-files-found: error
           path: |
             data/catalog.json
