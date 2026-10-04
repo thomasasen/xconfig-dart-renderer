@@ -727,6 +727,16 @@ export class SharedDartComponentRenderer {
       x: jointProjected.x + mapping.offset.x,
       y: jointProjected.y + mapping.offset.y,
     };
+    let rootJointSprite = null;
+    if (Number.isFinite(this.rootJoinX)) {
+      const rootJointWorld = new THREE.Vector3(this.rootJoinX, 0, 0)
+        .applyQuaternion(this.root.quaternion);
+      const rootJointProjected = this.projectWorld(rootJointWorld);
+      rootJointSprite = {
+        x: rootJointProjected.x + mapping.offset.x,
+        y: rootJointProjected.y + mapping.offset.y,
+      };
+    }
 
     const tipDrift = Math.hypot(
       mapping.source.x + mapping.offset.x,
@@ -747,7 +757,9 @@ export class SharedDartComponentRenderer {
       flightPlaneModel: 'TWO_FULL_INTERSECTING_PLANES_SHARED_AXIS_90_DEG',
       flightFacing: this.#flightFacing(),
       jointSprite,
+      rootJointSprite,
       jointMetrics: this.jointMetrics,
+      rootMetrics: this.rootMetrics,
     };
   }
 
@@ -791,11 +803,15 @@ export class SharedDartComponentRenderer {
         maxTip < 1e-8 &&
         maxAxis < 1e-5 &&
         Number(this.jointMetrics?.visibleDeltaMm || 0) < 1e-8 &&
-        Number(this.jointMetrics?.joinSlopeDeltaMmPerMm || 0) < 1e-8,
+        Number(this.jointMetrics?.joinSlopeDeltaMmPerMm || 0) < 1e-8 &&
+        Number(this.rootMetrics?.visibleDeltaMm || 0) < 1e-8 &&
+        Math.abs(Number(this.rootMetrics?.rootFrontSlopeMmPerMm || 0)) < 1e-8,
       maxTipDriftPx: maxTip,
       maxCanonicalAxisYErrorPx: maxAxis,
       jointVisibleDeltaMm: Number(this.jointMetrics?.visibleDeltaMm || 0),
       jointSlopeDeltaMmPerMm: Number(this.jointMetrics?.joinSlopeDeltaMmPerMm || 0),
+      rootVisibleDeltaMm: Number(this.rootMetrics?.visibleDeltaMm || 0),
+      rootFrontSlopeMmPerMm: Number(this.rootMetrics?.rootFrontSlopeMmPerMm || 0),
       planeOrientationDeg: [...PLANE_ORIENTATION_DEG],
       flightFacingSamples,
     };
@@ -828,6 +844,7 @@ export class SharedDartComponentRenderer {
       pngBytes: blob.size,
       cacheEntries: this.spriteCache.size,
       jointMetrics: this.jointMetrics,
+      rootMetrics: this.rootMetrics,
       selfTest: this.selfTest(),
     };
   }
