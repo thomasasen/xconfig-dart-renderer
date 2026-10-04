@@ -305,12 +305,68 @@ def extract_centered_component(
     return Image.fromarray(data, "RGBA")
 
 
+def extract_axial_root_component(
+    image: Image.Image,
+    bounds: tuple[int, int],
+    axis: dict[str, float],
+    alpha_threshold: int = 10,
+) -> Image.Image:
+    """Keep only source pixels that have an axial counterpart around the shaft axis.
+
+    Integrated product photos often contain the first one-sided flight fin inside the
+    legacy rear crop. Those pixels are flight, not physical root. They are removed by
+    silhouette classification only; RGB pixels that remain are never moved or repainted.
+    """
+    rgba=image.convert("RGBA")
+    x0,x1=max(0,int(bounds[0])),min(rgba.width,int(bounds[1]))
+    crop=np.asarray(rgba.crop((x0,0,max(x0+1,x1),rgba.height))).copy()
+    alpha=crop[:,:,3]
+    h,w=alpha.shape
+    cleaned=np.zeros_like(alpha)
+    slope=float(axis.get("slope",0.0))
+    intercept=float(axis.get("interceptPx",rgba.height/2))
+    for lx in range(w):
+        gx=x0+lx
+        ay=slope*gx+intercept
+        ys=np.flatnonzero(alpha[:,lx] >= alpha_threshold)
+        if not len(ys):
+            continue
+        top=float(ys.min()); bottom=float(ys.max())
+        upper=max(0.0,ay-top); lower=max(0.0,bottom-ay)
+        # Source-grounded axial root must exist on both sides of the axis.
+        radius=min(upper,lower)
+        if radius < 1.0:
+            continue
+        ylo=max(0,int(math.ceil(ay-radius)))
+        yhi=min(h,int(math.floor(ay+radius))+1)
+        cleaned[ylo:yhi,lx]=alpha[ylo:yhi,lx]
+    crop[:,:,3]=cleaned
+    out=Image.fromarray(crop,"RGBA")
+    bbox=out.getbbox()
+    return out.crop(bbox) if bbox else out
+
+
+def _component_axis_offset(image: Image.Image) -> float | None:
+    arr=_rgba(image)
+    alpha=arr[:,:,3]
+    centers=[]
+    for x in range(alpha.shape[1]):
+        ys=np.flatnonzero(alpha[:,x] >= 18)
+        if len(ys):
+            centers.append((float(ys.min())+float(ys.max()))*.5)
+    if not centers:
+        return None
+    center=float(np.median(centers))
+    return abs(center-(image.height-1)*.5)
+
+
 def measure_tail_quality(
     image: Image.Image,
     profile: dict[str, Any],
     shaft_core: tuple[int, int],
     root: tuple[int | None, int | None] = (None, None),
     axis: dict[str, float] | None = None,
+    canonical_root_axis_offset_px: float | None = None,
 ) -> dict[str, float | str | None]:
     axis = axis or analyze_axis(image)
     width = np.asarray(profile["width"], dtype=np.float64)
@@ -332,11 +388,15 @@ def measure_tail_quality(
 
     r0, r1 = root
     root_offset = None
+    raw_root_offset = None
     if r0 is not None and r1 is not None and r1 > r0:
         rc = center[r0:r1]
         rc = rc[np.isfinite(rc)]
         if len(rc):
-            root_offset = abs(float(np.median(rc)) - float(np.median(sc)))
+            raw_root_offset = abs(float(np.median(rc)) - float(np.median(sc)))
+            root_offset = raw_root_offset
+    if canonical_root_axis_offset_px is not None:
+        root_offset = float(canonical_root_axis_offset_px)
 
     rgba = _rgba(image)
     alpha = rgba[:, :, 3]
@@ -366,6 +426,7 @@ def measure_tail_quality(
         "shaftCenterJump": jump / medw,
         "shaftWidthCV": shaft_cv,
         "rootAxisOffset": root_offset,
+        "rootRawAxisOffset": raw_root_offset,
         "tailAlphaHaze": haze,
         "rootLeakIntoShaft": leak,
         "medianShaftWidthPx": medw,
@@ -397,7 +458,17 @@ def author_tail_components(
         r0, r1, root_info = detect_rear_root(profile, (c0, c1), flight_start)
         if r0 is not None:
             c1 = min(c1, r0)
-    metrics = measure_tail_quality(normalized, profile, (c0, c1), (r0, r1), axis)
+    shaft = extract_centered_component(normalized, (c0, c1), axis)
+    root = extract_axial_root_component(normalized, (r0, r1), axis) if r0 is not None and r1 is not None else None
+    canonical_root_offset = _component_axis_offset(root) if root is not None else None
+    metrics = measure_tail_quality(
+        normalized,
+        profile,
+        (c0, c1),
+        (r0, r1),
+        axis,
+        canonical_root_axis_offset_px=canonical_root_offset,
+    )
     confidence = float(np.mean([
         float(axis.get("confidence", 0.0)),
         float(core_info.get("confidence", 0.0)),
@@ -413,9 +484,6 @@ def author_tail_components(
         status = "NEEDS_MANUAL_REVIEW"
     else:
         status = "FAIL_SOURCE_UNSUITABLE"
-
-    shaft = extract_centered_component(normalized, (c0, c1), axis)
-    root = extract_centered_component(normalized, (r0, r1), axis) if r0 is not None and r1 is not None else None
 
     return {
         "normalizedImage": normalized,
