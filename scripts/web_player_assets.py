@@ -72,13 +72,60 @@ SOURCE_GROUNDED_SPECS = {
         'splits': [0.22, 0.51, 0.72],
         'officialPage': 'https://winmau.com/en-de/products/luke-humphries-prestige-darts',
         'sources': [
-            # Retail copy of the official Red Dragon media sheet. It contains one long,
-            # clean horizontal assembled dart; the elongated-object gate extracts only
-            # that dart and discards the surrounding packaging/component panels.
             'https://www.reddragondarts.com/cdn/shop/files/2823_LUKEH_Prestige22gImage_5.jpg?v=1734084563&width=2667',
-            # Angled fallback. The geometry gate will reject it if it is not sufficiently
-            # broadside for component extraction.
             'https://aviddarts.com.au/cdn/shop/files/LukeHumphries-Prestige-3.jpg?v=1734126420&width=1500',
+        ],
+    },
+    'cross-95k': {
+        'integrated': True,
+        'shape': 'No.6',
+        'profile': None,
+        'splits': [0.19, 0.55, 0.69],
+        'officialPage': 'https://www.target-darts.co.uk/rob-cross-95k-sp',
+        'sources': [
+            'https://www.thedartdepot.co.nz/cdn/shop/files/RobCross95kDart_1_1024x.png?v=1733949037',
+        ],
+    },
+    'aspinall-95k': {
+        'integrated': True,
+        'shape': 'No.2',
+        'profile': None,
+        'splits': [0.19, 0.55, 0.69],
+        'officialPage': 'https://www.target-darts.co.uk/nathan-aspinall-95k-sp',
+        # The clean 180Darts full-dart candidate measures 1.432x tail/body because the
+        # transparent No.2 K-Flex has lower foreground contrast than opaque flights.
+        # Keep the relaxed acceptance local to this verified product source.
+        'minTailRatio': 1.40,
+        'sources': [
+            # Clean horizontal specification broadside. The surrounding typography is
+            # discarded by the elongated-dart geometry gate; only the assembled dart
+            # strip is retained as source evidence.
+            'https://kingstonbilliardsandgames.com/cdn/shop/files/Nathan-Aspinall-95K-SP-3.jpg?v=1765422255&width=1946',
+            'https://www.180darts.nl/images/show/product/target-nathan-aspinall-95k-swiss-point-95-dartpijlen.jpg',
+        ],
+    },
+    'bunting-95k': {
+        'integrated': True,
+        'shape': 'No.2',
+        'profile': None,
+        'splits': [0.19, 0.54, 0.68],
+        'officialPage': 'https://www.target-darts.co.uk/stephen-bunting-95k-sp',
+        'sources': [
+            'https://www.dartswarehouse.nl/media/catalog/product/cache/f20831aa4fe732f409bd1d4a248f932d/image/32443219e/target-stephen-bunting-95k-95-swiss.jpg',
+        ],
+    },
+    'mvg-signature': {
+        'integrated': False,
+        'shape': 'No.2',
+        'profile': None,
+        'splits': [0.20, 0.54, 0.73],
+        'officialPage': 'https://winmau.com/en-de/products/mvg-signature-edition',
+        'sources': [
+            # This product sheet contains a complete assembled dart as a separate,
+            # narrow object; the oversized barrel detail is rejected by the full-dart
+            # tail signature.
+            'https://www.thedartdepot.co.nz/cdn/shop/files/MVGSignatureDart_1.png?v=1765523864',
+            'https://www.bullydarts.co.uk/cdn/shop/files/1550_MVG_Signature_22g_image1.jpg?v=1765467371&width=4472',
         ],
     },
 }
@@ -127,7 +174,7 @@ def _foreground_mask(image):
     mask=cv2.morphologyEx(mask,cv2.MORPH_OPEN,np.ones((k,k),np.uint8))
     return mask,dist,alpha
 
-def _best_elongated_roi(image):
+def _best_elongated_roi(image, min_tail_ratio=1.45):
     mask,dist,source_alpha=_foreground_mask(image)
     h,w=mask.shape
     candidates=[]
@@ -235,9 +282,10 @@ def _best_elongated_roi(image):
                 raise ValueError('lacks measurable body/tail silhouette')
             body_span=float(np.median(body))
             tail_span=float(np.percentile(tail,75))
-            if tail_span < body_span*1.45:
+            if tail_span < body_span*min_tail_ratio:
                 raise ValueError(
-                    f'tail span {tail_span:.1f}px vs body {body_span:.1f}px (need >= 1.45x)'
+                    f'tail span {tail_span:.1f}px vs body {body_span:.1f}px '
+                    f'(need >= {min_tail_ratio:.2f}x)'
                 )
             return result
         except Exception as exc:
@@ -362,7 +410,10 @@ def _split_source_grounded(key,spec):
     for candidate_url in spec['sources']:
         try:
             raw,_=_download_product_image([candidate_url])
-            candidate=_best_elongated_roi(raw)
+            candidate=_best_elongated_roi(
+                raw,
+                min_tail_ratio=float(spec.get('minTailRatio',1.45)),
+            )
             dart=candidate
             source_url=candidate_url
             break
@@ -436,6 +487,7 @@ def _split_source_grounded(key,spec):
         'originalPixels':True,
         'processing':[
             'temporary web download',
+            f"full-dart tail/body gate >= {float(spec.get('minTailRatio',1.45)):.2f}x",
             'neutral-background foreground detection',
             'automatic elongated-dart crop',
             'orientation normalisation (tip left)',
@@ -487,6 +539,10 @@ STD = NO2
 SOURCE_GROUNDED_SPECS['clemens-g2']['profile']=NO6
 SOURCE_GROUNDED_SPECS['clemens-95k']['profile']=NO6
 SOURCE_GROUNDED_SPECS['humphries-prestige']['profile']=STD
+SOURCE_GROUNDED_SPECS['cross-95k']['profile']=NO6
+SOURCE_GROUNDED_SPECS['aspinall-95k']['profile']=NO2
+SOURCE_GROUNDED_SPECS['bunting-95k']['profile']=NO2
+SOURCE_GROUNDED_SPECS['mvg-signature']['profile']=NO2
 
 def font(size=24, bold=False):
     paths = ['/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf' if bold else '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf']

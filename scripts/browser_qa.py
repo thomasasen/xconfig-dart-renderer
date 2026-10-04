@@ -1,5 +1,5 @@
 from __future__ import annotations
-import json, subprocess, time, sys, re
+import json, subprocess, time, sys, re, base64
 from io import BytesIO
 from pathlib import Path
 from PIL import Image, ImageDraw
@@ -8,7 +8,7 @@ ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'outputs'/'qa'
 OUT.mkdir(parents=True,exist_ok=True)
 CAT=json.loads((ROOT/'data'/'catalog.json').read_text())
-REVIEW_PRESETS=tuple(pid for pid,p in CAT['presets'].items() if p.get('sourceType')!='WEB-REFERENCED-RECONSTRUCTION')
+REVIEW_PRESETS=tuple(CAT['presets'].keys())
 out={'status':'NOT_RUN','notes':[]}
 server=None
 
@@ -53,9 +53,19 @@ def save_seam_zoom(page,pid,render_meta):
     canvas.save(OUT/f'seam-{pid}.png')
 
 
+def _trim_transparent(im):
+    src=im.convert('RGBA')
+    bbox=src.getchannel('A').getbbox()
+    return src.crop(bbox) if bbox else src
+
+def _canvas_rgba(page,selector):
+    data_url=page.locator(selector).evaluate("(el)=>el.toDataURL('image/png')")
+    raw=base64.b64decode(data_url.split(',',1)[1])
+    return Image.open(BytesIO(raw)).convert('RGBA')
+
 def _panel(im,title,width=789,height=365):
     canvas=Image.new('RGB',(width,height),(18,22,29))
-    src=im.convert('RGBA')
+    src=_trim_transparent(im)
     src.thumbnail((width-20,height-46),Image.Resampling.LANCZOS)
     # Composite transparency on the dark QA background.
     bg=Image.new('RGBA',src.size,(18,22,29,255)); bg.alpha_composite(src)
@@ -65,15 +75,18 @@ def _panel(im,title,width=789,height=365):
 
 def save_runtime_review(page,pid):
     preset=CAT['presets'][pid]
-    source=Image.open(ROOT/preset['sourceImage'].replace('./','')).convert('RGBA')
-    orthogonal=Image.open(BytesIO(page.locator('#orthogonal').screenshot(type='png'))).convert('RGBA')
-    posed=Image.open(BytesIO(page.locator('#posed').screenshot(type='png'))).convert('RGBA')
+    source_path=preset.get('comparisonSourceImage') or preset['sourceImage']
+    source=Image.open(ROOT/source_path.replace('./','')).convert('RGBA')
+    orthogonal=_canvas_rgba(page,'#orthogonal')
+    posed=_canvas_rgba(page,'#posed')
     c=CAT['components']
     tail=c['rearSystems'][preset['rearSystemId']] if preset.get('rearSystemId') else c['flights'][preset['flightId']]
+    source_pose=preset.get('sourceComparisonPose') or {}
+    source_kind=preset.get('sourceType','UNKNOWN')
     titles=[
-        f'Original/source · {preset["name"]}',
-        f'Orthogonal runtime · {tail.get("flightExtractionMode","DIRECT_SOURCE_FACE")}',
-        f'Posed runtime · Plane B {tail.get("planeBProvenance",tail.get("faceEvidence",{}).get("planeB"))}',
+        f'Comparison source · {preset["name"]} · {source_kind}',
+        f'Source-match runtime · roll={source_pose.get("rollDeg",0)}° · canonical flight geometry',
+        f'Board-pose runtime · Plane B {tail.get("planeBProvenance",tail.get("faceEvidence",{}).get("planeB"))}',
     ]
     cards=[_panel(source,titles[0]),_panel(orthogonal,titles[1]),_panel(posed,titles[2])]
     sheet=Image.new('RGB',(789*3,365),(10,13,18))
@@ -148,6 +161,13 @@ try:
                 'joinSlopeDeltaMmPerMm':slope,
                 'shaftRootVisibleDeltaMm':root_delta,
                 'rootPresent':bool(metrics.get('rootPresent')),
+                'sourceComparisonPose':CAT['presets'][pid].get('sourceComparisonPose'),
+                'planeProfileProvenance':(
+                    (CAT['components']['rearSystems'][CAT['presets'][pid]['rearSystemId']]
+                     if CAT['presets'][pid].get('rearSystemId')
+                     else CAT['components']['flights'][CAT['presets'][pid]['flightId']])
+                    .get('planeProfileProvenance')
+                ),
                 'selfTestPassed':bool(self_test.get('passed')),
             })
             if pid in REVIEW_PRESETS:

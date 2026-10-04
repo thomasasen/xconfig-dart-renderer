@@ -12,7 +12,47 @@ def ev(status,note,source=None):
 
 def tex(product,name): return f'./assets/components/{product}/{name}.png'
 
-def profile(product): return meta[product]['flightProfile']
+CANONICAL_FLIGHT_PROFILES={
+ 'NO6': [[0.00,0.00],[0.08,0.30],[0.22,0.90],[0.68,1.00],[0.94,0.72],[1.00,0.35],[1.00,-0.35],[0.94,-0.72],[0.68,-1.00],[0.22,-0.90],[0.08,-0.30]],
+ 'NO2': [[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[1.00,-0.45],[0.90,-0.82],[0.60,-1.00],[0.18,-0.96],[0.06,-0.34]],
+ 'STANDARD': [[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[1.00,-0.45],[0.90,-0.82],[0.60,-1.00],[0.18,-0.96],[0.06,-0.34]],
+ 'VAPOR_S': [[0.00,0.00],[0.08,0.26],[0.24,0.82],[0.54,1.00],[0.84,0.78],[1.00,0.30],[1.00,-0.30],[0.84,-0.78],[0.54,-1.00],[0.24,-0.82],[0.08,-0.26]],
+}
+
+def canonical_profile(shape, product=None):
+ key=str(shape or '').upper().replace(' ','_').replace('.','')
+ if 'NO6' in key: return CANONICAL_FLIGHT_PROFILES['NO6']
+ if 'NO2' in key: return CANONICAL_FLIGHT_PROFILES['NO2']
+ if 'VAPOR' in key: return CANONICAL_FLIGHT_PROFILES['VAPOR_S']
+ if 'STANDARD' in key or 'PLAYER' in key: return CANONICAL_FLIGHT_PROFILES['STANDARD']
+ # Unknown named shapes remain conservative: source silhouette is evidence for artwork,
+ # not 3D geometry. Use the standard profile rather than projecting photographed pose twice.
+ return CANONICAL_FLIGHT_PROFILES['STANDARD']
+
+def alpha_uv_envelope(product,samples=25):
+ from PIL import Image
+ import numpy as np
+ path=ROOT/tex(product,'flight-plane-a').replace('./','')
+ im=Image.open(path).convert('RGBA')
+ alpha=np.asarray(im.getchannel('A'))
+ h,w=alpha.shape
+ rows=[]
+ last=(0.5,0.5)
+ for i in range(samples):
+  x=min(w-1,round(i*(w-1)/max(1,samples-1)))
+  ys=np.where(alpha[:,x]>20)[0]
+  if len(ys):
+   top=float(ys.min())/max(1,h-1); bottom=float(ys.max())/max(1,h-1)
+   last=(top,bottom)
+  else:
+   top,bottom=last
+  rows.append([round(i/max(1,samples-1),4),round(top,4),round(bottom,4)])
+ # Fill leading empty samples from first valid interval.
+ first=next(((r[1],r[2]) for r in rows if r[2]-r[1]>.01),(.5,.5))
+ for r in rows:
+  if r[2]-r[1]>.01: break
+  r[1],r[2]=first
+ return rows
 
 def flight_meta(product):
  m=meta.get(product,{})
@@ -104,14 +144,14 @@ def shaft(id,name,length,product,evidence=None,renderLength=None):
  shafts[id]={'kind':'ShaftDefinition','id':id,'name':visible_preset_name(name),'rearThread':'2BA','flightMount':'FOLDED_FLIGHT_SLOT','lengthMm':length,'renderLengthMm':renderLength or length or 30,'renderDiameterMm':4.8,'texture':tex(product,'shaft'),'evidence':evidence or []}
 def flight(id,name,shape,product,evidence=None,renderLength=42,renderRadius=18,planeAStatus=SRC,visualAuthoring='SOURCE-GROUNDED',safe=None):
  fm=flight_meta(product)
- flights[id]={'kind':'FlightDefinition','id':id,'name':visible_preset_name(name),'flightMount':'FOLDED_FLIGHT_SLOT','shape':shape,'renderLengthMm':renderLength,'renderRadiusMm':renderRadius,'planeProfile':profile(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'planeAProvenance':fm['planeAProvenance'],'planeBProvenance':fm['planeBProvenance'],'flightExtractionMode':fm['flightExtractionMode'],'flightApproximation':fm['flightApproximation'],'visualAuthoring':visualAuthoring,'evidence':evidence or []}
+ flights[id]={'kind':'FlightDefinition','id':id,'name':visible_preset_name(name),'flightMount':'FOLDED_FLIGHT_SLOT','shape':shape,'renderLengthMm':renderLength,'renderRadiusMm':renderRadius,'planeProfile':canonical_profile(shape,product),'planeProfileProvenance':'CANONICAL-GEOMETRY-NOT-PHOTOGRAPHED-POSE','planeUvEnvelope':alpha_uv_envelope(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'planeAProvenance':fm['planeAProvenance'],'planeBProvenance':fm['planeBProvenance'],'flightExtractionMode':fm['flightExtractionMode'],'flightApproximation':fm['flightApproximation'],'visualAuthoring':visualAuthoring,'evidence':evidence or []}
  if safe:
   flights[id]['safeRollMinDeg']=safe[0]; flights[id]['safeRollMaxDeg']=safe[1]
 def rear(id,name,system,length,shape,product,evidence=None,renderFlightLength=42,renderRadius=18,safe=(-18,18),planeAStatus=SRC,visualAuthoring='SOURCE-GROUNDED'):
  fm=flight_meta(product)
  diameter=5.2
  authored=tail_render_meta(product,length or 20,diameter)
- rears[id]={'kind':'RearSystemDefinition','id':id,'name':visible_preset_name(name),'rearThread':'2BA','integrated':True,'system':system,'shaftLengthMm':length,'flightShape':shape,'renderShaftLengthMm':length or 20,'renderShaftDiameterMm':diameter,'renderFlightLengthMm':renderFlightLength,'renderFlightRadiusMm':renderRadius,'shaftTexture':tex(product,'rear-shaft'),'planeProfile':profile(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'planeAProvenance':fm['planeAProvenance'],'planeBProvenance':fm['planeBProvenance'],'flightExtractionMode':fm['flightExtractionMode'],'flightApproximation':fm['flightApproximation'],'visualAuthoring':visualAuthoring,'safeRollMinDeg':safe[0],'safeRollMaxDeg':safe[1],'evidence':evidence or []}
+ rears[id]={'kind':'RearSystemDefinition','id':id,'name':visible_preset_name(name),'rearThread':'2BA','integrated':True,'system':system,'shaftLengthMm':length,'flightShape':shape,'renderShaftLengthMm':length or 20,'renderShaftDiameterMm':diameter,'renderFlightLengthMm':renderFlightLength,'renderFlightRadiusMm':renderRadius,'shaftTexture':tex(product,'rear-shaft'),'planeProfile':canonical_profile(shape,product),'planeProfileProvenance':'CANONICAL-GEOMETRY-NOT-PHOTOGRAPHED-POSE','planeUvEnvelope':alpha_uv_envelope(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'planeAProvenance':fm['planeAProvenance'],'planeBProvenance':fm['planeBProvenance'],'flightExtractionMode':fm['flightExtractionMode'],'flightApproximation':fm['flightApproximation'],'visualAuthoring':visualAuthoring,'safeRollMinDeg':safe[0],'safeRollMaxDeg':safe[1],'evidence':evidence or []}
  if authored:
   rears[id].update(authored)
 WEIGHT_RE=re.compile(r'\s+(\d+(?:[.,]\d+)?)\s*g\b',re.IGNORECASE)
@@ -126,8 +166,31 @@ def preset_weight_g(name):
  value=float(m.group(1).replace(',','.'))
  return int(value) if value.is_integer() else value
 
+SOURCE_COMPARISON_ROLL_DEG={
+ 'prodigy-23':3,
+ 'shift':5,
+ 'world-champion':4,
+ 'chrono':7,
+ 'gary-phase6':8,
+ 'auro':10,
+ 'supa-venom':8,
+ 'mandalorian-24':5,
+ 'atat-23':8,
+ 'clemens-g2-23':8,
+ 'clemens-95k-23':4,
+ 'cross-95k-23':5,
+ 'aspinall-95k-22':5,
+ 'bunting-95k-23':5,
+ 'mvg-signature-22':6,
+ 'humphries-prestige-22':8,
+}
+
 def preset(id,name,source,pointId,barrelId,shaftId=None,flightId=None,rearId=None,inc=35,roll=0,notes=None,sourcePage=None,sourceLabel=None,sourceType='SUPPLIED_SOURCE'):
- presets[id]={'kind':'DartPreset','id':id,'name':visible_preset_name(name),'variantWeightG':preset_weight_g(name),'sourceImage':f'./assets/source/{source}','sourcePage':sourcePage,'sourceLabel':sourceLabel or ('Supplied source' if sourceType=='SUPPLIED_SOURCE' else sourceType),'sourceType':sourceType,'pointId':pointId,'barrelId':barrelId,'shaftId':shaftId,'flightId':flightId,'rearSystemId':rearId,'defaultPose':{'incidenceDeg':inc,'rollDeg':roll},'notes':notes or []}
+ product_for_source=next((k for k,v in meta.items() if v.get('sourceFile')==source),None)
+ normalized_candidate=(ROOT/'assets/components'/product_for_source/'normalized-source.png') if product_for_source else None
+ comparison_source=(f'./assets/components/{product_for_source}/normalized-source.png' if normalized_candidate and normalized_candidate.exists() else f'./assets/source/{source}')
+ comparison_roll=SOURCE_COMPARISON_ROLL_DEG.get(id,0)
+ presets[id]={'kind':'DartPreset','id':id,'name':visible_preset_name(name),'variantWeightG':preset_weight_g(name),'sourceImage':f'./assets/source/{source}','comparisonSourceImage':comparison_source,'sourceComparisonPose':{'incidenceDeg':0,'rollDeg':comparison_roll,'provenance':'HEURISTIC-SOURCE-MATCH'},'sourcePage':sourcePage,'sourceLabel':sourceLabel or ('Supplied source' if sourceType=='SUPPLIED_SOURCE' else sourceType),'sourceType':sourceType,'pointId':pointId,'barrelId':barrelId,'shaftId':shaftId,'flightId':flightId,'rearSystemId':rearId,'defaultPose':{'incidenceDeg':inc,'rollDeg':roll},'notes':notes or []}
 
 # Prodigy 23g exact variant
 point('target-swiss-dx-gold-26','Target Swiss DX Gold 26 mm','SWISS_POINT',26,2.1,'prodigy',evidence=[ev(WEB,'26-mm Swiss DX is the fitted point; 30 mm also supplied.','https://www.targetdarts.com/eu/luke-littler-g1-prodigy-sp')])
@@ -180,6 +243,12 @@ flights['generic-slim-geometry']={
  'kind':'FlightDefinition','id':'generic-slim-geometry','name':'Generic Slim Geometry QA','flightMount':'FOLDED_FLIGHT_SLOT','shape':'Slim',
  'renderLengthMm':46,'renderRadiusMm':10.5,
  'planeProfile':[[0,0],[0.09,0.35],[0.23,0.72],[1,0.48],[1,-0.48],[0.23,-0.72],[0.09,-0.35]],
+ 'planeProfileProvenance':'CANONICAL-GEOMETRY-NOT-PHOTOGRAPHED-POSE',
+ 'planeUvEnvelope':[
+   [0.0,0.50,0.50],[0.0833,0.34,0.66],[0.1667,0.20,0.80],[0.25,0.14,0.86],
+   [0.3333,0.155,0.845],[0.4167,0.17,0.83],[0.5,0.185,0.815],[0.5833,0.20,0.80],
+   [0.6667,0.215,0.785],[0.75,0.23,0.77],[0.8333,0.24,0.76],[0.9167,0.25,0.75],[1.0,0.26,0.74],
+ ],
  'planeATexture':'./assets/components/generic/slim-plane-a.png','planeBTexture':'./assets/components/generic/slim-plane-b-approx.png',
  'faceEvidence':{'planeA':HEU,'planeB':APP},
  'evidence':[ev(HEU,'Generic Slim flight geometry prepared for builder compatibility/shape testing; not tied to a supplied product image.')]
@@ -229,29 +298,29 @@ preset('clemens-95k-23','Gabriel Clemens 95K 23g',meta['clemens-95k']['sourceFil
 # Rob Cross 95K – 23g, integrated K-Flex.
 point('cross-95k-storm-surge-gold-26','Rob Cross 95K Swiss Storm Surge Gold 26 mm','SWISS_POINT',26,2.1,'cross-95k',evidence=[ev(WEB,'Target specifies fitted Swiss Storm Surge Gold 26-mm points.','https://www.target-darts.co.uk/rob-cross-95k-sp'),ev(HEU,'Local appearance reconstruction only.')])
 barrel('cross-95k-23-barrel','Rob Cross 95K 23g Barrel','SWISS_POINT',48,6.6,'cross-95k','straight',evidence=[ev(WEB,'Target: 23g = 48 x 6.6 mm, 95% tungsten.','https://www.target-darts.co.uk/rob-cross-95k-sp'),ev(HEU,'Local visual appearance reconstructed from web reference.')])
-rear('cross-95k-kflex-no6-short','Rob Cross 95K K-Flex No.6 Short','K-FLEX',19,'No.6','cross-95k',evidence=[ev(WEB,'Target specifies No.6 Player-Edition K-Flex, Short. K-Flex keeps the planes at 90 degrees.','https://www.target-darts.co.uk/rob-cross-95k-sp'),ev(HEU,'Artwork/color is a local web-referenced reconstruction.')],renderFlightLength=41.5,renderRadius=17.2,safe=(-12,12),planeAStatus=HEU,visualAuthoring=WEB_RECON)
-preset('cross-95k-23','Rob Cross 95K 23g','web-cross-95k-reconstruction.png','cross-95k-storm-surge-gold-26','cross-95k-23-barrel',rearId='cross-95k-kflex-no6-short',sourcePage='https://www.target-darts.co.uk/rob-cross-95k-sp',sourceLabel='Target Rob Cross 95K · web-referenced reconstruction',sourceType=WEB_RECON)
+rear('cross-95k-kflex-no6-short','Rob Cross 95K K-Flex No.6 Short','K-FLEX',19,'No.6','cross-95k',evidence=[ev(WEB,'Target specifies No.6 Player-Edition K-Flex, Short. K-Flex keeps the planes at 90 degrees.','https://www.target-darts.co.uk/rob-cross-95k-sp'),ev(SRC,'Visible rear/flight pixels are extracted from the recorded real product-image source.'),ev(APP,'Source-hidden cross-fin strip and Plane B remain approximated.')],renderFlightLength=41.5,renderRadius=17.2,safe=(-12,12),planeAStatus=SRC,visualAuthoring=WEB_SOURCE)
+preset('cross-95k-23','Rob Cross 95K 23g',meta['cross-95k']['sourceFile'],'cross-95k-storm-surge-gold-26','cross-95k-23-barrel',rearId='cross-95k-kflex-no6-short',sourcePage='https://www.target-darts.co.uk/rob-cross-95k-sp',sourceLabel='Target Rob Cross 95K · source-grounded product-image extract',sourceType=WEB_SOURCE)
 
 # Nathan Aspinall 95K – 22g, integrated K-Flex No.2.
 point('aspinall-95k-storm-black-26','Nathan Aspinall 95K Swiss Storm Black 26 mm','SWISS_POINT',26,2.1,'aspinall-95k',evidence=[ev(WEB,'Target specifies fitted Black Swiss Storm 26-mm points.','https://www.target-darts.co.uk/nathan-aspinall-95k-sp'),ev(HEU,'Local appearance reconstruction only.')])
 barrel('aspinall-95k-22-barrel','Nathan Aspinall 95K 22g Barrel','SWISS_POINT',50,6.8,'aspinall-95k','tapered',evidence=[ev(WEB,'Target: 22g = 50 x 6.8 mm; product description identifies Nathan’s preferred tapered front profile.','https://www.target-darts.co.uk/nathan-aspinall-95k-sp'),ev(HEU,'Local barrel appearance reconstructed from inspected product image.')])
-rear('aspinall-95k-kflex-no2-short','Nathan Aspinall 95K K-Flex No.2 Short','K-FLEX',19,'No.2','aspinall-95k',evidence=[ev(WEB,'Target specifies K-Flex No.2, Short, 19-mm shaft.','https://www.target-darts.co.uk/nathan-aspinall-95k-sp'),ev(HEU,'Flight/rear visual is a local reconstruction.')],renderFlightLength=43,renderRadius=18.5,safe=(-12,12),planeAStatus=HEU,visualAuthoring=WEB_RECON)
-preset('aspinall-95k-22','Nathan Aspinall 95K 22g','web-aspinall-95k-reconstruction.png','aspinall-95k-storm-black-26','aspinall-95k-22-barrel',rearId='aspinall-95k-kflex-no2-short',sourcePage='https://www.target-darts.co.uk/nathan-aspinall-95k-sp',sourceLabel='Target Nathan Aspinall 95K · web-referenced reconstruction',sourceType=WEB_RECON)
+rear('aspinall-95k-kflex-no2-short','Nathan Aspinall 95K K-Flex No.2 Short','K-FLEX',19,'No.2','aspinall-95k',evidence=[ev(WEB,'Target specifies K-Flex No.2, Short, 19-mm shaft.','https://www.target-darts.co.uk/nathan-aspinall-95k-sp'),ev(SRC,'Visible rear/flight pixels are extracted from the recorded real product-image source.'),ev(APP,'Source-hidden cross-fin strip and Plane B remain approximated.')],renderFlightLength=43,renderRadius=18.5,safe=(-12,12),planeAStatus=SRC,visualAuthoring=WEB_SOURCE)
+preset('aspinall-95k-22','Nathan Aspinall 95K 22g',meta['aspinall-95k']['sourceFile'],'aspinall-95k-storm-black-26','aspinall-95k-22-barrel',rearId='aspinall-95k-kflex-no2-short',sourcePage='https://www.target-darts.co.uk/nathan-aspinall-95k-sp',sourceLabel='Target Nathan Aspinall 95K · source-grounded product-image extract',sourceType=WEB_SOURCE)
 
 # Stephen Bunting 95K – 23g. The page says Short; an in-box line contains a
 # suspicious "33m" value, therefore factual shaftLengthMm deliberately remains
 # null instead of laundering a likely typo into geometry.
 point('bunting-95k-diamond-gold-26','Stephen Bunting 95K Swiss Diamond Pro Gold 26 mm','SWISS_POINT',26,2.1,'bunting-95k',evidence=[ev(WEB,'Target specifies Gold Swiss Diamond Pro Points, 26 mm.','https://www.target-darts.co.uk/stephen-bunting-95k-sp'),ev(HEU,'Local point appearance reconstruction only.')])
 barrel('bunting-95k-23-barrel','Stephen Bunting 95K 23g Barrel','SWISS_POINT',47,6.9,'bunting-95k','tapered',evidence=[ev(WEB,'Target: 23g = 47 x 6.9 mm, 95% tungsten; product description identifies a tapered/front-nose profile.','https://www.target-darts.co.uk/stephen-bunting-95k-sp'),ev(HEU,'Local appearance reconstructed from web reference.')])
-rear('bunting-95k-kflex-no2-short','Stephen Bunting 95K K-Flex No.2 Short','K-FLEX',None,'No.2','bunting-95k',evidence=[ev(WEB,'Target specifies Player-Edition No.2 K-Flex and Shaft Length “Short”.','https://www.target-darts.co.uk/stephen-bunting-95k-sp'),ev(UNK,'Product page box copy contains “33m”; exact millimetre shaft length is therefore intentionally not adopted as fact.'),ev(HEU,'20-mm render shaft length and visual artwork are builder/reconstruction heuristics.')],renderFlightLength=43,renderRadius=18.5,safe=(-10,10),planeAStatus=HEU,visualAuthoring=WEB_RECON)
-preset('bunting-95k-23','Stephen Bunting 95K 23g','web-bunting-95k-reconstruction.png','bunting-95k-diamond-gold-26','bunting-95k-23-barrel',rearId='bunting-95k-kflex-no2-short',sourcePage='https://www.target-darts.co.uk/stephen-bunting-95k-sp',sourceLabel='Target Stephen Bunting 95K · web-referenced reconstruction',sourceType=WEB_RECON,notes=['Exact K-Flex millimetre length remains UNKNOWN because the current product-page copy is internally suspect; UI label “Short” is manufacturer-supported.'])
+rear('bunting-95k-kflex-no2-short','Stephen Bunting 95K K-Flex No.2 Short','K-FLEX',None,'No.2','bunting-95k',evidence=[ev(WEB,'Target specifies Player-Edition No.2 K-Flex and Shaft Length “Short”.','https://www.target-darts.co.uk/stephen-bunting-95k-sp'),ev(UNK,'Product page box copy contains “33m”; exact millimetre shaft length is therefore intentionally not adopted as fact.'),ev(SRC,'Visible rear/flight pixels are extracted from the recorded real product-image source.'),ev(APP,'20-mm render shaft length, source-hidden cross-fin strip and Plane B remain approximated where source evidence is unavailable.')],renderFlightLength=43,renderRadius=18.5,safe=(-10,10),planeAStatus=SRC,visualAuthoring=WEB_SOURCE)
+preset('bunting-95k-23','Stephen Bunting 95K 23g',meta['bunting-95k']['sourceFile'],'bunting-95k-diamond-gold-26','bunting-95k-23-barrel',rearId='bunting-95k-kflex-no2-short',sourcePage='https://www.target-darts.co.uk/stephen-bunting-95k-sp',sourceLabel='Target Stephen Bunting 95K · source-grounded product-image extract',sourceType=WEB_SOURCE,notes=['Exact K-Flex millimetre length remains UNKNOWN because the current product-page copy is internally suspect; UI label “Short” is manufacturer-supported.'])
 
 # Michael van Gerwen Signature Edition – 22g classic modular.
 point('mvg-signature-steel-point','MvG Signature Steeltip (exact length unknown)','PRESS_FIT',None,2.1,'mvg-signature',evidence=[ev(WEB,'Winmau specifies Steeltip, but not the point length on the product page.','https://winmau.com/en-de/products/mvg-signature-edition'),ev(UNK,'Exact point length remains unknown; 32-mm render length is heuristic.')],render=32)
 barrel('mvg-signature-22-barrel','Michael van Gerwen Signature 22g Barrel','PRESS_FIT',53,6.3,'mvg-signature','straight',evidence=[ev(WEB,'Winmau verifies 90% tungsten, centre weighting and parallel barrel profile.','https://winmau.com/en-de/products/mvg-signature-edition'),ev(WEB,'Dartworld lists the 22g barrel at 53.00 x 6.30 mm.','https://www.dartworld.de/steel-darts/nach-preis/winmau-michael-van-gerwen-mvg-signature-edition-90?c=22162'),ev(HEU,'Local visual appearance reconstructed from inspected product image.')])
 shaft('mvg-signature-vecta-short','MvG Signature Vecta Short Shaft',None,'mvg-signature',evidence=[ev(WEB,'Winmau specifies Short Vecta shafts.','https://winmau.com/en-de/products/mvg-signature-edition'),ev(HEU,'30-mm render length used because the product page does not state physical shaft length.')],renderLength=30)
-flight('mvg-signature-no2','MvG Signature #2 100 Micron Flight','No.2','mvg-signature',evidence=[ev(WEB,'Winmau specifies #2 Shape 100 Micron flights.','https://winmau.com/en-de/products/mvg-signature-edition'),ev(HEU,'Artwork is a local reconstruction from public product imagery.')],renderLength=43,renderRadius=18.5,planeAStatus=HEU,visualAuthoring=WEB_RECON)
-preset('mvg-signature-22','Michael van Gerwen Signature Edition 22g','web-mvg-signature-reconstruction.png','mvg-signature-steel-point','mvg-signature-22-barrel','mvg-signature-vecta-short','mvg-signature-no2',sourcePage='https://winmau.com/en-de/products/mvg-signature-edition',sourceLabel='Winmau MvG Signature · web-referenced reconstruction',sourceType=WEB_RECON,notes=['22g barrel dimensions come from a current retailer because Winmau’s current page exposes weights and profile but not dimensional table.'])
+flight('mvg-signature-no2','MvG Signature #2 100 Micron Flight','No.2','mvg-signature',evidence=[ev(WEB,'Winmau specifies #2 Shape 100 Micron flights.','https://winmau.com/en-de/products/mvg-signature-edition'),ev(SRC,'Visible Plane-A artwork is extracted from the recorded real product-image source.'),ev(APP,'Source-hidden fold strip and Plane B remain approximated.')],renderLength=43,renderRadius=18.5,planeAStatus=SRC,visualAuthoring=WEB_SOURCE)
+preset('mvg-signature-22','Michael van Gerwen Signature Edition 22g',meta['mvg-signature']['sourceFile'],'mvg-signature-steel-point','mvg-signature-22-barrel','mvg-signature-vecta-short','mvg-signature-no2',sourcePage='https://winmau.com/en-de/products/mvg-signature-edition',sourceLabel='Winmau MvG Signature · source-grounded product-image extract',sourceType=WEB_SOURCE,notes=['22g barrel dimensions come from a current retailer because Winmau’s current page exposes weights and profile but not dimensional table.'])
 
 # Luke Humphries Prestige – classic modular. V1.3.1 uses extracted product pixels;
 # the internal 22g ID remains only as compatibility/variant metadata.
@@ -264,10 +333,10 @@ preset('humphries-prestige-22','Luke Humphries Prestige 22g',meta['humphries-pre
 web_player_sources=[
  {'presetId':'clemens-g2-23','player':'Gabriel Clemens','product':'Target Gabriel Clemens G2 SP','officialPage':'https://www.target-darts.co.uk/gabriel-clemens-g2-sp','imageReference':meta['clemens-g2']['sourceUrl'],'visualStatus':WEB_SOURCE,'originalPixels':True,'componentProvenance':meta['clemens-g2']['componentProvenance'],'flightExtractionMode':meta['clemens-g2'].get('flightExtractionMode'),'flightApproximation':meta['clemens-g2'].get('flightApproximation')},
  {'presetId':'clemens-95k-23','player':'Gabriel Clemens','product':'Target Gabriel Clemens 95K SP','officialPage':'https://www.target-darts.co.uk/gabriel-clemens-95k-sp','imageReference':meta['clemens-95k']['sourceUrl'],'visualStatus':WEB_SOURCE,'originalPixels':True,'componentProvenance':meta['clemens-95k']['componentProvenance'],'flightExtractionMode':meta['clemens-95k'].get('flightExtractionMode'),'flightApproximation':meta['clemens-95k'].get('flightApproximation')},
- {'presetId':'cross-95k-23','player':'Rob Cross','product':'Target Rob Cross 95K SP 23g','officialPage':'https://www.target-darts.co.uk/rob-cross-95k-sp','imageReference':'https://www.thedartdepot.co.nz/cdn/shop/files/RobCross95kDart_1_1024x.png?v=1733949037','visualStatus':WEB_RECON},
- {'presetId':'aspinall-95k-22','player':'Nathan Aspinall','product':'Target Nathan Aspinall 95K SP 22g','officialPage':'https://www.target-darts.co.uk/nathan-aspinall-95k-sp','imageReference':'https://www.180darts.nl/images/show/product/target-nathan-aspinall-95k-swiss-point-95-dartpijlen.jpg','visualStatus':WEB_RECON},
- {'presetId':'bunting-95k-23','player':'Stephen Bunting','product':'Target Stephen Bunting 95K SP 23g','officialPage':'https://www.target-darts.co.uk/stephen-bunting-95k-sp','imageReference':'https://www.dartswarehouse.nl/media/catalog/product/cache/f20831aa4fe732f409bd1d4a248f932d/image/32443219e/target-stephen-bunting-95k-95-swiss.jpg','visualStatus':WEB_RECON},
- {'presetId':'mvg-signature-22','player':'Michael van Gerwen','product':'Winmau MvG Signature Edition 22g','officialPage':'https://winmau.com/en-de/products/mvg-signature-edition','imageReference':'https://www.bullydarts.co.uk/cdn/shop/files/1550_MVG_Signature_22g_image1.jpg?v=1765467371&width=4472','visualStatus':WEB_RECON},
+ {'presetId':'cross-95k-23','player':'Rob Cross','product':'Target Rob Cross 95K SP 23g','officialPage':'https://www.target-darts.co.uk/rob-cross-95k-sp','imageReference':meta['cross-95k']['sourceUrl'],'visualStatus':WEB_SOURCE,'originalPixels':True,'componentProvenance':meta['cross-95k']['componentProvenance'],'flightExtractionMode':meta['cross-95k'].get('flightExtractionMode'),'flightApproximation':meta['cross-95k'].get('flightApproximation')},
+ {'presetId':'aspinall-95k-22','player':'Nathan Aspinall','product':'Target Nathan Aspinall 95K SP 22g','officialPage':'https://www.target-darts.co.uk/nathan-aspinall-95k-sp','imageReference':meta['aspinall-95k']['sourceUrl'],'visualStatus':WEB_SOURCE,'originalPixels':True,'componentProvenance':meta['aspinall-95k']['componentProvenance'],'flightExtractionMode':meta['aspinall-95k'].get('flightExtractionMode'),'flightApproximation':meta['aspinall-95k'].get('flightApproximation')},
+ {'presetId':'bunting-95k-23','player':'Stephen Bunting','product':'Target Stephen Bunting 95K SP 23g','officialPage':'https://www.target-darts.co.uk/stephen-bunting-95k-sp','imageReference':meta['bunting-95k']['sourceUrl'],'visualStatus':WEB_SOURCE,'originalPixels':True,'componentProvenance':meta['bunting-95k']['componentProvenance'],'flightExtractionMode':meta['bunting-95k'].get('flightExtractionMode'),'flightApproximation':meta['bunting-95k'].get('flightApproximation')},
+ {'presetId':'mvg-signature-22','player':'Michael van Gerwen','product':'Winmau MvG Signature Edition 22g','officialPage':'https://winmau.com/en-de/products/mvg-signature-edition','imageReference':meta['mvg-signature']['sourceUrl'],'visualStatus':WEB_SOURCE,'originalPixels':True,'componentProvenance':meta['mvg-signature']['componentProvenance'],'flightExtractionMode':meta['mvg-signature'].get('flightExtractionMode'),'flightApproximation':meta['mvg-signature'].get('flightApproximation')},
  {'presetId':'humphries-prestige-22','player':'Luke Humphries','product':'Luke Humphries Prestige','officialPage':'https://winmau.com/en-de/products/luke-humphries-prestige-darts','imageReference':meta['humphries-prestige']['sourceUrl'],'visualStatus':WEB_SOURCE,'originalPixels':True,'componentProvenance':meta['humphries-prestige']['componentProvenance'],'flightExtractionMode':meta['humphries-prestige'].get('flightExtractionMode'),'flightApproximation':meta['humphries-prestige'].get('flightApproximation')},
 ]
 for item in web_player_sources:

@@ -223,8 +223,8 @@ function resetPose() {
 
 function updateSource(preset = catalog.presets[currentPresetId]) {
   const sourceImage = $('sourceImage');
-  const localFallback = preset?.sourceImage || '';
-  const remoteReference = preset?.referenceImageUrl || '';
+  const localFallback = preset?.comparisonSourceImage || preset?.sourceImage || '';
+  const remoteReference = ''; // QA compares the persisted/normalized source, never a live image with unknown layout.
   sourceImage.onerror = null;
   if (remoteReference) {
     sourceImage.onerror = () => {
@@ -425,9 +425,13 @@ async function renderAll() {
     const incidence = Number($('incidence').value);
     const roll = Number($('roll').value);
 
-    const orthogonal = renderer.renderToSprite({
+    const comparisonPose = catalog.presets[currentPresetId]?.sourceComparisonPose || {
       incidenceDeg: 0,
       rollDeg: 0,
+    };
+    const orthogonal = renderer.renderToSprite({
+      incidenceDeg: Number(comparisonPose.incidenceDeg || 0),
+      rollDeg: Number(comparisonPose.rollDeg || 0),
       targetCanvas: $('orthogonal'),
     });
     const posed = renderer.renderToSprite({
@@ -443,6 +447,15 @@ async function renderAll() {
 
     if (epoch !== renderEpoch) return;
     const renderMeta = {
+      sourceComparison: {
+        pose: comparisonPose,
+        tipDriftPx: orthogonal.tipDriftPx,
+        axisYErrorPx: orthogonal.canonicalAxisYErrorPx,
+        jointMetrics: orthogonal.jointMetrics,
+        jointSprite: orthogonal.jointSprite,
+      },
+      // Backward-compatible key for existing QA consumers. It now represents the
+      // source-match comparison view rather than a hard-coded Roll 0° view.
       orthogonal: {
         tipDriftPx: orthogonal.tipDriftPx,
         axisYErrorPx: orthogonal.canonicalAxisYErrorPx,
@@ -469,6 +482,12 @@ async function renderAll() {
       selection: { ...selection },
       validation,
       pose: { screenRotationDeg: screenRotation, incidenceDeg: incidence, rollDeg: roll },
+      sourceComparison: {
+        pose: comparisonPose,
+        tipDriftPx: orthogonal.tipDriftPx,
+        jointMetrics: orthogonal.jointMetrics,
+        jointSprite: orthogonal.jointSprite,
+      },
       ortho: {
         tipDriftPx: orthogonal.tipDriftPx,
         jointMetrics: orthogonal.jointMetrics,

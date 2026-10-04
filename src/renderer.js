@@ -147,29 +147,101 @@ function bodyProfile({
   ];
 }
 
-function makeFlightGeometry(profile, root, length, radius) {
-  const points = Array.isArray(profile) && profile.length >= 3
-    ? profile
-    : [[0, 0], [.25, 1], [1, .8], [1, -.8], [.25, -1]];
-  const shape = new THREE.Shape();
-  points.forEach(([xn, yn], index) => {
-    const x = root + Number(xn) * length;
-    const y = Number(yn) * radius;
-    if (index === 0) shape.moveTo(x, y);
-    else shape.lineTo(x, y);
-  });
-  shape.closePath();
-
-  const geometry = new THREE.ShapeGeometry(shape);
-  const position = geometry.getAttribute('position');
-  const uv = new Float32Array(position.count * 2);
-  for (let index = 0; index < position.count; index += 1) {
-    const x = position.getX(index);
-    const y = position.getY(index);
-    uv[index * 2] = clamp((x - root) / length, 0, 1);
-    uv[index * 2 + 1] = clamp(.5 - y / (2 * radius), 0, 1);
+function interpolateEnvelope(envelope, u) {
+  const rows = Array.isArray(envelope) && envelope.length
+    ? envelope
+    : [[0, 0, 1], [1, 0, 1]];
+  const sorted = rows
+    .map(([x, top, bottom]) => [
+      clamp(Number(x) || 0, 0, 1),
+      clamp(Number(top) || 0, 0, 1),
+      clamp(Number(bottom) || 1, 0, 1),
+    ])
+    .sort((a, b) => a[0] - b[0]);
+  if (u <= sorted[0][0]) return sorted[0].slice(1);
+  if (u >= sorted[sorted.length - 1][0]) return sorted[sorted.length - 1].slice(1);
+  for (let index = 0; index < sorted.length - 1; index += 1) {
+    const a = sorted[index];
+    const b = sorted[index + 1];
+    if (u < a[0] || u > b[0]) continue;
+    const t = (u - a[0]) / Math.max(1e-9, b[0] - a[0]);
+    return [
+      a[1] + (b[1] - a[1]) * t,
+      a[2] + (b[2] - a[2]) * t,
+    ];
   }
-  geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  return [0, 1];
+}
+
+function profileVerticalBounds(profile, u) {
+  const points = Array.isArray(profile) && profile.length >= 3
+    ? profile.map(([x, y]) => [Number(x), Number(y)])
+    : [[0, 0], [.22, .9], [.68, 1], [1, .35], [1, -.35], [.68, -1], [.22, -.9]];
+  const hits = [];
+  for (let index = 0; index < points.length; index += 1) {
+    const a = points[index];
+    const b = points[(index + 1) % points.length];
+    const minX = Math.min(a[0], b[0]) - 1e-9;
+    const maxX = Math.max(a[0], b[0]) + 1e-9;
+    if (u < minX || u > maxX) continue;
+    if (Math.abs(b[0] - a[0]) < 1e-9) {
+      hits.push(a[1], b[1]);
+      continue;
+    }
+    const t = (u - a[0]) / (b[0] - a[0]);
+    if (t >= -1e-9 && t <= 1 + 1e-9) hits.push(a[1] + (b[1] - a[1]) * t);
+  }
+  if (!hits.length) return [0, 0];
+  return [Math.min(...hits), Math.max(...hits)];
+}
+
+function makeFlightGeometry(profile, root, length, radius, uvEnvelope = null) {
+  // V1.4: geometry comes from a canonical physical flight profile while UVs follow
+  // the actually visible source-face envelope. This explicitly separates photographed
+  // pose/perspective from the 3D geometry and avoids applying source perspective twice.
+  const sampleCount = 32;
+  const positions = [];
+  const uvs = [];
+  for (let index = 0; index < sampleCount - 1; index += 1) {
+    const u0 = index / (sampleCount - 1);
+    const u1 = (index + 1) / (sampleCount - 1);
+    const [lo0, hi0] = profileVerticalBounds(profile, u0);
+    const [lo1, hi1] = profileVerticalBounds(profile, u1);
+    const [top0, bottom0] = interpolateEnvelope(uvEnvelope, u0);
+    const [top1, bottom1] = interpolateEnvelope(uvEnvelope, u1);
+    const x0 = root + u0 * length;
+    const x1 = root + u1 * length;
+    const yTop0 = hi0 * radius;
+    const yBottom0 = lo0 * radius;
+    const yTop1 = hi1 * radius;
+    const yBottom1 = lo1 * radius;
+
+    positions.push(
+      x0, yBottom0, 0,
+      x1, yBottom1, 0,
+      x1, yTop1, 0,
+      x0, yBottom0, 0,
+      x1, yTop1, 0,
+      x0, yTop0, 0
+    );
+    uvs.push(
+      u0, bottom0,
+      u1, bottom1,
+      u1, top1,
+      u0, bottom0,
+      u1, top1,
+      u0, top0
+    );
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    'position',
+    new THREE.BufferAttribute(new Float32Array(positions), 3)
+  );
+  geometry.setAttribute(
+    'uv',
+    new THREE.BufferAttribute(new Float32Array(uvs), 2)
+  );
   geometry.computeBoundingSphere();
   return geometry;
 }
@@ -593,7 +665,8 @@ export class SharedDartComponentRenderer {
       tail.planeProfile,
       flightRoot,
       flightLength,
-      flightRadius
+      flightRadius,
+      tail.planeUvEnvelope
     );
 
     this.flightGroup = new THREE.Group();
