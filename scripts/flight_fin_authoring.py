@@ -41,18 +41,27 @@ def _dominant_material_rgb(image: Image.Image) -> np.ndarray:
     return np.median(sample.astype(np.float32), axis=0) if len(sample) else np.median(rgb.astype(np.float32), axis=0)
 
 
-def _material_only_backface(image: Image.Image) -> Image.Image:
+def _material_only_backface(
+    image: Image.Image,
+    material_alpha: float | None = None,
+) -> Image.Image:
     """Create a deliberately detail-free reverse surface for an authored half-fin.
 
-    Large logos/text can survive even an aggressive low-frequency blur and then appear
-    mirrored when that physical face turns away from the camera. For half-fin authoring
-    the reverse is completely unseen in the source, so retain only material colour and
-    source alpha. This is intentionally APPROXIMATED.
+    Reverse RGB and reverse alpha must both be free of source artwork. The raw source
+    silhouette is retained, but printed logos/text are not allowed to become opacity
+    variation because that would still reveal mirrored artwork after RGB neutralisation.
     """
     base = image.convert("RGBA")
     arr = np.asarray(base, dtype=np.uint8).copy()
     material = _dominant_material_rgb(base) * 0.92
     arr[:, :, :3] = np.clip(material[None, None, :], 0, 255).astype(np.uint8)
+    if material_alpha is not None:
+        coverage = arr[:, :, 3].astype(np.float32) / 255.0
+        arr[:, :, 3] = np.clip(
+            coverage * float(material_alpha) * 255.0,
+            0,
+            255,
+        ).astype(np.uint8)
     return Image.fromarray(arr, "RGBA")
 
 
@@ -79,6 +88,21 @@ def _apply_material_alpha(image: Image.Image, material_alpha: float | None) -> I
     # dominant substrate; fully covered printed artwork remains source-coloured.
     edge = np.clip((0.94 - source_alpha) / 0.55, 0.0, 1.0)
     source_rgb = arr[:, :, :3].astype(np.float32)
+
+    # Catalogue JPEGs often contain fully-opaque white matte pixels immediately inside
+    # the extracted silhouette, so alpha coverage alone cannot identify the fringe.
+    # Clean only a narrow geometric boundary ring and only neutral near-white pixels.
+    visible=(arr[:, :, 3] > 8).astype(np.uint8)
+    eroded=cv2.erode(visible,np.ones((3,3),np.uint8),iterations=2)
+    boundary=(visible > eroded)
+    channel_spread=source_rgb.max(axis=2)-source_rgb.min(axis=2)
+    near_white=(
+        (source_rgb.min(axis=2) > 198.0) &
+        (channel_spread < 58.0)
+    )
+    matte=(boundary & near_white).astype(np.float32)
+    edge=np.maximum(edge,matte)
+
     cleaned_rgb = (
         source_rgb * (1.0 - edge[:, :, None]) +
         material[None, None, :] * edge[:, :, None]
@@ -203,13 +227,15 @@ def author_visible_half_fins(
     centre = float(np.median(centres)) if centres else base.height * 0.5
     band = max(1, int(round(max_span * 0.025)))
 
-    top = _rectify_half(rgba, bounds, face_start, face_end, band, "top")
-    bottom = _rectify_half(rgba, bounds, face_start, face_end, band, "bottom")
-    top = _apply_material_alpha(top, material_alpha)
-    bottom = _apply_material_alpha(bottom, material_alpha)
+    top_source = _rectify_half(rgba, bounds, face_start, face_end, band, "top")
+    bottom_source = _rectify_half(rgba, bounds, face_start, face_end, band, "bottom")
+    top = _apply_material_alpha(top_source, material_alpha)
+    bottom = _apply_material_alpha(bottom_source, material_alpha)
 
-    top_back = _material_only_backface(top)
-    bottom_back = _material_only_backface(bottom)
+    # Reverse faces derive from the unmodulated source silhouette, not from the
+    # artwork-aware front alpha. This prevents text/logo shapes leaking through opacity.
+    top_back = _material_only_backface(top_source, material_alpha)
+    bottom_back = _material_only_backface(bottom_source, material_alpha)
 
     metadata = {
         "mode": "TWO_VISIBLE_HALF_FINS_RECTIFIED",
