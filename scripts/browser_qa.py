@@ -110,10 +110,16 @@ def save_flight_depth_matrix(page,pid):
             render=page.evaluate('window.__POC_LAST_RENDER__')
             posed=(render or {}).get('posed') or {}
             order=posed.get('flightRenderOrder') or []
+            mount=posed.get('flightMount') or {}
             model_ok=posed.get('flightPlaneModel')=='FOUR_EXPLICIT_RADIAL_FINS_0_90_180_270_WITH_SEPARATE_FACE_SURFACES'
             mesh_ok=posed.get('flightMeshCount')==4 and posed.get('flightSurfaceMeshCount')==8 and len(order)==4
             unique_orders=len({item.get('renderOrder') for item in order})==4 if len(order)==4 else False
-            topology_ok=topology_ok and model_ok and mesh_ok
+            mount_ok=(
+                float(mount.get('overlapMm',0)) > 0.5 and
+                float(mount.get('radialGapMm',999)) < 0.08 and
+                float(mount.get('attachmentRadiusMm',0)) >= float(mount.get('shaftExitRadiusMm',999)) - 0.08
+            )
+            topology_ok=topology_ok and model_ok and mesh_ok and mount_ok
             order_ok=order_ok and unique_orders
 
             if pid in ('prodigy-23','shift','aspinall-95k-22','bunting-95k-23'):
@@ -144,6 +150,7 @@ def save_flight_depth_matrix(page,pid):
                 'model':posed.get('flightPlaneModel'),
                 'meshCount':posed.get('flightMeshCount'),
                 'surfaceMeshCount':posed.get('flightSurfaceMeshCount'),
+                'flightMount':mount,
                 'renderOrder':order,
                 'tipDriftPx':posed.get('tipDriftPx'),
             })
