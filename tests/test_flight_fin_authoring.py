@@ -47,9 +47,19 @@ def rgb_energy(arr):
 
 top_back=np.asarray(result.top_back)
 bottom_back=np.asarray(result.bottom_back)
-assert rgb_energy(top_back) < 0.15, f"top reverse still contains artwork detail: {rgb_energy(top_back):.3f}"
-assert rgb_energy(bottom_back) < 0.15, f"bottom reverse still contains artwork detail: {rgb_energy(bottom_back):.3f}"
-assert np.array_equal(top[:, :, 3], top_back[:, :, 3]), "top reverse must preserve source-derived alpha"
-assert np.array_equal(bottom[:, :, 3], bottom_back[:, :, 3]), "bottom reverse must preserve source-derived alpha"
+assert rgb_energy(top_back) < 0.15, f"top reverse still contains artwork RGB detail: {rgb_energy(top_back):.3f}"
+assert rgb_energy(bottom_back) < 0.15, f"bottom reverse still contains artwork RGB detail: {rgb_energy(bottom_back):.3f}"
 
-print("PASS: composite flight yields distinct source faces, clean alpha edges and detail-free reverse surfaces")
+# Front artwork may intentionally be more opaque, but the unknown reverse material may
+# not encode that artwork in alpha. Fully-covered reverse pixels therefore share the
+# material alpha instead of reproducing logo/text silhouettes.
+for name,arr in (("top",top_back),("bottom",bottom_back)):
+    alpha=arr[:, :, 3]
+    interior=alpha > 150
+    assert interior.any(), f"{name} reverse has no visible material interior"
+    assert int(alpha.max()) <= 176, f"{name} reverse alpha exceeds 0.68 material opacity: {alpha.max()}"
+    assert float(alpha[interior].std()) < 2.0, (
+        f"{name} reverse alpha still contains artwork structure: std={alpha[interior].std():.3f}"
+    )
+
+print("PASS: composite flight yields distinct source faces, matte-cleaned fronts and RGB/alpha-detail-free reverses")
