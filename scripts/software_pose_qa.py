@@ -94,16 +94,17 @@ for k,(pid,row) in enumerate(rows):
 master.convert('RGB').save(ROOT/'outputs/gallery'/'pose-gallery-all-presets.jpg',quality=90)
 # V1.3.1 visual review triptychs: the four user-reported designs plus Clemens 95K
 # as an integrated source-grounded regression check.
-REVIEW_PRESETS=tuple(pid for pid,p in CAT['presets'].items() if p.get('sourceType')!='WEB-REFERENCED-RECONSTRUCTION')
+REVIEW_PRESETS=tuple(CAT['presets'].keys())
 for pid in REVIEW_PRESETS:
     preset=CAT['presets'][pid]; a=assembly(preset)
-    source=Image.open(ROOT/preset['sourceImage'].replace('./','')).convert('RGBA')
-    orthogonal,_=render(a,0,0)
+    source=Image.open(ROOT/preset.get('comparisonSourceImage',preset['sourceImage']).replace('./','')).convert('RGBA')
+    source_pose=preset.get('sourceReferencePose',{})
+    orthogonal,_=render(a,float(source_pose.get('incidenceDeg',0)),float(source_pose.get('rollDeg',40)))
     pose=preset.get('defaultPose',{})
     posed,_=render(a,float(pose.get('incidenceDeg',35)),float(pose.get('rollDeg',0)))
     cards=[
         panel(source,f'Original/source reference · {preset["name"]}'),
-        panel(orthogonal,'Orthogonal builder projection'),
+        panel(orthogonal,f'Source-calibrated builder projection · roll={source_pose.get("rollDeg",40)}°'),
         panel(posed,f'Posed projection · incidence={pose.get("incidenceDeg",35)}° · roll={pose.get("rollDeg",0)}°'),
     ]
     sheet=Image.new('RGBA',(789*3,365),(10,13,18,255))
