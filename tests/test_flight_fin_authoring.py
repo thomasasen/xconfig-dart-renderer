@@ -23,6 +23,12 @@ d.rectangle((15, 121, 405, 129), fill=(95, 10, 110, 255))
 
 result = author_visible_half_fins(im, material_alpha=0.68, source_label="synthetic")
 assert result.metadata["mirroringUsed"] is False
+assert result.metadata["geometryModel"] == "FOUR_RADIAL_FINS_0_90_180_270"
+assert result.metadata["geometryInferenceFromPhoto"] is False
+assert result.metadata["sourceAppearanceSampleCount"] == 2
+assert result.metadata["referencePlane"] == "A"
+assert result.metadata["referenceRollDeg"] == 0
+assert result.metadata["referencePlaneCalibration"] == "PLAUSIBLE_BROADSIDE_NOT_EXACT_RECONSTRUCTION"
 assert result.metadata["visibleSourceFinCount"] == 2
 assert result.metadata["hiddenFinCount"] == 2
 assert result.metadata["alphaPolicy"] == "APPROXIMATED_FROM_WHITE_BACKDROP"
@@ -62,4 +68,4 @@ for name,arr in (("top",top_back),("bottom",bottom_back)):
         f"{name} reverse alpha still contains artwork structure: std={alpha[interior].std():.3f}"
     )
 
-print("PASS: composite flight yields distinct source faces, matte-cleaned fronts and RGB/alpha-detail-free reverses")
+print("PASS: source appearance samples stay separate from canonical four-fin geometry and reverse artwork")
