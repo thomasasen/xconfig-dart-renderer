@@ -715,7 +715,18 @@ def generate():
         if s['integrated']: save(draw_integrated_shaft(s['style']),d/'rear-shaft.png')
         else: save(draw_shaft(s['style']),d/'shaft.png')
         f=draw_flight(s['style'],s['shape']); save(f,d/'flight-plane-a.png'); save(backface(f),d/'flight-plane-b-approx.png')
-        meta[key]={'sourceFile':None,'webReference':s['url'],'flightProfile':s['profile'],'rearIntegrated':s['integrated'],'authoringStatus':'WEB-REFERENCED-RECONSTRUCTION: colors/silhouette/artwork simplified from inspected public product image; not pixel-extracted source.'}
+        meta[key]={
+            'sourceFile':None,
+            'webReference':s['url'],
+            'flightProfile':s['profile'],
+            'rearIntegrated':s['integrated'],
+            'flightGeometry':{
+                'canonicalProfile':s['shape'],
+                'geometrySource':'WEB_VERIFIED_FLIGHT_TYPE',
+                'artworkSource':'HEURISTIC_RECONSTRUCTION',
+            },
+            'authoringStatus':'WEB-REFERENCED-RECONSTRUCTION: colors/silhouette/artwork simplified from inspected public product image; not pixel-extracted source.'
+        }
         compose_reference(key,s['integrated'],s['shape'],s['url'])
     return meta
 

@@ -198,6 +198,27 @@ for product,preset_id,expected_name,expected_profile in (
 
 check(c['rearSystems']['mandalorian-kflex-short'].get('planeProfile')==NO6_PROFILE,'mandalorian: renderer plane profile is not canonical No.6')
 
+# V1.4 Batch 2E: these four designs remain HEURISTIC artwork reconstructions,
+# but their physical flight family is web-verified and must stay independent of
+# the reconstruction artwork.
+for product,preset_id,component_group,component_id,expected_shape,expected_profile in (
+    ('cross-95k','cross-95k-23','rearSystems','cross-95k-kflex-no6-short','No.6',NO6_PROFILE),
+    ('aspinall-95k','aspinall-95k-22','rearSystems','aspinall-95k-kflex-no2-short','No.2',NO2_PROFILE),
+    ('bunting-95k','bunting-95k-23','rearSystems','bunting-95k-kflex-no2-short','No.2',NO2_PROFILE),
+    ('mvg-signature','mvg-signature-22','flights','mvg-signature-no2','No.2',NO2_PROFILE),
+):
+    info=author.get(product,{})
+    geometry=info.get('flightGeometry') or {}
+    check(geometry.get('canonicalProfile')==expected_shape,f'{product}: wrong verified flight family')
+    check(geometry.get('geometrySource')=='WEB_VERIFIED_FLIGHT_TYPE',f'{product}: geometry provenance not web-verified')
+    check(geometry.get('artworkSource')=='HEURISTIC_RECONSTRUCTION',f'{product}: artwork must remain explicitly heuristic')
+    component=c[component_group][component_id]
+    check(component.get('planeProfile')==expected_profile,f'{product}: renderer plane profile drifted from verified {expected_shape}')
+    check(component.get('faceEvidence',{}).get('planeA')=='HEURISTIC',f'{product}: reconstructed Plane A must remain HEURISTIC')
+    cg=component.get('flightGeometry') or {}
+    check(cg.get('geometrySource')=='WEB_VERIFIED_FLIGHT_TYPE',f'{product}: catalog lost geometry provenance')
+    check(cg.get('artworkSource')=='HEURISTIC_RECONSTRUCTION',f'{product}: catalog launders reconstructed artwork into source-grounded data')
+
 for product,preset_id,expected_name,expected_profile,expected_source in (
     ('world','world-champion','NO6',NO6_PROFILE,'KNOWN_FLIGHT_SHAPE'),
     ('gary','gary-phase6','STANDARD',STANDARD_PROFILE,'KNOWN_FLIGHT_SHAPE'),
