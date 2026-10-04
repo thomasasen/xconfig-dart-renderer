@@ -12,7 +12,7 @@ def check(cond,msg):
 check(cat['rendererContract']['width']==789,'renderer width != 789')
 check(cat['rendererContract']['height']==331,'renderer height != 331')
 check(cat['rendererContract']['tip']=={'x':0,'y':212},'tip != (0,212)')
-check(cat['rendererContract']['flightPlaneModel']=='FOUR_HALF_FINS_WITH_EXPLICIT_FRONT_BACK_FACES_SHARED_AXIS_90_DEG','wrong V4 flight model')
+check(cat['rendererContract']['flightPlaneModel']=='FOUR_EXPLICIT_RADIAL_FINS_0_90_180_270_WITH_SEPARATE_FACE_SURFACES','wrong V4 flight model')
 check(cat['rendererContract']['flatPerspective3DPath'] is False,'flatPerspective must be off in 3D path')
 check(len(cat['sourceAnalysis'])==15,f"expected 15 sources, got {len(cat['sourceAnalysis'])}")
 classes={'CLASSIC_MODULAR','INTEGRATED_REAR_SYSTEM','GEOMETRY_REFERENCE','ANGLED_REFERENCE','NEEDS_MANUAL_REVIEW'}
