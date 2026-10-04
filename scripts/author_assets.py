@@ -8,6 +8,7 @@ from PIL import Image, ImageEnhance, ImageFilter, ImageDraw, ImageFont
 import cv2
 from tail_authoring import author_tail_components
 from flight_backface import build_backface_approximation
+from flight_fin_authoring import author_visible_half_fins
 
 ROOT=Path(__file__).resolve().parents[1]
 SRC=ROOT/'assets/source'
@@ -17,8 +18,8 @@ OUT.mkdir(parents=True, exist_ok=True)
 # Authoring coordinates are deliberately image-space only. Physical geometry lives in catalog.json.
 # splits = fractions of the extracted horizontal dart length: point | barrel | shaft/rear | flight.
 SPECS={
- 'prodigy': dict(file='target-luke-littler-g1-prodigy-95-swiss-23-gram_3.webp', rotate=True, bg='white', splits=[0.1625,0.56875,0.6875], rear=True, canonicalFlight=True, canonicalProfile='NO2'),
- 'shift': dict(file='target-shift-sp-steeltip-90_3.webp', rotate=False, bg='white', splits=[0.1857,0.5214,0.6929], rear=True, canonicalFlight=True, canonicalProfile='NO6'),
+ 'prodigy': dict(file='target-luke-littler-g1-prodigy-95-swiss-23-gram_3.webp', rotate=True, bg='white', splits=[0.1625,0.56875,0.6875], rear=True, canonicalFlight=True, canonicalProfile='NO2', visibleHalfFins=True, flightMaterialAlpha=0.72),
+ 'shift': dict(file='target-shift-sp-steeltip-90_3.webp', rotate=False, bg='white', splits=[0.1857,0.5214,0.6929], rear=True, canonicalFlight=True, canonicalProfile='NO6', visibleHalfFins=True, flightMaterialAlpha=0.62),
  'gary': dict(file='unicorn-w-c-gary-anderson-phase-6-90_1.webp', rotate=True, bg='white', splits=[0.1857,0.5214,0.7214], rear=False, canonicalFlight=True, canonicalProfile='STANDARD'),
  'chrono': dict(file='target-phil-taylor-power-chrono-sp-steeltip-95_3.webp', rotate=True, bg='white', splits=[0.2286,0.5714,0.7786], rear=False, canonicalFlight=True, canonicalProfile='VAPOR_S'),
  'world': dict(file='target-luke-littler-world-champion-90-swiss-23-gram_3.webp', rotate=True, bg='white', splits=[0.20625,0.55,0.7375], rear=True, canonicalFlight=True, canonicalProfile='NO6'),
@@ -458,6 +459,9 @@ for key,spec in SPECS.items():
       ('rear-shaft' if spec['rear'] else 'shaft'): im.crop((p2,0,p3,im.height)),
       'flight-plane-a': im.crop((p3,0,W,im.height)),
     }
+    # Preserve the photographed composite before legacy de-occlusion/masking. For
+    # selected integrated systems it contains two distinct visible physical fin faces.
+    raw_flight_composite=crops['flight-plane-a'].copy()
 
     # V1.3.3: the visible tail is authored from an axis/width profile instead of
     # trusting the legacy X split. The old split remains only as a seed/fallback.
@@ -511,6 +515,51 @@ for key,spec in SPECS.items():
             ),
         })
 
+    fin_authoring=None
+    if spec.get('visibleHalfFins') and spec.get('rear'):
+        authored_fins=author_visible_half_fins(
+            raw_flight_composite,
+            material_alpha=spec.get('flightMaterialAlpha'),
+            source_label=spec['file'],
+        )
+        crops['flight-fin-a-positive-front']=authored_fins.top
+        crops['flight-fin-b-positive-front']=authored_fins.bottom
+        crops['flight-fin-a-approx']=authored_fins.top_back
+        crops['flight-fin-b-approx']=authored_fins.bottom_back
+        fin_authoring={
+            **authored_fins.metadata,
+            'textures':{
+                'A-positive':{
+                    'front':'flight-fin-a-positive-front',
+                    'back':'flight-fin-a-approx',
+                    'frontProvenance':'SOURCE-GROUNDED+APPROXIMATED-ALPHA',
+                    'backProvenance':'APPROXIMATED',
+                    'vAtAxis':1,
+                },
+                'A-negative':{
+                    'front':'flight-fin-a-approx',
+                    'back':'flight-fin-a-approx',
+                    'frontProvenance':'APPROXIMATED',
+                    'backProvenance':'APPROXIMATED',
+                    'vAtAxis':0,
+                },
+                'B-positive':{
+                    'front':'flight-fin-b-positive-front',
+                    'back':'flight-fin-b-approx',
+                    'frontProvenance':'SOURCE-GROUNDED+APPROXIMATED-ALPHA',
+                    'backProvenance':'APPROXIMATED',
+                    'vAtAxis':0,
+                },
+                'B-negative':{
+                    'front':'flight-fin-b-approx',
+                    'back':'flight-fin-b-approx',
+                    'frontProvenance':'APPROXIMATED',
+                    'backProvenance':'APPROXIMATED',
+                    'vAtAxis':0,
+                },
+            },
+        }
+
     for name,c in crops.items(): save_component(c,OUT/key/f'{name}.png')
     flight=trim_alpha(crops['flight-plane-a'],3)
     back=make_backface(flight)
@@ -534,6 +583,7 @@ for key,spec in SPECS.items():
       'flightSourcePage':(flight_qc or {}).get('sourcePage'),
       'flightQaSourceFile':'web-mandalorian-kflex-frontal-source-grounded.png' if (flight_qc or {}).get('mode')=='DEDICATED_FRONTAL_KFLEX_SOURCE' else None,
       'flightApproximation':flight_qc,
+      'finFaceAuthoring':fin_authoring,
       'axisAuthoring':tail_result['axisAuthoring'],
       'tailSegmentation':tail_result['tailSegmentation'],
       'tailMetrics':tail_result['tailMetrics'],
@@ -550,7 +600,8 @@ for key,spec in SPECS.items():
         'SOURCE-GROUNDED axis/width-profile tail authoring; '
         + tail_status
         + '; dedicated frontal flight sources are preferred over photographed composite side views; '
-        + 'only explicitly recorded occlusion strips are approximated'
+        + ('two distinct visible source half-fins are rectified without mirroring; ' if fin_authoring else '')
+        + 'only explicitly recorded occlusion/reverse/hidden surfaces are approximated'
       ),
     }
 
