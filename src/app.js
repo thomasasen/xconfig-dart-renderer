@@ -191,6 +191,14 @@ function presetPose(preset = catalog?.presets?.[currentPresetId]) {
   };
 }
 
+function sourceReferencePose(preset = catalog?.presets?.[currentPresetId]) {
+  return {
+    incidenceDeg: Number(preset?.sourceReferencePose?.incidenceDeg ?? 0),
+    rollDeg: Number(preset?.sourceReferencePose?.rollDeg ?? 40),
+  };
+}
+
+
 function applyPoseToControls(pose) {
   $('screenRotation').value = pose.screenRotationDeg;
   $('incidence').value = pose.incidenceDeg;
@@ -223,8 +231,8 @@ function resetPose() {
 
 function updateSource(preset = catalog.presets[currentPresetId]) {
   const sourceImage = $('sourceImage');
-  const localFallback = preset?.sourceImage || '';
-  const remoteReference = preset?.referenceImageUrl || '';
+  const localFallback = preset?.comparisonSourceImage || preset?.sourceImage || '';
+  const remoteReference = '';
   sourceImage.onerror = null;
   if (remoteReference) {
     sourceImage.onerror = () => {
@@ -242,17 +250,11 @@ function updateSource(preset = catalog.presets[currentPresetId]) {
     return;
   }
 
-  if (remoteReference) {
-    const visualStatus = preset.sourceType === 'SOURCE-GROUNDED-WEB-EXTRACT'
-      ? 'SOURCE-GROUNDED Originalpixel-Extract'
-      : preset.sourceType || 'WEB-REFERENCED';
-    caption.append(document.createTextNode(
-      `${preset.name} · recherchiertes externes Produktfoto · lokales Renderdesign: ${visualStatus}`
-    ));
-  } else {
-    const label = preset.sourceLabel || 'supplied source';
-    caption.append(document.createTextNode(`${preset.name} · ${label}`));
-  }
+  const label = preset.sourceLabel || 'supplied source';
+  const compareKind = preset.comparisonSourceImage && preset.comparisonSourceImage !== preset.sourceImage
+    ? 'normalisierte Quellansicht'
+    : 'Quellansicht';
+  caption.append(document.createTextNode(`${preset.name} · ${label} · ${compareKind}`));
   if (preset.sourcePage) {
     const link = document.createElement('a');
     link.href = preset.sourcePage;
@@ -425,11 +427,17 @@ async function renderAll() {
     const incidence = Number($('incidence').value);
     const roll = Number($('roll').value);
 
+    const referencePose = sourceReferencePose();
     const orthogonal = renderer.renderToSprite({
-      incidenceDeg: 0,
-      rollDeg: 0,
+      incidenceDeg: referencePose.incidenceDeg,
+      rollDeg: referencePose.rollDeg,
       targetCanvas: $('orthogonal'),
     });
+    const referenceCaption = $('referenceCaption');
+    if (referenceCaption) {
+      referenceCaption.textContent =
+        `Quellkalibrierte Referenzansicht · Incidence ${referencePose.incidenceDeg}° · Roll ${referencePose.rollDeg}° · Pose HEURISTIC, Geometrie bleibt unverändert`;
+    }
     const posed = renderer.renderToSprite({
       incidenceDeg: incidence,
       rollDeg: roll,
@@ -443,7 +451,8 @@ async function renderAll() {
 
     if (epoch !== renderEpoch) return;
     const renderMeta = {
-      orthogonal: {
+      reference: {
+        pose: referencePose,
         tipDriftPx: orthogonal.tipDriftPx,
         axisYErrorPx: orthogonal.canonicalAxisYErrorPx,
         jointMetrics: orthogonal.jointMetrics,
@@ -469,7 +478,8 @@ async function renderAll() {
       selection: { ...selection },
       validation,
       pose: { screenRotationDeg: screenRotation, incidenceDeg: incidence, rollDeg: roll },
-      ortho: {
+      reference: {
+        pose: referencePose,
         tipDriftPx: orthogonal.tipDriftPx,
         jointMetrics: orthogonal.jointMetrics,
         jointSprite: orthogonal.jointSprite,

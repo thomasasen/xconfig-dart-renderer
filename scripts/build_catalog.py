@@ -126,8 +126,40 @@ def preset_weight_g(name):
  value=float(m.group(1).replace(',','.'))
  return int(value) if value.is_integer() else value
 
-def preset(id,name,source,pointId,barrelId,shaftId=None,flightId=None,rearId=None,inc=35,roll=0,notes=None,sourcePage=None,sourceLabel=None,sourceType='SUPPLIED_SOURCE'):
- presets[id]={'kind':'DartPreset','id':id,'name':visible_preset_name(name),'variantWeightG':preset_weight_g(name),'sourceImage':f'./assets/source/{source}','sourcePage':sourcePage,'sourceLabel':sourceLabel or ('Supplied source' if sourceType=='SUPPLIED_SOURCE' else sourceType),'sourceType':sourceType,'pointId':pointId,'barrelId':barrelId,'shaftId':shaftId,'flightId':flightId,'rearSystemId':rearId,'defaultPose':{'incidenceDeg':inc,'rollDeg':roll},'notes':notes or []}
+SOURCE_REFERENCE_ROLL_DEG={
+ # Calibrated against each source silhouette. This is a view-matching heuristic only,
+ # not a claim that the photographed product's physical roll is reconstructable.
+ 'prodigy-23':19,'shift':11,'world-champion':19,'chrono':45,'gary-phase6':31,'auro':23,'supa-venom':33,
+ 'mandalorian-24':38,'atat-23':31,'clemens-g2-23':0,'clemens-95k-23':35,'cross-95k-23':45,
+ 'aspinall-95k-22':45,'bunting-95k-23':45,'mvg-signature-22':45,'humphries-prestige-22':33,
+}
+DEFAULT_PREVIEW_ROLL_DEG={
+ 'prodigy-23':7,'shift':-6,'world-champion':6,'chrono':8,'gary-phase6':-8,'auro':7,'supa-venom':-7,
+ 'mandalorian-24':5,'atat-23':-6,'clemens-g2-23':8,'clemens-95k-23':-6,'cross-95k-23':6,
+ 'aspinall-95k-22':-7,'bunting-95k-23':6,'mvg-signature-22':-8,'humphries-prestige-22':7,
+}
+
+def preset(id,name,source,pointId,barrelId,shaftId=None,flightId=None,rearId=None,inc=35,roll=None,notes=None,sourcePage=None,sourceLabel=None,sourceType='SUPPLIED_SOURCE'):
+ point_texture=(points.get(pointId) or {}).get('texture','')
+ parts=Path(point_texture.replace('./','')).parts
+ product=parts[2] if len(parts)>=4 and parts[0]=='assets' and parts[1]=='components' else None
+ normalized=(ROOT/'assets'/'components'/product/'normalized-source.png') if product else None
+ comparison_source=(f'./assets/components/{product}/normalized-source.png' if normalized and normalized.exists() else f'./assets/source/{source}')
+ default_roll=DEFAULT_PREVIEW_ROLL_DEG.get(id,6) if roll is None else roll
+ reference_roll=SOURCE_REFERENCE_ROLL_DEG.get(id,40)
+ presets[id]={
+  'kind':'DartPreset','id':id,'name':visible_preset_name(name),'variantWeightG':preset_weight_g(name),
+  'sourceImage':f'./assets/source/{source}','comparisonSourceImage':comparison_source,
+  'sourcePage':sourcePage,'sourceLabel':sourceLabel or ('Supplied source' if sourceType=='SUPPLIED_SOURCE' else sourceType),
+  'sourceType':sourceType,'pointId':pointId,'barrelId':barrelId,'shaftId':shaftId,'flightId':flightId,'rearSystemId':rearId,
+  'defaultPose':{'incidenceDeg':inc,'rollDeg':default_roll},
+  'sourceReferencePose':{
+   'incidenceDeg':0,'rollDeg':reference_roll,
+   'status':'HEURISTIC',
+   'note':'Source-view calibration for visual QA only; product photos already contain photographed roll/perspective and do not uniquely define the physical 3D pose.'
+  },
+  'notes':notes or []
+ }
 
 # Prodigy 23g exact variant
 point('target-swiss-dx-gold-26','Target Swiss DX Gold 26 mm','SWISS_POINT',26,2.1,'prodigy',evidence=[ev(WEB,'26-mm Swiss DX is the fitted point; 30 mm also supplied.','https://www.targetdarts.com/eu/luke-littler-g1-prodigy-sp')])

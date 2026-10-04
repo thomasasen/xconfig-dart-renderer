@@ -1,14 +1,15 @@
 from __future__ import annotations
-import json, subprocess, time, sys, re
+import json, subprocess, time, sys, re, base64
 from io import BytesIO
 from pathlib import Path
 from PIL import Image, ImageDraw
+import numpy as np
 
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'outputs'/'qa'
 OUT.mkdir(parents=True,exist_ok=True)
 CAT=json.loads((ROOT/'data'/'catalog.json').read_text())
-REVIEW_PRESETS=tuple(pid for pid,p in CAT['presets'].items() if p.get('sourceType')!='WEB-REFERENCED-RECONSTRUCTION')
+REVIEW_PRESETS=tuple(CAT['presets'].keys())
 out={'status':'NOT_RUN','notes':[]}
 server=None
 
@@ -19,6 +20,10 @@ except Exception as e:
     (OUT/'browser-qa.json').write_text(json.dumps(out,indent=2),encoding='utf8')
     print(json.dumps(out,indent=2));sys.exit(2)
 
+def canvas_image(page, selector):
+    data_url=page.evaluate("(sel)=>document.querySelector(sel).toDataURL('image/png')",selector)
+    return Image.open(BytesIO(base64.b64decode(data_url.split(',',1)[1]))).convert('RGBA')
+
 def wait_render(page,pid,timeout=15000):
     page.wait_for_function(
         """pid => window.__POC_LAST_RENDER__ && window.__POC_LAST_RENDER__.presetId === pid""",
@@ -28,9 +33,8 @@ def wait_render(page,pid,timeout=15000):
     return page.evaluate('window.__POC_LAST_RENDER__')
 
 def save_seam_zoom(page,pid,render_meta):
-    raw=page.locator('#orthogonal').screenshot(type='png')
-    image=Image.open(BytesIO(raw)).convert('RGB')
-    joint=(render_meta.get('ortho') or {}).get('jointSprite') or {}
+    image=canvas_image(page,'#orthogonal').convert('RGB')
+    joint=(render_meta.get('reference') or {}).get('jointSprite') or {}
     jx=float(joint.get('x',0)); jy=float(joint.get('y',212))
     sx=image.width/789.0; sy=image.height/331.0
     cx=jx*sx; cy=jy*sy
@@ -43,7 +47,7 @@ def save_seam_zoom(page,pid,render_meta):
     canvas=Image.new('RGB',(crop.width,crop.height+34),(20,23,29))
     canvas.paste(crop,(0,34))
     draw=ImageDraw.Draw(canvas)
-    metrics=(render_meta.get('ortho') or {}).get('jointMetrics') or {}
+    metrics=(render_meta.get('reference') or {}).get('jointMetrics') or {}
     draw.text(
         (8,9),
         f"{pid} | visibleDelta={float(metrics.get('visibleDeltaMm',999)):.6f} mm | "
@@ -63,16 +67,77 @@ def _panel(im,title,width=789,height=365):
     ImageDraw.Draw(canvas).text((10,10),title,fill='white')
     return canvas
 
+
+def _foreground_mask(im):
+    rgba=np.asarray(im.convert('RGBA'))
+    alpha=rgba[:,:,3]
+    if float((alpha<250).mean())>.01:
+        return alpha>20
+    rgb=rgba[:,:,:3].astype(np.int16)
+    band=max(2,rgb.shape[0]//12)
+    sample=np.concatenate([rgb[:band,:],rgb[-band:,:]],axis=0)
+    bg=np.median(sample.reshape(-1,3),axis=0)
+    dist=np.linalg.norm(rgb-bg[None,None,:],axis=2)
+    mask=dist>18
+    # Opaque offline reconstruction cards contain title/provenance text above the
+    # actual dart and a source URL below it. Those annotations are not dart pixels
+    # and must not enter silhouette QA. Transparent normalized sources bypass this.
+    top=int(mask.shape[0]*.20); bottom=int(mask.shape[0]*.86)
+    mask[:top,:]=False; mask[bottom:,:]=False
+    return mask
+
+def _silhouette_metrics(im):
+    mask=_foreground_mask(im)
+    ys,xs=np.where(mask)
+    if len(xs)<20:
+        return {'valid':False}
+    x0,x1=int(xs.min()),int(xs.max()); y0,y1=int(ys.min()),int(ys.max())
+    crop=mask[y0:y1+1,x0:x1+1]
+    h,w=crop.shape
+    spans=[]
+    for x in range(w):
+        yy=np.where(crop[:,x])[0]
+        spans.append(int(yy.max()-yy.min()+1) if len(yy) else 0)
+    body_lo=max(0,int(w*.18)); body_hi=max(body_lo+1,int(w*.62))
+    body_vals=[v for v in spans[body_lo:body_hi] if v>0]
+    body=float(np.median(body_vals)) if body_vals else 1.0
+    max_span=float(max(spans) or 1)
+    flight_cols=[i for i,v in enumerate(spans) if v>=max(body*1.65,body+4)]
+    flight_fraction=((max(flight_cols)-min(flight_cols)+1)/w) if flight_cols else 0.0
+    return {
+        'valid':True,
+        'bboxAspect':round(w/max(1,h),4),
+        'flightHeightToBody':round(max_span/max(1.0,body),4),
+        'flightLengthFraction':round(flight_fraction,4),
+        'bodySpanPx':round(body,3),
+    }
+
+def _visual_delta(source,rendered):
+    a=_silhouette_metrics(source); b=_silhouette_metrics(rendered)
+    if not a.get('valid') or not b.get('valid'):
+        return {'passed':False,'source':a,'rendered':b,'reason':'foreground extraction failed'}
+    aspect_err=abs(b['bboxAspect']-a['bboxAspect'])/max(.1,a['bboxAspect'])
+    height_err=abs(b['flightHeightToBody']-a['flightHeightToBody'])/max(.1,a['flightHeightToBody'])
+    length_err=abs(b['flightLengthFraction']-a['flightLengthFraction'])
+    passed=aspect_err<=.40 and height_err<=.42 and length_err<=.22
+    return {
+        'passed':passed,'source':a,'rendered':b,
+        'bboxAspectRelativeError':round(aspect_err,4),
+        'flightHeightRelativeError':round(height_err,4),
+        'flightLengthFractionAbsError':round(length_err,4),
+        'limits':{'bboxAspectRelativeError':.40,'flightHeightRelativeError':.42,'flightLengthFractionAbsError':.22},
+    }
+
 def save_runtime_review(page,pid):
     preset=CAT['presets'][pid]
-    source=Image.open(ROOT/preset['sourceImage'].replace('./','')).convert('RGBA')
-    orthogonal=Image.open(BytesIO(page.locator('#orthogonal').screenshot(type='png'))).convert('RGBA')
-    posed=Image.open(BytesIO(page.locator('#posed').screenshot(type='png'))).convert('RGBA')
+    source=Image.open(ROOT/preset.get('comparisonSourceImage',preset['sourceImage']).replace('./','')).convert('RGBA')
+    orthogonal=canvas_image(page,'#orthogonal')
+    posed=canvas_image(page,'#posed')
     c=CAT['components']
     tail=c['rearSystems'][preset['rearSystemId']] if preset.get('rearSystemId') else c['flights'][preset['flightId']]
     titles=[
         f'Original/source · {preset["name"]}',
-        f'Orthogonal runtime · {tail.get("flightExtractionMode","DIRECT_SOURCE_FACE")}',
+        f'Source-calibrated runtime · roll={preset.get("sourceReferencePose",{}).get("rollDeg",40)}° · {tail.get("flightExtractionMode","DIRECT_SOURCE_FACE")}',
         f'Posed runtime · Plane B {tail.get("planeBProvenance",tail.get("faceEvidence",{}).get("planeB"))}',
     ]
     cards=[_panel(source,titles[0]),_panel(orthogonal,titles[1]),_panel(posed,titles[2])]
@@ -119,12 +184,13 @@ try:
         max_slope_delta=0.0
         max_shaft_root_delta=0.0
         self_tests=[]
+        visual_checks=[]
 
         for pid in preset_ids:
             page.evaluate('(pid)=>window.__APP_API__.applyPreset(pid)',pid)
             render=wait_render(page,pid)
             posed=render.get('posed') or {}
-            ortho=render.get('ortho') or {}
+            ortho=render.get('reference') or {}
             metrics=posed.get('jointMetrics') or {}
             tip=max(
                 abs(float(posed.get('tipDriftPx',0))),
@@ -140,6 +206,13 @@ try:
             max_shaft_root_delta=max(max_shaft_root_delta,root_delta)
             self_test=page.evaluate('window.__RENDERER__.selfTest()')
             self_tests.append({'presetId':pid,**self_test})
+            preset=CAT['presets'][pid]
+            source_path=preset.get('comparisonSourceImage',preset['sourceImage']).replace('./','')
+            source_image=Image.open(ROOT/source_path).convert('RGBA')
+            reference_image=canvas_image(page,'#orthogonal')
+            visual=_visual_delta(source_image,reference_image)
+            visual_provenance='HEURISTIC_REFERENCE_ONLY' if preset.get('sourceType')=='WEB-REFERENCED-RECONSTRUCTION' else 'SOURCE_COMPARISON'
+            visual_checks.append({'presetId':pid,'provenance':visual_provenance,**visual})
             results.append({
                 'presetId':pid,
                 'visibleName':visible_names.get(pid),
@@ -149,6 +222,9 @@ try:
                 'shaftRootVisibleDeltaMm':root_delta,
                 'rootPresent':bool(metrics.get('rootPresent')),
                 'selfTestPassed':bool(self_test.get('passed')),
+                'sourceVisualPassed':bool(visual.get('passed')),
+                'sourceVisualProvenance':visual_provenance,
+                'sourceVisual':visual,
             })
             if pid in REVIEW_PRESETS:
                 save_runtime_review(page,pid)
@@ -206,11 +282,12 @@ try:
         page.screenshot(path=str(OUT/'builder-ui.png'),full_page=True)
 
         seam_ok=all(
-            abs(float(((m.get('ortho') or {}).get('jointMetrics') or {}).get('visibleDeltaMm',999))) < 1e-8 and
-            abs(float(((m.get('ortho') or {}).get('jointMetrics') or {}).get('joinSlopeDeltaMmPerMm',999))) < 1e-8
+            abs(float(((m.get('reference') or {}).get('jointMetrics') or {}).get('visibleDeltaMm',999))) < 1e-8 and
+            abs(float(((m.get('reference') or {}).get('jointMetrics') or {}).get('joinSlopeDeltaMmPerMm',999))) < 1e-8
             for m in seam_results.values()
         ) and len(seam_results)==2
         all_self_tests=all(bool(item.get('passed')) for item in self_tests)
+        all_visual_checks=all(bool(item.get('passed')) for item in visual_checks)
         no_js_errors=not page_errors and not console_errors
 
         passed=(
@@ -219,6 +296,7 @@ try:
             seam_ok and
             labels_ok and
             all_self_tests and
+            all_visual_checks and
             no_js_errors and
             max_tip < 1e-8 and
             max_visible_delta < 1e-8 and
@@ -249,6 +327,8 @@ try:
                 'passed':context_ok,
             },
             'allSelfTestsPassed':all_self_tests,
+            'allSourceVisualChecksPassed':all_visual_checks,
+            'sourceVisualChecks':visual_checks,
             'benchmark':bench,
             'pageErrors':page_errors,
             'consoleErrors':console_errors,

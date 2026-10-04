@@ -51,21 +51,34 @@ def render(a,inc=35,roll=0):
         warp_quad(canvas,tex,src,dst)
     tail=a['rearSystem'] or a['flight']; fl=float(tail.get('renderFlightLengthMm',tail.get('renderLengthMm',42))); rad=float(tail.get('renderFlightRadiusMm',tail.get('renderRadiusMm',18)));root=x-float(tail.get('flightRootOverlapMm',1.5))
     phi=math.radians(roll)
-    planes=[]
+    fins=[]
     for idx,extra in enumerate([0,math.pi/2]):
         ang=phi+extra; fin=ey*math.cos(ang)+ez*math.sin(ang)
-        # average depth used for painter sorting. Camera is +Z, farther = smaller z.
-        avgz=(local(axis,ey,ez,root+fl/2,0,0)+fin*0)[2]
-        planes.append((avgz,idx,fin))
-    planes.sort(key=lambda q:q[0])
-    for _,idx,fin in planes:
-        tex=load_rgba(tail['planeATexture'] if idx==0 else tail.get('planeBTexture',tail['planeATexture']));h,w=tex.shape[:2]
-        src=[[0,h-1],[w-1,h-1],[w-1,0],[0,0]]
-        dst=[project(local(axis,ey,ez,root)-fin*rad), project(local(axis,ey,ez,root+fl)-fin*rad), project(local(axis,ey,ez,root+fl)+fin*rad), project(local(axis,ey,ez,root)+fin*rad)]
-        # Exactly edge-on flight planes have zero projected area. OpenCV's homography
-        # becomes singular in that limit and can fill the entire QA frame with texture
-        # colour. The production renderer correctly has zero visible area there, so the
-        # software reference must skip the same degenerate case.
+        for sign in (1,-1):
+            center=local(axis,ey,ez,root+fl/2)+fin*(sign*rad*.5)
+            # Camera is +Z. Painter-order the four physical fins independently.
+            fins.append((center[2],idx,sign,fin))
+    fins.sort(key=lambda q:q[0])
+    for _,idx,sign,fin in fins:
+        full=load_rgba(tail['planeATexture'] if idx==0 else tail.get('planeBTexture',tail['planeATexture']))
+        h,w=full.shape[:2]; mid=h//2
+        tex=full[:mid+1,:,:] if sign>0 else full[mid:,:,:]
+        th,tw=tex.shape[:2]
+        src=[[0,th-1],[tw-1,th-1],[tw-1,0],[0,0]]
+        if sign>0:
+            dst=[
+                project(local(axis,ey,ez,root)),
+                project(local(axis,ey,ez,root+fl)),
+                project(local(axis,ey,ez,root+fl)+fin*rad),
+                project(local(axis,ey,ez,root)+fin*rad),
+            ]
+        else:
+            dst=[
+                project(local(axis,ey,ez,root)-fin*rad),
+                project(local(axis,ey,ez,root+fl)-fin*rad),
+                project(local(axis,ey,ez,root+fl)),
+                project(local(axis,ey,ez,root)),
+            ]
         poly=np.asarray(dst,dtype=np.float32)
         area=abs(float(cv2.contourArea(poly)))
         if area < 0.5:
@@ -73,7 +86,7 @@ def render(a,inc=35,roll=0):
         warp_quad(canvas,tex,src,dst)
     # hard invariant marker, only debug metadata: projected local origin is exactly TIP by formula.
     drift=float(np.linalg.norm(project(np.zeros(3))-TIP))
-    return Image.fromarray(canvas,'RGBA'),{'tipDriftPx':drift,'incidenceDeg':inc,'rollDeg':roll,'planeModel':'TWO_FULL_INTERSECTING_PLANES_SHARED_AXIS_90_DEG'}
+    return Image.fromarray(canvas,'RGBA'),{'tipDriftPx':drift,'incidenceDeg':inc,'rollDeg':roll,'planeModel':'FOUR_INDEPENDENT_FINS_SHARED_AXIS_90_DEG'}
 
 def panel(im,title,size=(789,365)):
     c=Image.new('RGBA',size,(18,22,29,255));thumb=im.copy();thumb.thumbnail((size[0],331),Image.Resampling.LANCZOS);c.alpha_composite(thumb,(0,30));ImageDraw.Draw(c).text((10,8),title,fill='white');return c
@@ -94,16 +107,17 @@ for k,(pid,row) in enumerate(rows):
 master.convert('RGB').save(ROOT/'outputs/gallery'/'pose-gallery-all-presets.jpg',quality=90)
 # V1.3.1 visual review triptychs: the four user-reported designs plus Clemens 95K
 # as an integrated source-grounded regression check.
-REVIEW_PRESETS=tuple(pid for pid,p in CAT['presets'].items() if p.get('sourceType')!='WEB-REFERENCED-RECONSTRUCTION')
+REVIEW_PRESETS=tuple(CAT['presets'].keys())
 for pid in REVIEW_PRESETS:
     preset=CAT['presets'][pid]; a=assembly(preset)
-    source=Image.open(ROOT/preset['sourceImage'].replace('./','')).convert('RGBA')
-    orthogonal,_=render(a,0,0)
+    source=Image.open(ROOT/preset.get('comparisonSourceImage',preset['sourceImage']).replace('./','')).convert('RGBA')
+    source_pose=preset.get('sourceReferencePose',{})
+    orthogonal,_=render(a,float(source_pose.get('incidenceDeg',0)),float(source_pose.get('rollDeg',40)))
     pose=preset.get('defaultPose',{})
     posed,_=render(a,float(pose.get('incidenceDeg',35)),float(pose.get('rollDeg',0)))
     cards=[
         panel(source,f'Original/source reference · {preset["name"]}'),
-        panel(orthogonal,'Orthogonal builder projection'),
+        panel(orthogonal,f'Source-calibrated builder projection · roll={source_pose.get("rollDeg",40)}°'),
         panel(posed,f'Posed projection · incidence={pose.get("incidenceDeg",35)}° · roll={pose.get("rollDeg",0)}°'),
     ]
     sheet=Image.new('RGBA',(789*3,365),(10,13,18,255))

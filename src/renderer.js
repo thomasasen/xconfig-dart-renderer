@@ -147,17 +147,49 @@ function bodyProfile({
   ];
 }
 
-function makeFlightGeometry(profile, root, length, radius) {
+function flightBoundary(profile, sign) {
   const points = Array.isArray(profile) && profile.length >= 3
     ? profile
     : [[0, 0], [.25, 1], [1, .8], [1, -.8], [.25, -1]];
+  const byX = new Map();
+  for (const [rawX, rawY] of points) {
+    const x = clamp(Number(rawX) || 0, 0, 1);
+    const y = Number(rawY) || 0;
+    if (sign > 0 && y < -1e-6) continue;
+    if (sign < 0 && y > 1e-6) continue;
+    const prior = byX.get(x);
+    if (prior === undefined || (sign > 0 ? y > prior : y < prior)) byX.set(x, y);
+  }
+  const boundary = [...byX.entries()].sort((a, b) => a[0] - b[0]);
+  if (!boundary.length || boundary[0][0] > 1e-6) boundary.unshift([0, 0]);
+  if (boundary[boundary.length - 1][0] < 1 - 1e-6) {
+    boundary.push([1, boundary[boundary.length - 1]?.[1] || 0]);
+  }
+  return boundary;
+}
+
+function makeFlightFinGeometry(profile, root, length, radius, sign) {
+  const boundary = flightBoundary(profile, sign);
   const shape = new THREE.Shape();
-  points.forEach(([xn, yn], index) => {
-    const x = root + Number(xn) * length;
-    const y = Number(yn) * radius;
-    if (index === 0) shape.moveTo(x, y);
-    else shape.lineTo(x, y);
-  });
+  const point = ([xn, yn]) => [
+    root + Number(xn) * length,
+    Number(yn) * radius,
+  ];
+
+  shape.moveTo(root, 0);
+  if (sign > 0) {
+    shape.lineTo(root + length, 0);
+    for (const p of [...boundary].reverse()) {
+      const [x, y] = point(p);
+      shape.lineTo(x, y);
+    }
+  } else {
+    for (const p of boundary) {
+      const [x, y] = point(p);
+      shape.lineTo(x, y);
+    }
+    shape.lineTo(root + length, 0);
+  }
   shape.closePath();
 
   const geometry = new THREE.ShapeGeometry(shape);
@@ -167,7 +199,9 @@ function makeFlightGeometry(profile, root, length, radius) {
     const x = position.getX(index);
     const y = position.getY(index);
     uv[index * 2] = clamp((x - root) / length, 0, 1);
-    uv[index * 2 + 1] = clamp(.5 - y / (2 * radius), 0, 1);
+    // Three.js UV v=0 is the texture bottom. Positive local Y is the visual top,
+    // so positive fin geometry must sample the upper half of the authored flight.
+    uv[index * 2 + 1] = clamp(.5 + y / (2 * radius), 0, 1);
   }
   geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   geometry.computeBoundingSphere();
@@ -589,33 +623,38 @@ export class SharedDartComponentRenderer {
     const flightRadius = Number(tail.renderFlightRadiusMm || tail.renderRadiusMm || 18);
     const flightRootOverlapMm = Number(tail.flightRootOverlapMm ?? 1.5);
     const flightRoot = x - flightRootOverlapMm;
-    const flightGeometry = makeFlightGeometry(
-      tail.planeProfile,
-      flightRoot,
-      flightLength,
-      flightRadius
-    );
-
     this.flightGroup = new THREE.Group();
-    this.flightGroup.name = 'flight-two-full-plane-cross';
+    this.flightGroup.name = 'flight-four-fin-cross';
     this.root.add(this.flightGroup);
 
     const planeATexture = await this.#texture(tail.planeATexture);
     const planeBTexture = await this.#texture(tail.planeBTexture || tail.planeATexture);
     if (generation !== this.assemblyGeneration) return this;
 
+    // A flight is rendered as four independently sortable fins rather than two
+    // full transparent planes. Full planes geometrically intersect and their
+    // alpha blending can make one complete texture overpaint the other, which
+    // produced the blocky "single giant face" seen in source comparisons.
     this.planeMeshes = [];
-    for (let index = 0; index < 2; index += 1) {
-      const mesh = new THREE.Mesh(
-        flightGeometry.clone(),
-        this.#mat(index === 0 ? planeATexture : planeBTexture, { flight: true })
-      );
-      mesh.rotation.x = deg(PLANE_ORIENTATION_DEG[index]);
-      mesh.name = `flight-plane-${index ? 'B' : 'A'}`;
-      this.flightGroup.add(mesh);
-      this.planeMeshes.push(mesh);
+    for (let planeIndex = 0; planeIndex < 2; planeIndex += 1) {
+      for (const sign of [1, -1]) {
+        const geometry = makeFlightFinGeometry(
+          tail.planeProfile,
+          flightRoot,
+          flightLength,
+          flightRadius,
+          sign
+        );
+        const mesh = new THREE.Mesh(
+          geometry,
+          this.#mat(planeIndex === 0 ? planeATexture : planeBTexture, { flight: true })
+        );
+        mesh.rotation.x = deg(PLANE_ORIENTATION_DEG[planeIndex]);
+        mesh.name = `flight-plane-${planeIndex ? 'B' : 'A'}-${sign > 0 ? 'positive' : 'negative'}`;
+        this.flightGroup.add(mesh);
+        this.planeMeshes.push(mesh);
+      }
     }
-    flightGeometry.dispose();
 
     this.totalLength = x + flightLength;
     this.scene.updateMatrixWorld(true);
@@ -737,7 +776,7 @@ export class SharedDartComponentRenderer {
       tipDriftPx: tipDrift,
       canonicalAxisYErrorPx: axisYError,
       contract: XCONFIG_SPRITE_CONTRACT,
-      flightPlaneModel: 'TWO_FULL_INTERSECTING_PLANES_SHARED_AXIS_90_DEG',
+      flightPlaneModel: 'FOUR_INDEPENDENT_FINS_SHARED_AXIS_90_DEG',
       flightFacing: this.#flightFacing(),
       jointSprite,
       jointMetrics: this.jointMetrics,
