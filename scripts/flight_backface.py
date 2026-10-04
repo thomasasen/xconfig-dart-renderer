@@ -50,11 +50,11 @@ def build_backface_approximation(front: Image.Image) -> Image.Image:
 
     # Keep local colour families, but pull them toward a robust source-derived material
     # colour so logos and strongly contrasting typography cannot survive as silhouettes.
-    mixed = local_arr * 0.78 + material[None, None, :] * 0.22
+    mixed = local_arr * 0.60 + material[None, None, :] * 0.40
     out = Image.fromarray(np.clip(mixed, 0, 255).astype(np.uint8), "RGB")
-    out = ImageEnhance.Contrast(out).enhance(0.78)
-    out = ImageEnhance.Color(out).enhance(0.90)
-    out = ImageEnhance.Brightness(out).enhance(0.88)
+    out = ImageEnhance.Contrast(out).enhance(0.88)
+    out = ImageEnhance.Color(out).enhance(0.96)
+    out = ImageEnhance.Brightness(out).enhance(0.93)
     out = out.convert("RGBA")
 
     # Preserve the authored front-face alpha exactly. For transparent flights this keeps
