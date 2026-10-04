@@ -12,7 +12,47 @@ def ev(status,note,source=None):
 
 def tex(product,name): return f'./assets/components/{product}/{name}.png'
 
-def profile(product): return meta[product]['flightProfile']
+CANONICAL_FLIGHT_PROFILES={
+ 'NO6': [[0.00,0.00],[0.08,0.30],[0.22,0.90],[0.68,1.00],[0.94,0.72],[1.00,0.35],[1.00,-0.35],[0.94,-0.72],[0.68,-1.00],[0.22,-0.90],[0.08,-0.30]],
+ 'NO2': [[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[1.00,-0.45],[0.90,-0.82],[0.60,-1.00],[0.18,-0.96],[0.06,-0.34]],
+ 'STANDARD': [[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[1.00,-0.45],[0.90,-0.82],[0.60,-1.00],[0.18,-0.96],[0.06,-0.34]],
+ 'VAPOR_S': [[0.00,0.00],[0.08,0.26],[0.24,0.82],[0.54,1.00],[0.84,0.78],[1.00,0.30],[1.00,-0.30],[0.84,-0.78],[0.54,-1.00],[0.24,-0.82],[0.08,-0.26]],
+}
+
+def canonical_profile(shape, product=None):
+ key=str(shape or '').upper().replace(' ','_').replace('.','')
+ if 'NO6' in key: return CANONICAL_FLIGHT_PROFILES['NO6']
+ if 'NO2' in key: return CANONICAL_FLIGHT_PROFILES['NO2']
+ if 'VAPOR' in key: return CANONICAL_FLIGHT_PROFILES['VAPOR_S']
+ if 'STANDARD' in key or 'PLAYER' in key: return CANONICAL_FLIGHT_PROFILES['STANDARD']
+ # Unknown named shapes remain conservative: source silhouette is evidence for artwork,
+ # not 3D geometry. Use the standard profile rather than projecting photographed pose twice.
+ return CANONICAL_FLIGHT_PROFILES['STANDARD']
+
+def alpha_uv_envelope(product,samples=25):
+ from PIL import Image
+ import numpy as np
+ path=ROOT/tex(product,'flight-plane-a').replace('./','')
+ im=Image.open(path).convert('RGBA')
+ alpha=np.asarray(im.getchannel('A'))
+ h,w=alpha.shape
+ rows=[]
+ last=(0.5,0.5)
+ for i in range(samples):
+  x=min(w-1,round(i*(w-1)/max(1,samples-1)))
+  ys=np.where(alpha[:,x]>20)[0]
+  if len(ys):
+   top=float(ys.min())/max(1,h-1); bottom=float(ys.max())/max(1,h-1)
+   last=(top,bottom)
+  else:
+   top,bottom=last
+  rows.append([round(i/max(1,samples-1),4),round(top,4),round(bottom,4)])
+ # Fill leading empty samples from first valid interval.
+ first=next(((r[1],r[2]) for r in rows if r[2]-r[1]>.01),(.5,.5))
+ for r in rows:
+  if r[2]-r[1]>.01: break
+  r[1],r[2]=first
+ return rows
 
 def flight_meta(product):
  m=meta.get(product,{})
@@ -104,14 +144,14 @@ def shaft(id,name,length,product,evidence=None,renderLength=None):
  shafts[id]={'kind':'ShaftDefinition','id':id,'name':visible_preset_name(name),'rearThread':'2BA','flightMount':'FOLDED_FLIGHT_SLOT','lengthMm':length,'renderLengthMm':renderLength or length or 30,'renderDiameterMm':4.8,'texture':tex(product,'shaft'),'evidence':evidence or []}
 def flight(id,name,shape,product,evidence=None,renderLength=42,renderRadius=18,planeAStatus=SRC,visualAuthoring='SOURCE-GROUNDED',safe=None):
  fm=flight_meta(product)
- flights[id]={'kind':'FlightDefinition','id':id,'name':visible_preset_name(name),'flightMount':'FOLDED_FLIGHT_SLOT','shape':shape,'renderLengthMm':renderLength,'renderRadiusMm':renderRadius,'planeProfile':profile(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'planeAProvenance':fm['planeAProvenance'],'planeBProvenance':fm['planeBProvenance'],'flightExtractionMode':fm['flightExtractionMode'],'flightApproximation':fm['flightApproximation'],'visualAuthoring':visualAuthoring,'evidence':evidence or []}
+ flights[id]={'kind':'FlightDefinition','id':id,'name':visible_preset_name(name),'flightMount':'FOLDED_FLIGHT_SLOT','shape':shape,'renderLengthMm':renderLength,'renderRadiusMm':renderRadius,'planeProfile':canonical_profile(shape,product),'planeProfileProvenance':'CANONICAL-GEOMETRY-NOT-PHOTOGRAPHED-POSE','planeUvEnvelope':alpha_uv_envelope(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'planeAProvenance':fm['planeAProvenance'],'planeBProvenance':fm['planeBProvenance'],'flightExtractionMode':fm['flightExtractionMode'],'flightApproximation':fm['flightApproximation'],'visualAuthoring':visualAuthoring,'evidence':evidence or []}
  if safe:
   flights[id]['safeRollMinDeg']=safe[0]; flights[id]['safeRollMaxDeg']=safe[1]
 def rear(id,name,system,length,shape,product,evidence=None,renderFlightLength=42,renderRadius=18,safe=(-18,18),planeAStatus=SRC,visualAuthoring='SOURCE-GROUNDED'):
  fm=flight_meta(product)
  diameter=5.2
  authored=tail_render_meta(product,length or 20,diameter)
- rears[id]={'kind':'RearSystemDefinition','id':id,'name':visible_preset_name(name),'rearThread':'2BA','integrated':True,'system':system,'shaftLengthMm':length,'flightShape':shape,'renderShaftLengthMm':length or 20,'renderShaftDiameterMm':diameter,'renderFlightLengthMm':renderFlightLength,'renderFlightRadiusMm':renderRadius,'shaftTexture':tex(product,'rear-shaft'),'planeProfile':profile(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'planeAProvenance':fm['planeAProvenance'],'planeBProvenance':fm['planeBProvenance'],'flightExtractionMode':fm['flightExtractionMode'],'flightApproximation':fm['flightApproximation'],'visualAuthoring':visualAuthoring,'safeRollMinDeg':safe[0],'safeRollMaxDeg':safe[1],'evidence':evidence or []}
+ rears[id]={'kind':'RearSystemDefinition','id':id,'name':visible_preset_name(name),'rearThread':'2BA','integrated':True,'system':system,'shaftLengthMm':length,'flightShape':shape,'renderShaftLengthMm':length or 20,'renderShaftDiameterMm':diameter,'renderFlightLengthMm':renderFlightLength,'renderFlightRadiusMm':renderRadius,'shaftTexture':tex(product,'rear-shaft'),'planeProfile':canonical_profile(shape,product),'planeProfileProvenance':'CANONICAL-GEOMETRY-NOT-PHOTOGRAPHED-POSE','planeUvEnvelope':alpha_uv_envelope(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'planeAProvenance':fm['planeAProvenance'],'planeBProvenance':fm['planeBProvenance'],'flightExtractionMode':fm['flightExtractionMode'],'flightApproximation':fm['flightApproximation'],'visualAuthoring':visualAuthoring,'safeRollMinDeg':safe[0],'safeRollMaxDeg':safe[1],'evidence':evidence or []}
  if authored:
   rears[id].update(authored)
 WEIGHT_RE=re.compile(r'\s+(\d+(?:[.,]\d+)?)\s*g\b',re.IGNORECASE)
@@ -127,7 +167,10 @@ def preset_weight_g(name):
  return int(value) if value.is_integer() else value
 
 def preset(id,name,source,pointId,barrelId,shaftId=None,flightId=None,rearId=None,inc=35,roll=0,notes=None,sourcePage=None,sourceLabel=None,sourceType='SUPPLIED_SOURCE'):
- presets[id]={'kind':'DartPreset','id':id,'name':visible_preset_name(name),'variantWeightG':preset_weight_g(name),'sourceImage':f'./assets/source/{source}','sourcePage':sourcePage,'sourceLabel':sourceLabel or ('Supplied source' if sourceType=='SUPPLIED_SOURCE' else sourceType),'sourceType':sourceType,'pointId':pointId,'barrelId':barrelId,'shaftId':shaftId,'flightId':flightId,'rearSystemId':rearId,'defaultPose':{'incidenceDeg':inc,'rollDeg':roll},'notes':notes or []}
+ product_for_source=next((k for k,v in meta.items() if v.get('sourceFile')==source),None)
+ comparison_source=(f'./assets/components/{product_for_source}/normalized-source.png' if product_for_source else f'./assets/source/{source}')
+ comparison_roll=12 if sourceType in ('SUPPLIED_SOURCE','SOURCE-GROUNDED-WEB-EXTRACT') else 0
+ presets[id]={'kind':'DartPreset','id':id,'name':visible_preset_name(name),'variantWeightG':preset_weight_g(name),'sourceImage':f'./assets/source/{source}','comparisonSourceImage':comparison_source,'sourceComparisonPose':{'incidenceDeg':0,'rollDeg':comparison_roll,'provenance':'HEURISTIC-SOURCE-MATCH'},'sourcePage':sourcePage,'sourceLabel':sourceLabel or ('Supplied source' if sourceType=='SUPPLIED_SOURCE' else sourceType),'sourceType':sourceType,'pointId':pointId,'barrelId':barrelId,'shaftId':shaftId,'flightId':flightId,'rearSystemId':rearId,'defaultPose':{'incidenceDeg':inc,'rollDeg':roll},'notes':notes or []}
 
 # Prodigy 23g exact variant
 point('target-swiss-dx-gold-26','Target Swiss DX Gold 26 mm','SWISS_POINT',26,2.1,'prodigy',evidence=[ev(WEB,'26-mm Swiss DX is the fitted point; 30 mm also supplied.','https://www.targetdarts.com/eu/luke-littler-g1-prodigy-sp')])
