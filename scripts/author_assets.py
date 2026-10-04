@@ -521,6 +521,7 @@ for key,spec in SPECS.items():
             raw_flight_composite,
             material_alpha=spec.get('flightMaterialAlpha'),
             source_label=spec['file'],
+            canonical_profile=canonical_profile,
         )
         crops['flight-fin-a-positive-front']=authored_fins.top
         crops['flight-fin-a-negative-front']=authored_fins.bottom
