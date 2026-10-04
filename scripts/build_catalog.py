@@ -166,11 +166,26 @@ def preset_weight_g(name):
  value=float(m.group(1).replace(',','.'))
  return int(value) if value.is_integer() else value
 
+SOURCE_COMPARISON_ROLL_DEG={
+ 'prodigy-23':3,
+ 'shift':5,
+ 'world-champion':4,
+ 'chrono':7,
+ 'gary-phase6':8,
+ 'auro':10,
+ 'supa-venom':8,
+ 'mandalorian-24':5,
+ 'atat-23':8,
+ 'clemens-g2-23':8,
+ 'clemens-95k-23':4,
+ 'humphries-prestige-22':8,
+}
+
 def preset(id,name,source,pointId,barrelId,shaftId=None,flightId=None,rearId=None,inc=35,roll=0,notes=None,sourcePage=None,sourceLabel=None,sourceType='SUPPLIED_SOURCE'):
  product_for_source=next((k for k,v in meta.items() if v.get('sourceFile')==source),None)
  normalized_candidate=(ROOT/'assets/components'/product_for_source/'normalized-source.png') if product_for_source else None
  comparison_source=(f'./assets/components/{product_for_source}/normalized-source.png' if normalized_candidate and normalized_candidate.exists() else f'./assets/source/{source}')
- comparison_roll=12 if sourceType in ('SUPPLIED_SOURCE','SOURCE-GROUNDED-WEB-EXTRACT') else 0
+ comparison_roll=SOURCE_COMPARISON_ROLL_DEG.get(id,0)
  presets[id]={'kind':'DartPreset','id':id,'name':visible_preset_name(name),'variantWeightG':preset_weight_g(name),'sourceImage':f'./assets/source/{source}','comparisonSourceImage':comparison_source,'sourceComparisonPose':{'incidenceDeg':0,'rollDeg':comparison_roll,'provenance':'HEURISTIC-SOURCE-MATCH'},'sourcePage':sourcePage,'sourceLabel':sourceLabel or ('Supplied source' if sourceType=='SUPPLIED_SOURCE' else sourceType),'sourceType':sourceType,'pointId':pointId,'barrelId':barrelId,'shaftId':shaftId,'flightId':flightId,'rearSystemId':rearId,'defaultPose':{'incidenceDeg':inc,'rollDeg':roll},'notes':notes or []}
 
 # Prodigy 23g exact variant
