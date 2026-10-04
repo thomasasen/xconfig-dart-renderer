@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageEnhance, ImageFilter, ImageDraw, ImageFont
 import cv2
+from tail_authoring import author_tail_components
 
 ROOT=Path(__file__).resolve().parents[1]
 SRC=ROOT/'assets/source'
@@ -456,12 +457,29 @@ for key,spec in SPECS.items():
       ('rear-shaft' if spec['rear'] else 'shaft'): im.crop((p2,0,p3,im.height)),
       'flight-plane-a': im.crop((p3,0,W,im.height)),
     }
+
+    # V1.3.3: the visible tail is authored from an axis/width profile instead of
+    # trusting the legacy X split. The old split remains only as a seed/fallback.
+    tail_result=author_tail_components(
+        im,
+        shaft_seed_range=(p2,p3),
+        flight_start_px=p3,
+        integrated=bool(spec['rear']),
+    )
+    tail_analysis=tail_result['analysis'].to_dict()
+    tail_status=tail_analysis['status']
+    # A hard axis/root failure must not silently replace a known-good legacy crop.
+    # PASS and NEEDS_MANUAL_REVIEW are persisted for visual QA; explicit FAIL states
+    # keep the legacy component but are still hard-visible in metadata/CI.
+    if tail_status in ('PASS','NEEDS_MANUAL_REVIEW'):
+        tail_name='rear-shaft' if spec['rear'] else 'shaft'
+        crops[tail_name]=tail_result['shaftCoreImage']
+        if spec['rear'] and tail_result.get('rearRootImage') is not None:
+            crops['rear-root']=tail_result['rearRootImage']
     if spec['bg']=='dark-roi':
         for component_name in ('point','barrel','rear-shaft','shaft'):
             if component_name in crops:
                 crops[component_name]=suppress_low_alpha_haze(crops[component_name])
-        if spec.get('rearVerticalTrim')=='SATURATION' and 'rear-shaft' in crops:
-            crops['rear-shaft']=trim_rear_by_saturation(crops['rear-shaft'])
         crops['flight-plane-a']=mask_flight_polygon(clean_large_component(crops['flight-plane-a']))
     flight_qc=None
     dedicated_flight,dedicated_qc=prepare_dedicated_flight_face(spec)
@@ -488,7 +506,24 @@ for key,spec in SPECS.items():
       'flightSourcePage':(flight_qc or {}).get('sourcePage'),
       'flightQaSourceFile':'web-mandalorian-kflex-frontal-source-grounded.png' if (flight_qc or {}).get('mode')=='DEDICATED_FRONTAL_KFLEX_SOURCE' else None,
       'flightApproximation':flight_qc,
-      'authoringStatus':'SOURCE-GROUNDED component split; dedicated frontal flight sources are preferred over photographed composite side views; only explicitly recorded occlusion strips are approximated',
+      'axisAuthoring':tail_result['axisAuthoring'],
+      'tailSegmentation':tail_result['tailSegmentation'],
+      'tailMetrics':tail_result['tailMetrics'],
+      'tailAuthoring':{
+        'axisConfidence':tail_result['axisAuthoring']['confidence'],
+        'shaftCoreConfidence':tail_result['tailSegmentation']['confidence'],
+        'rootBoundaryConfidence':tail_result['tailSegmentation']['confidence'] if spec['rear'] else 1.0,
+        'flightSourceConfidence':1.0 if flight_qc is not None else 0.9,
+        'overallConfidence':tail_analysis['confidence'],
+        'status':tail_status,
+      },
+      'rootAuthored':bool(spec['rear'] and tail_result.get('rearRootImage') is not None),
+      'authoringStatus':(
+        'SOURCE-GROUNDED axis/width-profile tail authoring; '
+        + tail_status
+        + '; dedicated frontal flight sources are preferred over photographed composite side views; '
+        + 'only explicitly recorded occlusion strips are approximated'
+      ),
     }
 
 # Generic geometry-only Slim flight reference. It is intentionally not a product preset.
