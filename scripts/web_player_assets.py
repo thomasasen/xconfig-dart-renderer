@@ -393,6 +393,8 @@ def _split_source_grounded(key,spec):
     tail_name='rear-shaft' if spec['integrated'] else 'shaft'
     if tail_analysis['status'] in ('PASS','NEEDS_MANUAL_REVIEW'):
         parts[tail_name]=tail_result['shaftCoreImage']
+        if spec['integrated']:
+            parts['rear-shaft-core']=tail_result['shaftCoreImage']
         if spec['integrated'] and tail_result.get('rearRootImage') is not None:
             parts['rear-root']=tail_result['rearRootImage']
 
