@@ -267,16 +267,37 @@ def _best_elongated_roi(image, tail_span_ratio_min=1.45):
                 ys=np.where(rmask[:,xcol]>0)[0]
                 spans.append(0 if len(ys)==0 else int(ys.max()-ys.min()+1))
             n=len(spans)
-            body=np.array([v for v in spans[int(n*.30):int(n*.62)] if v>0],dtype=float)
-            tail=np.array([v for v in spans[int(n*.82):] if v>0],dtype=float)
-            if len(body)==0 or len(tail)==0:
-                raise ValueError('lacks measurable body/tail silhouette')
+            point=np.array([v for v in spans[int(n*.03):int(n*.16)] if v>0],dtype=float)
+            body=np.array([v for v in spans[int(n*.30):int(n*.60)] if v>0],dtype=float)
+            shaft=np.array([v for v in spans[int(n*.63):int(n*.76)] if v>0],dtype=float)
+            tail=np.array([v for v in spans[int(n*.82):int(n*.98)] if v>0],dtype=float)
+            if len(point)==0 or len(body)==0 or len(shaft)==0 or len(tail)==0:
+                raise ValueError('lacks measurable point/body/shaft/tail silhouette')
+            point_span=float(np.median(point))
             body_span=float(np.median(body))
+            shaft_span=float(np.median(shaft))
             tail_span=float(np.percentile(tail,75))
             ratio_min=float(tail_span_ratio_min)
+
+            # A barrel close-up can accidentally satisfy the old "large tail" rule when
+            # another panel intrudes near one end. A complete assembled dart has a much
+            # stronger physical signature: thin steel point -> thicker barrel -> thinner
+            # shaft -> substantially wider flight. Require all four zones.
+            if point_span > body_span*.58:
+                raise ValueError(
+                    f'front is not point-like: point {point_span:.1f}px vs body {body_span:.1f}px'
+                )
+            if shaft_span > body_span*.82:
+                raise ValueError(
+                    f'rear connector is not shaft-like: shaft {shaft_span:.1f}px vs body {body_span:.1f}px'
+                )
             if tail_span < body_span*ratio_min:
                 raise ValueError(
                     f'tail span {tail_span:.1f}px vs body {body_span:.1f}px (need >= {ratio_min:.2f}x)'
+                )
+            if tail_span < point_span*3.0:
+                raise ValueError(
+                    f'flight/point contrast too small: tail {tail_span:.1f}px vs point {point_span:.1f}px'
                 )
             return result
         except Exception as exc:
