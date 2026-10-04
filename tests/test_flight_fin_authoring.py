@@ -41,9 +41,15 @@ assert result.metadata["referencePlaneCalibration"] == "PLAUSIBLE_BROADSIDE_NOT_
 assert result.metadata["textureCoordinateModel"] == "CANONICAL_GLOBAL_RADIAL_V"
 assert result.metadata["geometryOwnsCoverage"] is True
 assert result.metadata["canonicalProfileApplied"] is True
+spine=result.metadata["spineMaterial"]
+assert spine["provenance"] == "APPROXIMATED_SOURCE_DERIVED_MATERIAL"
+assert spine["diameterProvenance"] == "HEURISTIC"
+assert abs(float(spine["diameterMm"]) - 1.0) < 1e-9
+assert len(spine["colorRgb"]) == 3
+assert 0.72 <= float(spine["opacity"]) <= 0.96
 assert result.metadata["edgePolicy"] == "APPROXIMATED_SOURCE_BOUNDARY_INSET_AND_MATTE_DECONTAMINATION"
 assert abs(result.metadata["sourceOuterTrimFraction"] - 0.12) < 1e-9
-assert abs(result.metadata["sourceTailTrimFraction"] - 0.025) < 1e-9
+assert abs(result.metadata["sourceTailTrimFraction"] - 0.05) < 1e-9
 assert result.metadata["visibleSourceFinCount"] == 2
 assert result.metadata["hiddenFinCount"] == 2
 assert result.metadata["alphaPolicy"] == "APPROXIMATED_FROM_WHITE_BACKDROP"
