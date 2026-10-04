@@ -529,14 +529,17 @@ for key,spec in SPECS.items():
         fin_authoring={
             **authored_fins.metadata,
             'textures':{
-                # A broadside product photo exposes the two halves of ONE physical
-                # plane around the dart axis. The perpendicular B plane is edge-on and
-                # therefore has no recoverable artwork surface in this source.
+                # The photo supplies two appearance samples around the dart axis. They are
+                # calibrated to a plausible reference plane at roll=0; this is not an
+                # exact reconstruction of the photographed 3D roll. Geometry remains the
+                # independent four-fin canonical model.
                 'A-positive':{
                     'front':'flight-fin-a-positive-front',
                     'back':'flight-fin-a-positive-approx',
                     'frontProvenance':'SOURCE-GROUNDED+APPROXIMATED-ALPHA',
                     'backProvenance':'APPROXIMATED',
+                    'frontSide':'FRONT',
+                    'azimuthDeg':0,
                     'vAtAxis':1,
                 },
                 'A-negative':{
@@ -544,6 +547,8 @@ for key,spec in SPECS.items():
                     'back':'flight-fin-a-negative-approx',
                     'frontProvenance':'SOURCE-GROUNDED+APPROXIMATED-ALPHA',
                     'backProvenance':'APPROXIMATED',
+                    'frontSide':'BACK',
+                    'azimuthDeg':180,
                     'vAtAxis':0,
                 },
                 'B-positive':{
@@ -551,6 +556,8 @@ for key,spec in SPECS.items():
                     'back':'flight-fin-a-positive-approx',
                     'frontProvenance':'APPROXIMATED',
                     'backProvenance':'APPROXIMATED',
+                    'frontSide':'FRONT',
+                    'azimuthDeg':90,
                     'vAtAxis':1,
                 },
                 'B-negative':{
@@ -558,6 +565,8 @@ for key,spec in SPECS.items():
                     'back':'flight-fin-a-negative-approx',
                     'frontProvenance':'APPROXIMATED',
                     'backProvenance':'APPROXIMATED',
+                    'frontSide':'BACK',
+                    'azimuthDeg':270,
                     'vAtAxis':0,
                 },
             },
@@ -603,7 +612,7 @@ for key,spec in SPECS.items():
         'SOURCE-GROUNDED axis/width-profile tail authoring; '
         + tail_status
         + '; dedicated frontal flight sources are preferred over photographed composite side views; '
-        + ('two source-grounded halves of the broadside A-plane are rectified without mirroring; perpendicular B-plane remains approximated; ' if fin_authoring else '')
+        + ('two source-grounded appearance samples are calibrated to the roll=0 reference plane without claiming exact photo roll; perpendicular/hidden surfaces remain approximated; ' if fin_authoring else '')
         + 'only explicitly recorded occlusion/reverse/hidden surfaces are approximated'
       ),
     }
