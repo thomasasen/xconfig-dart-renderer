@@ -486,7 +486,21 @@ def author_tail_components(
     if metrics["status"] != "PASS":
         status = str(metrics["status"])
     elif integrated and r0 is None:
-        status = "NEEDS_MANUAL_REVIEW" if float(axis.get("confidence",0)) >= .75 and float(core_info.get("confidence",0)) >= .75 else "FAIL_SOURCE_UNSUITABLE"
+        # An integrated source can provide a geometrically excellent shaft core while
+        # the molded root is hidden by a transparent/photographed flight. Do not turn
+        # missing root evidence into invented geometry, but also do not reject an
+        # objectively stable shaft merely because the heuristic confidence score is
+        # depressed by source contrast. Hard geometry metrics above remain mandatory.
+        med=max(1.0,float(metrics.get("medianShaftWidthPx",1.0)))
+        shaft_objectively_stable=(
+            float(metrics.get("shaftAxisResidual",999.0)) <= med*.08
+            and float(metrics.get("shaftWidthCV",999.0)) <= .18
+            and float(metrics.get("shaftCenterJump",999.0)) <= .25
+            and float(metrics.get("tailAlphaHaze",999.0)) <= .10
+            and float(core_info.get("confidence",0.0)) >= .50
+            and float(axis.get("confidence",0.0)) >= .35
+        )
+        status = "NEEDS_MANUAL_REVIEW" if shaft_objectively_stable else "FAIL_SOURCE_UNSUITABLE"
     elif confidence >= .85:
         status = "PASS"
     elif confidence >= .65:
