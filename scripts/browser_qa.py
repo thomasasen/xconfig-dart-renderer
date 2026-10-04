@@ -130,7 +130,14 @@ def save_flight_depth_matrix(page,pid):
                     all(by_name[k].get('frontProvenance')=='APPROXIMATED' for k in ('B-positive','B-negative')) and
                     all(by_name[k].get('frontTexture')!=by_name[k].get('backTexture') for k in ('A-positive','A-negative'))
                 )
-                topology_ok=topology_ok and face_policy
+                spine=posed.get('flightSpine') or {}
+                spine_policy=(
+                    spine.get('present') is True and
+                    spine.get('provenance')=='APPROXIMATED_SOURCE_DERIVED_MATERIAL' and
+                    spine.get('diameterProvenance')=='HEURISTIC' and
+                    abs(float(spine.get('diameterMm',0))-1.0) < 1e-9
+                )
+                topology_ok=topology_ok and face_policy and spine_policy
             samples.append({
                 'incidenceDeg':incidence,
                 'rollDeg':roll,
