@@ -56,7 +56,11 @@ def _median(values: np.ndarray, size: int = 7) -> np.ndarray:
     if len(values) == 0:
         return values
     k = max(3, int(size) | 1)
-    return cv2.medianBlur(values.astype(np.float32).reshape(1, -1), k).reshape(-1)
+    radius = k // 2
+    arr = np.asarray(values, dtype=np.float32).reshape(-1)
+    padded = np.pad(arr, (radius, radius), mode='edge')
+    windows = np.lib.stride_tricks.sliding_window_view(padded, k)
+    return np.median(windows, axis=1).astype(np.float32)
 
 
 def build_silhouette_profile(image: Image.Image, axis: dict[str, float] | None = None) -> dict[str, Any]:
