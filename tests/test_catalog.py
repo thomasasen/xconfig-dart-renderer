@@ -54,7 +54,7 @@ for product,info in author.items():
     check(status in tail_statuses,f'{product}: unknown tail authoring status {status}')
     median=max(1e-6,float(metrics.get('medianShaftWidthPx',1)))
     check(float(metrics.get('shaftWidthCV',999)) <= .18,f'{product}: shaft width CV too high: {metrics.get("shaftWidthCV")}')
-    check(float(metrics.get('shaftAxisResidual',999)) <= median*.12,f'{product}: shaft axis residual too high: {metrics.get("shaftAxisResidual")} / {median}')
+    check(float(metrics.get('shaftAxisResidual',999)) <= median*.08,f'{product}: shaft axis residual too high: {metrics.get("shaftAxisResidual")} / {median}')
     check(float(metrics.get('shaftCenterJump',999)) <= .25,f'{product}: shaft center jump too high: {metrics.get("shaftCenterJump")}')
     check(float(metrics.get('tailAlphaHaze',999)) <= .10,f'{product}: tail alpha haze too high: {metrics.get("tailAlphaHaze")}')
     check(status in ('PASS','NEEDS_MANUAL_REVIEW'),f'{product}: hard tail QA failure: {status}')
@@ -69,8 +69,9 @@ for group,items in c.items():
         for e in o.get('evidence',[]): check(e.get('status') in statuses,f'{group}/{cid}: bad evidence status {e.get("status")}')
         for k,v in o.items():
             if k.lower().endswith('texture') and isinstance(v,str): check((ROOT/v.replace('./','')).exists(),f'{group}/{cid}: missing texture {v}')
+        if o.get('kind') == 'RearSystemDefinition' and o.get('tailQa'):
+            check(o.get('shaftTexture','').endswith('/rear-shaft-core.png'),f'{group}/{cid}: tail-authored rear must use shaft-core texture')
         if o.get('kind') == 'RearSystemDefinition' and o.get('rootTexture'):
-            check(o.get('shaftTexture','').endswith('/rear-shaft-core.png'),f'{group}/{cid}: root-enabled rear must use shaft-core texture')
             check(float(o.get('renderRootLengthMm',0)) > 0,f'{group}/{cid}: root length must be positive')
             check(float(o.get('renderRootFrontDiameterMm',0)) > 0,f'{group}/{cid}: root front diameter missing')
             check(float(o.get('renderRootRearDiameterMm',0)) >= float(o.get('renderRootFrontDiameterMm',0))*.9,f'{group}/{cid}: root rear diameter implausible')
