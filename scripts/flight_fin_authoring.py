@@ -41,6 +41,21 @@ def _dominant_material_rgb(image: Image.Image) -> np.ndarray:
     return np.median(sample.astype(np.float32), axis=0) if len(sample) else np.median(rgb.astype(np.float32), axis=0)
 
 
+def _material_only_backface(image: Image.Image) -> Image.Image:
+    """Create a deliberately detail-free reverse surface for an authored half-fin.
+
+    Large logos/text can survive even an aggressive low-frequency blur and then appear
+    mirrored when that physical face turns away from the camera. For half-fin authoring
+    the reverse is completely unseen in the source, so retain only material colour and
+    source alpha. This is intentionally APPROXIMATED.
+    """
+    base = image.convert("RGBA")
+    arr = np.asarray(base, dtype=np.uint8).copy()
+    material = _dominant_material_rgb(base) * 0.92
+    arr[:, :, :3] = np.clip(material[None, None, :], 0, 255).astype(np.uint8)
+    return Image.fromarray(arr, "RGBA")
+
+
 def _apply_material_alpha(image: Image.Image, material_alpha: float | None) -> Image.Image:
     """Approximate translucent moulded plastic from a catalogue image on white.
 
@@ -57,7 +72,20 @@ def _apply_material_alpha(image: Image.Image, material_alpha: float | None) -> I
     dist = np.linalg.norm(arr[:, :, :3].astype(np.float32) - material[None, None, :], axis=2)
     artwork = np.clip((dist - 28.0) / 62.0, 0.0, 1.0)
     target = float(material_alpha) * (1.0 - artwork) + 0.96 * artwork
-    # Preserve antialiased silhouette coverage from the source extraction.
+
+    # Remove white-matte contamination from semi-transparent catalogue edges before
+    # lowering material opacity. Without this, the white studio background reappears as
+    # a bright halo around the posed flight. Pull only low-coverage edge RGB toward the
+    # dominant substrate; fully covered printed artwork remains source-coloured.
+    edge = np.clip((0.94 - source_alpha) / 0.55, 0.0, 1.0)
+    source_rgb = arr[:, :, :3].astype(np.float32)
+    cleaned_rgb = (
+        source_rgb * (1.0 - edge[:, :, None]) +
+        material[None, None, :] * edge[:, :, None]
+    )
+    arr[:, :, :3] = np.clip(cleaned_rgb, 0, 255).astype(np.uint8)
+
+    # Preserve antialiased silhouette coverage while approximating translucent plastic.
     arr[:, :, 3] = np.clip(source_alpha * target * 255.0, 0, 255).astype(np.uint8)
     return Image.fromarray(arr, "RGBA")
 
@@ -180,8 +208,8 @@ def author_visible_half_fins(
     top = _apply_material_alpha(top, material_alpha)
     bottom = _apply_material_alpha(bottom, material_alpha)
 
-    top_back = build_backface_approximation(top)
-    bottom_back = build_backface_approximation(bottom)
+    top_back = _material_only_backface(top)
+    bottom_back = _material_only_backface(bottom)
 
     metadata = {
         "mode": "TWO_VISIBLE_HALF_FINS_RECTIFIED",
