@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import numpy as np
 from PIL import Image, ImageDraw
 
-from scripts.flight_backface import build_backface_approximation
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
+from flight_backface import build_backface_approximation
 
 
 def high_frequency_energy(image: Image.Image) -> float:
