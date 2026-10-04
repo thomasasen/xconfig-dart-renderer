@@ -63,10 +63,25 @@ def render(a,inc=35,roll=0):
     # Camera is +Z, so smaller world Z is farther away and must be composited first.
     half_fins.sort(key=lambda q:q[0])
     for _,idx,sign,fin in half_fins:
-        tex=load_rgba(tail['planeATexture'] if idx==0 else tail.get('planeBTexture',tail['planeATexture']));h,w=tex.shape[:2]
+        plane='B' if idx else 'A'
+        half='positive' if sign > 0 else 'negative'
+        fin_key=f'{plane}-{half}'
+        authored=(tail.get('finTextures') or {}).get(fin_key)
+        # Plane normal for the source-front side. Camera is +Z.
+        normal=np.cross(axis,fin)
+        front_facing=normal[2] >= 0
+        if authored:
+            tpath=authored['front'] if front_facing else authored['back']
+        else:
+            tpath=tail['planeATexture'] if (idx==0 and front_facing) else tail.get('planeBTexture',tail['planeATexture'])
+        tex=load_rgba(tpath);h,w=tex.shape[:2]
         mid=(h-1)/2.0
         if sign < 0:
-            src=[[0,h-1],[w-1,h-1],[w-1,mid],[0,mid]]
+            src=(
+                [[0,h-1],[w-1,h-1],[w-1,0],[0,0]]
+                if authored else
+                [[0,h-1],[w-1,h-1],[w-1,mid],[0,mid]]
+            )
             dst=[
                 project(local(axis,ey,ez,root)-fin*rad),
                 project(local(axis,ey,ez,root+fl)-fin*rad),
@@ -74,7 +89,11 @@ def render(a,inc=35,roll=0):
                 project(local(axis,ey,ez,root)),
             ]
         else:
-            src=[[0,mid],[w-1,mid],[w-1,0],[0,0]]
+            src=(
+                [[0,h-1],[w-1,h-1],[w-1,0],[0,0]]
+                if authored else
+                [[0,mid],[w-1,mid],[w-1,0],[0,0]]
+            )
             dst=[
                 project(local(axis,ey,ez,root)),
                 project(local(axis,ey,ez,root+fl)),
@@ -91,7 +110,7 @@ def render(a,inc=35,roll=0):
         warp_quad(canvas,tex,src,dst)
     # hard invariant marker, only debug metadata: projected local origin is exactly TIP by formula.
     drift=float(np.linalg.norm(project(np.zeros(3))-TIP))
-    return Image.fromarray(canvas,'RGBA'),{'tipDriftPx':drift,'incidenceDeg':inc,'rollDeg':roll,'planeModel':'FOUR_NON_INTERSECTING_HALF_FINS_SHARED_AXIS_90_DEG','halfFinCount':4}
+    return Image.fromarray(canvas,'RGBA'),{'tipDriftPx':drift,'incidenceDeg':inc,'rollDeg':roll,'planeModel':'FOUR_HALF_FINS_WITH_EXPLICIT_FRONT_BACK_FACES_SHARED_AXIS_90_DEG','halfFinCount':4}
 
 def panel(im,title,size=(789,365)):
     c=Image.new('RGBA',size,(18,22,29,255));thumb=im.copy();thumb.thumbnail((size[0],331),Image.Resampling.LANCZOS);c.alpha_composite(thumb,(0,30));ImageDraw.Draw(c).text((10,8),title,fill='white');return c
