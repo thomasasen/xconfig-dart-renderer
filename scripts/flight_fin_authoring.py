@@ -202,6 +202,8 @@ def _rectify_half(
     which: str,
     *,
     canonical_envelope: np.ndarray | None = None,
+    source_outer_trim_fraction: float = 0.12,
+    source_tail_trim_fraction: float = 0.025,
 ) -> Image.Image:
     width = max(2, face_end - face_start + 1)
     local_spans = []
@@ -229,8 +231,14 @@ def _rectify_half(
     if envelope.shape[0] != width:
         raise ValueError("canonical flight envelope width mismatch")
 
-    for ox, sx in enumerate(range(face_start, face_end + 1)):
-        b = bounds[sx]
+    source_width = max(2, face_end - face_start + 1)
+    tail_trim = max(1, int(round(source_width * float(source_tail_trim_fraction))))
+    source_end = max(face_start + 1, face_end - tail_trim)
+    source_x_positions = np.linspace(face_start, source_end, width, dtype=np.float32)
+
+    for ox, sx_float in enumerate(source_x_positions):
+        sx_index = int(np.clip(round(float(sx_float)), 0, len(bounds) - 1))
+        b = bounds[sx_index]
         if not b:
             continue
         y0, y1 = b
@@ -240,27 +248,36 @@ def _rectify_half(
             continue
 
         if which == "top":
-            outer = float(y0)
+            source_outer = float(y0)
             axis = float(centre - band)
-            if axis - outer < 2:
+            source_span = axis - source_outer
+            if source_span < 2:
                 continue
+            # Product-photo silhouettes carry the strongest white-matte/AA pollution at
+            # their outer edge. Inset that uncertain source band and stretch reliable
+            # interior appearance to the canonical geometric boundary.
+            outer_trim = min(14.0, max(1.0, source_span * float(source_outer_trim_fraction)))
+            outer = min(axis - 1.0, source_outer + outer_trim)
             # Global canonical V: v=1 at axis and v=0 at maximum radius.
             t0 = int(round((1.0 - radial) * (out_h - 1)))
             t1 = out_h - 1
             count = max(1, t1 - t0 + 1)
-            map_x[t0:t1 + 1, ox] = float(sx)
+            map_x[t0:t1 + 1, ox] = float(sx_float)
             map_y[t0:t1 + 1, ox] = np.linspace(outer, axis, count, dtype=np.float32)
             valid[t0:t1 + 1, ox] = 255
         else:
             axis = float(centre + band)
-            outer = float(y1)
-            if outer - axis < 2:
+            source_outer = float(y1)
+            source_span = source_outer - axis
+            if source_span < 2:
                 continue
+            outer_trim = min(14.0, max(1.0, source_span * float(source_outer_trim_fraction)))
+            outer = max(axis + 1.0, source_outer - outer_trim)
             # Global canonical V: v=0 at axis and v=1 at maximum radius.
             t0 = 0
             t1 = int(round(radial * (out_h - 1)))
             count = max(1, t1 - t0 + 1)
-            map_x[t0:t1 + 1, ox] = float(sx)
+            map_x[t0:t1 + 1, ox] = float(sx_float)
             map_y[t0:t1 + 1, ox] = np.linspace(axis, outer, count, dtype=np.float32)
             valid[t0:t1 + 1, ox] = 255
 
@@ -352,6 +369,9 @@ def author_visible_half_fins(
         "textureCoordinateModel": "CANONICAL_GLOBAL_RADIAL_V",
         "geometryOwnsCoverage": True,
         "canonicalProfileApplied": bool(canonical_profile),
+        "edgePolicy": "APPROXIMATED_SOURCE_BOUNDARY_INSET_AND_MATTE_DECONTAMINATION",
+        "sourceOuterTrimFraction": 0.12,
+        "sourceTailTrimFraction": 0.025,
         "mirroringUsed": False,
         "visibleSourceFinCount": 2,
         "hiddenFinCount": 2,
