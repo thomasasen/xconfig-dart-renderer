@@ -4,14 +4,25 @@ import numpy as np
 from PIL import Image, ImageEnhance
 
 
-def _robust_material_color(rgb: np.ndarray, alpha: np.ndarray) -> np.ndarray:
-    visible = alpha > 24
+def _dominant_material_color(rgb: np.ndarray, alpha: np.ndarray) -> np.ndarray:
+    visible = alpha >= 176
+    if not np.any(visible):
+        visible = alpha > 24
     if not np.any(visible):
         return np.array([128.0, 128.0, 128.0], dtype=np.float32)
 
-    interior = alpha >= 176
-    sample = rgb[interior] if np.any(interior) else rgb[visible]
-    return np.median(sample.astype(np.float32), axis=0)
+    sample = rgb[visible].astype(np.uint8)
+
+    # Find the dominant source-material colour family instead of averaging all artwork.
+    # Coarse RGB bins suppress anti-aliasing/noise while allowing a black, white, red,
+    # purple, blue, etc. substrate to win over logos and decorative stripes.
+    quant = (sample // 32).astype(np.int32)
+    keys = quant[:, 0] * 64 + quant[:, 1] * 8 + quant[:, 2]
+    counts = np.bincount(keys, minlength=512)
+    winner = int(np.argmax(counts))
+    winner_mask = keys == winner
+    dominant = sample[winner_mask].astype(np.float32)
+    return np.median(dominant, axis=0) if dominant.size else np.median(sample, axis=0)
 
 
 def build_backface_approximation(front: Image.Image) -> Image.Image:
@@ -19,9 +30,8 @@ def build_backface_approximation(front: Image.Image) -> Image.Image:
     Build an explicitly APPROXIMATED reverse flight surface.
 
     The source image does not contain a trustworthy reverse face. We therefore retain
-    the source silhouette, alpha/translucency and low-frequency material colour while
-    deliberately removing readable logos/text and other source-specific high-frequency
-    detail. Transparent matte pixels are filled from the robust interior material colour
+    the source silhouette and alpha/translucency plus the dominant source-material colour,
+    while deliberately removing readable logos/text and source-specific colour patterns. Transparent matte pixels are filled from the robust interior material colour
     before downsampling so a white catalogue background cannot turn the backface grey.
     """
     base = front.convert("RGBA")
@@ -32,30 +42,30 @@ def build_backface_approximation(front: Image.Image) -> Image.Image:
     if w < 1 or h < 1:
         return base
 
-    material = _robust_material_color(rgb, alpha)
-    coverage = (alpha.astype(np.float32) / 255.0)[:, :, None]
+    material = _dominant_material_color(rgb, alpha)
 
-    # Decontaminate transparent/anti-aliased pixels before the low-frequency reduction.
-    filled = rgb * coverage + material[None, None, :] * (1.0 - coverage)
-    filled = np.clip(filled, 0, 255).astype(np.uint8)
-
-    grid_w = max(4, min(12, max(1, round(w / 48))))
-    grid_h = max(4, min(10, max(1, round(h / 32))))
-    local = (
-        Image.fromarray(filled, "RGB")
-        .resize((grid_w, grid_h), Image.Resampling.BOX)
+    # Plane B must not look like a blurred copy of Plane A. Retain only a tiny amount of
+    # very-low-frequency *luminance* variation. Hue/artwork information is discarded, so
+    # coloured logos, text and asymmetric graphics cannot reappear as ghost imagery.
+    luma = (
+        rgb[:, :, 0] * 0.2126 +
+        rgb[:, :, 1] * 0.7152 +
+        rgb[:, :, 2] * 0.0722
+    )
+    visible = alpha > 24
+    mean_luma = float(np.mean(luma[visible])) if np.any(visible) else 128.0
+    luma_img = Image.fromarray(np.clip(luma, 0, 255).astype(np.uint8), "L")
+    low = (
+        luma_img
+        .resize((4, 3), Image.Resampling.BOX)
         .resize((w, h), Image.Resampling.BILINEAR)
     )
-    local_arr = np.asarray(local, dtype=np.float32)
+    delta = (np.asarray(low, dtype=np.float32) - mean_luma) * 0.055
+    delta = np.clip(delta, -7.0, 7.0)
 
-    # Keep local colour families, but pull them toward a robust source-derived material
-    # colour so logos and strongly contrasting typography cannot survive as silhouettes.
-    mixed = local_arr * 0.60 + material[None, None, :] * 0.40
-    out = Image.fromarray(np.clip(mixed, 0, 255).astype(np.uint8), "RGB")
-    out = ImageEnhance.Contrast(out).enhance(0.88)
-    out = ImageEnhance.Color(out).enhance(0.96)
-    out = ImageEnhance.Brightness(out).enhance(0.93)
-    out = out.convert("RGBA")
+    base = material[None, None, :] * 0.94
+    mixed = np.clip(base + delta[:, :, None], 0, 255).astype(np.uint8)
+    out = Image.fromarray(mixed, "RGB").convert("RGBA")
 
     # Preserve the authored front-face alpha exactly. For transparent flights this keeps
     # the material translucency instead of inventing an opaque grey reverse surface.
