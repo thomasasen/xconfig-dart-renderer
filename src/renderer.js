@@ -1,4 +1,4 @@
-import { buildSmoothBridgeProfile, buildSmoothJoinProfile, profileEndpointSlope, resolveBarrelRearSeam, resolveVisibleJoin } from './geometry.js';
+import { buildSmoothBridgeProfile, buildSmoothJoinProfile, profileEndpointSlope, resolveBarrelRearSeam, resolveVisibleJoin, splitFlightProfile } from './geometry.js';
 
 let THREE = null;
 const THREE_VERSION = '0.180.0';
@@ -589,15 +589,10 @@ export class SharedDartComponentRenderer {
     const flightRadius = Number(tail.renderFlightRadiusMm || tail.renderRadiusMm || 18);
     const flightRootOverlapMm = Number(tail.flightRootOverlapMm ?? 1.5);
     const flightRoot = x - flightRootOverlapMm;
-    const flightGeometry = makeFlightGeometry(
-      tail.planeProfile,
-      flightRoot,
-      flightLength,
-      flightRadius
-    );
+    const halfProfiles = splitFlightProfile(tail.planeProfile);
 
     this.flightGroup = new THREE.Group();
-    this.flightGroup.name = 'flight-two-full-plane-cross';
+    this.flightGroup.name = 'flight-four-half-fin-cross';
     this.root.add(this.flightGroup);
 
     const planeATexture = await this.#texture(tail.planeATexture);
@@ -605,17 +600,32 @@ export class SharedDartComponentRenderer {
     if (generation !== this.assemblyGeneration) return this;
 
     this.planeMeshes = [];
-    for (let index = 0; index < 2; index += 1) {
-      const mesh = new THREE.Mesh(
-        flightGeometry.clone(),
-        this.#mat(index === 0 ? planeATexture : planeBTexture, { flight: true })
-      );
-      mesh.rotation.x = deg(PLANE_ORIENTATION_DEG[index]);
-      mesh.name = `flight-plane-${index ? 'B' : 'A'}`;
-      this.flightGroup.add(mesh);
-      this.planeMeshes.push(mesh);
+    const halfDefinitions = [
+      ['negative', halfProfiles.negative],
+      ['positive', halfProfiles.positive],
+    ];
+    for (let planeIndex = 0; planeIndex < 2; planeIndex += 1) {
+      for (let halfIndex = 0; halfIndex < halfDefinitions.length; halfIndex += 1) {
+        const [halfName, halfProfile] = halfDefinitions[halfIndex];
+        const geometry = makeFlightGeometry(
+          halfProfile,
+          flightRoot,
+          flightLength,
+          flightRadius
+        );
+        const mesh = new THREE.Mesh(
+          geometry,
+          this.#mat(planeIndex === 0 ? planeATexture : planeBTexture, { flight: true })
+        );
+        mesh.rotation.x = deg(PLANE_ORIENTATION_DEG[planeIndex]);
+        mesh.name = `flight-plane-${planeIndex ? 'B' : 'A'}-${halfName}`;
+        mesh.userData.flightPlane = planeIndex ? 'B' : 'A';
+        mesh.userData.flightHalf = halfName;
+        mesh.userData.flightStableIndex = planeIndex * 2 + halfIndex;
+        this.flightGroup.add(mesh);
+        this.planeMeshes.push(mesh);
+      }
     }
-    flightGeometry.dispose();
 
     this.totalLength = x + flightLength;
     this.scene.updateMatrixWorld(true);
@@ -634,25 +644,34 @@ export class SharedDartComponentRenderer {
   #updateFlightOrder() {
     if (!this.planeMeshes?.length) return;
     this.scene.updateMatrixWorld(true);
+    this.camera.updateMatrixWorld(true);
     const ranked = this.planeMeshes.map((mesh) => {
       mesh.geometry.computeBoundingSphere();
       const center = mesh.geometry.boundingSphere.center.clone().applyMatrix4(mesh.matrixWorld);
+      const cameraCenter = center.clone().applyMatrix4(this.camera.matrixWorldInverse);
       const normal = new THREE.Vector3(0, 0, 1)
         .applyQuaternion(mesh.getWorldQuaternion(new THREE.Quaternion()))
         .normalize();
       const facing = Math.abs(normal.z);
-      // A mathematically edge-on transparent plane has zero projected area. Keeping it
-      // active can produce unstable giant raster fragments on some WebGL drivers when
-      // its triangles collapse numerically. Hide only the degenerate limit, not normal
-      // narrow fins.
+      // A mathematically edge-on transparent half-fin has zero projected area. Keeping
+      // it active can still produce unstable raster fragments on some WebGL drivers.
       mesh.visible = facing > 1e-4;
+      const cameraDepth = -cameraCenter.z;
+      mesh.userData.cameraDepth = cameraDepth;
       return {
         mesh,
-        distance: this.camera.position.distanceTo(center),
-        facing,
+        cameraDepth,
+        stableIndex: Number(mesh.userData.flightStableIndex) || 0,
       };
     });
-    ranked.sort((a, b) => b.distance - a.distance);
+
+    // After splitting on the physical intersection line, the four transparent half-fins
+    // no longer intersect over an area. Their relative depth is therefore consistent
+    // within every overlapping region and a back-to-front half-fin order is valid.
+    ranked.sort((a, b) =>
+      (b.cameraDepth - a.cameraDepth) ||
+      (a.stableIndex - b.stableIndex)
+    );
     ranked.forEach(({ mesh }, index) => {
       mesh.renderOrder = 20 + index;
     });
@@ -737,8 +756,17 @@ export class SharedDartComponentRenderer {
       tipDriftPx: tipDrift,
       canonicalAxisYErrorPx: axisYError,
       contract: XCONFIG_SPRITE_CONTRACT,
-      flightPlaneModel: 'TWO_FULL_INTERSECTING_PLANES_SHARED_AXIS_90_DEG',
+      flightPlaneModel: 'FOUR_NON_INTERSECTING_HALF_FINS_SHARED_AXIS_90_DEG',
+      flightMeshCount: this.planeMeshes?.length || 0,
       flightFacing: this.#flightFacing(),
+      flightRenderOrder: (this.planeMeshes || []).map((mesh) => ({
+        name: mesh.name,
+        plane: mesh.userData.flightPlane,
+        half: mesh.userData.flightHalf,
+        cameraDepth: Number(mesh.userData.cameraDepth || 0),
+        renderOrder: mesh.renderOrder,
+        visible: mesh.visible,
+      })),
       jointSprite,
       jointMetrics: this.jointMetrics,
     };
@@ -785,7 +813,8 @@ export class SharedDartComponentRenderer {
         maxAxis < 1e-5 &&
         Number(this.jointMetrics?.visibleDeltaMm || 0) < 1e-8 &&
         Number(this.jointMetrics?.shaftRootVisibleDeltaMm || 0) < 1e-8 &&
-        Number(this.jointMetrics?.joinSlopeDeltaMmPerMm || 0) < 1e-8,
+        Number(this.jointMetrics?.joinSlopeDeltaMmPerMm || 0) < 1e-8 &&
+        this.planeMeshes?.length === 4,
       maxTipDriftPx: maxTip,
       maxCanonicalAxisYErrorPx: maxAxis,
       jointVisibleDeltaMm: Number(this.jointMetrics?.visibleDeltaMm || 0),
@@ -793,6 +822,8 @@ export class SharedDartComponentRenderer {
       shaftRootVisibleDeltaMm: Number(this.jointMetrics?.shaftRootVisibleDeltaMm || 0),
       rootPresent: Boolean(this.jointMetrics?.rootPresent),
       planeOrientationDeg: [...PLANE_ORIENTATION_DEG],
+      flightMeshCount: this.planeMeshes?.length || 0,
+      flightTopology: 'FOUR_NON_INTERSECTING_HALF_FINS_SHARED_AXIS_90_DEG',
       flightFacingSamples,
     };
   }
