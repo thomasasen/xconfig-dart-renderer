@@ -110,7 +110,7 @@ def save_flight_depth_matrix(page,pid):
             render=page.evaluate('window.__POC_LAST_RENDER__')
             posed=(render or {}).get('posed') or {}
             order=posed.get('flightRenderOrder') or []
-            model_ok=posed.get('flightPlaneModel')=='FOUR_HALF_FINS_WITH_EXPLICIT_FRONT_BACK_FACES_SHARED_AXIS_90_DEG'
+            model_ok=posed.get('flightPlaneModel')=='FOUR_EXPLICIT_RADIAL_FINS_0_90_180_270_WITH_SEPARATE_FACE_SURFACES'
             mesh_ok=posed.get('flightMeshCount')==4 and posed.get('flightSurfaceMeshCount')==8 and len(order)==4
             unique_orders=len({item.get('renderOrder') for item in order})==4 if len(order)==4 else False
             topology_ok=topology_ok and model_ok and mesh_ok
@@ -120,6 +120,11 @@ def save_flight_depth_matrix(page,pid):
                 by_name={item.get('name'):item for item in order}
                 face_policy=(
                     set(by_name)=={'A-positive','A-negative','B-positive','B-negative'} and
+                    {by_name[k].get('azimuthDeg') for k in by_name}=={0,90,180,270} and
+                    by_name['A-positive'].get('frontSide')=='FRONT' and
+                    by_name['A-negative'].get('frontSide')=='BACK' and
+                    by_name['B-positive'].get('frontSide')=='FRONT' and
+                    by_name['B-negative'].get('frontSide')=='BACK' and
                     all(str(by_name[k].get('frontProvenance','')).startswith('SOURCE-GROUNDED') for k in ('A-positive','A-negative')) and
                     all(by_name[k].get('backProvenance')=='APPROXIMATED' for k in by_name) and
                     all(by_name[k].get('frontProvenance')=='APPROXIMATED' for k in ('B-positive','B-negative')) and
