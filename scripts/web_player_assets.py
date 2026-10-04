@@ -76,6 +76,7 @@ SOURCE_GROUNDED_SPECS = {
         # The exact review image has a narrow No.2 flight in perspective; its measured
         # tail/body span ratio is ~1.43, just below the generic 1.45 close-up gate.
         'tailSpanRatioMin': 1.38,
+        'allowManualTailReview': True,
         'sources': [
             # Same steel-tip product sheet used in the manual review: one complete
             # assembled dart plus an independent barrel close-up on white.
@@ -91,6 +92,7 @@ SOURCE_GROUNDED_SPECS = {
         'officialPage': 'https://www.target-darts.co.uk/stephen-bunting-95k-sp',
         'visibleHalfFins': True,
         'flightMaterialAlpha': 0.58,
+        'allowManualTailReview': True,
         'sources': [
             # Exact review-style product sheet: portrait, one complete assembled dart
             # and a separate barrel close-up. The elongated-object gate extracts only
@@ -428,6 +430,21 @@ def _split_source_grounded(key,spec):
         integrated=bool(spec['integrated']),
     )
     tail_analysis=tail_result['analysis'].to_dict()
+    # Some clean catalogue sheets contain a valid, very stable shaft core but the large
+    # integrated flight lowers the global axis-confidence score. For explicitly reviewed
+    # sources we may downgrade only FAIL_SOURCE_UNSUITABLE -> NEEDS_MANUAL_REVIEW when
+    # the local tail metrics themselves are PASS. This does not invent a rear root: if
+    # the analyzer cannot separate one, rootAuthored remains false.
+    tail_metrics=tail_result.get('tailMetrics') or {}
+    if (
+        spec.get('allowManualTailReview') and
+        tail_analysis.get('status')=='FAIL_SOURCE_UNSUITABLE' and
+        tail_metrics.get('status')=='PASS' and
+        float(tail_metrics.get('shaftWidthCV',1)) < .08 and
+        float(tail_metrics.get('tailAlphaHaze',1)) < .08
+    ):
+        tail_analysis['status']='NEEDS_MANUAL_REVIEW'
+        tail_analysis['manualReviewReason']='stable shaft-core metrics; global axis confidence reduced by large integrated-flight silhouette'
     tail_name='rear-shaft' if spec['integrated'] else 'shaft'
     if tail_analysis['status'] in ('PASS','NEEDS_MANUAL_REVIEW'):
         parts[tail_name]=tail_result['shaftCoreImage']
