@@ -410,10 +410,17 @@ def _split_source_grounded(key,spec):
             'geometrySource':'KNOWN_FLIGHT_SHAPE',
         }
     else:
-        # A side-view classic flight can contain the same photographed fold/cross-fin
-        # problem as an integrated K-Flex. Canonicalize any side-view Plane A for which
-        # no dedicated flat flight photograph is available.
+        # A side-view classic/integrated flight can contain the same photographed
+        # fold/cross-fin problem. De-occlude the visible source face first, then
+        # constrain only its alpha/mesh envelope to the known flight family.
         parts['flight-plane-a'],flight_qc=_canonicalize_integrated_flight_face(parts['flight-plane-a'])
+        parts['flight-plane-a']=_mask_to_flight_profile(parts['flight-plane-a'],spec['profile'])
+        flight_qc=dict(flight_qc or {})
+        flight_qc.update({
+            'canonicalProfile':spec.get('shape'),
+            'profileMaskApplied':True,
+            'geometrySource':'KNOWN_FLIGHT_SHAPE',
+        })
 
     # Plane B is intentionally only an approximation. Do not mirror/copy source
     # artwork: repeated text/logos on a perpendicular fin falsely implies known pixels.
