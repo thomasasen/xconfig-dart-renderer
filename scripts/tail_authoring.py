@@ -196,13 +196,24 @@ def detect_shaft_core(profile: dict[str, Any], seed_range: tuple[int, int] | Non
                 best = (start, end, score)
             start = None
     c0, c1, _ = best
-    # Never consume the final tail blindly. It is exactly where an integrated root hides.
+    # A seed is a physical prior from the current catalog split. Never let a stable
+    # barrel run pull the shaft core forward across the known barrel/shaft boundary.
+    c0 = max(c0, s0)
+    # Never consume beyond the known flight boundary.
     c1 = min(c1, s1)
     values = width[c0:c1]
     cv = float(np.std(values) / max(1e-6, np.median(values))) if len(values) else 999.0
     residual = np.abs(center[c0:c1] - np.median(center[c0:c1])) if c1 > c0 else np.array([999.0])
-    confidence = float(np.clip(1.0 - cv / 0.18, 0, 1) * np.clip(1.0 - np.percentile(residual, 95) / max(2.0, base_width * .2), 0, 1))
-    return int(c0), int(c1), {"confidence": confidence, "baseWidthPx": base_width}
+    residual95 = float(np.percentile(residual, 95))
+    # The plan's nominal acceptable core is CV<=0.12 and center residual<=8% width.
+    # Treat values inside that envelope as high confidence instead of penalising them
+    # linearly from zero, which incorrectly made good real shafts score ~0.4.
+    width_conf = 1.0 if cv <= .12 else float(np.clip(1.0 - (cv-.12)/.10, 0, 1))
+    center_ratio = residual95 / max(1.0, base_width)
+    center_conf = 1.0 if center_ratio <= .08 else float(np.clip(1.0 - (center_ratio-.08)/.14, 0, 1))
+    length_conf = float(np.clip((c1-c0) / max(8.0, (s1-s0)*.55), 0, 1))
+    confidence = float(width_conf * center_conf * (.85 + .15*length_conf))
+    return int(c0), int(c1), {"confidence": confidence, "baseWidthPx": base_width, "widthCV": cv, "centerResidualRatio": center_ratio}
 
 
 def detect_rear_root(
@@ -215,21 +226,29 @@ def detect_rear_root(
     c0, c1 = shaft_core
     if c1 - c0 < 4:
         return None, None, {"confidence": 0.0}
-    base = max(1.0, float(np.median(width[c0:c1])))
     limit = min(len(width), int(flight_start_px) if flight_start_px is not None else len(width))
-    search0 = max(c1 - 3, c0 + 2)
-    if limit - search0 < 4:
-        return None, None, {"confidence": 0.0}
+    # Estimate the true shaft diameter from the front/middle of the legacy tail seed;
+    # the last part may already contain the molded K-Flex/K-Shift root.
+    core_len=max(1,c1-c0)
+    baseline_end=max(c0+3,min(c1,c0+int(round(core_len*.62))))
+    baseline=width[c0:baseline_end]
+    baseline=baseline[np.isfinite(baseline)]
+    base=max(1.0,float(np.median(baseline))) if len(baseline) else max(1.0,float(np.nanmedian(width[c0:c1])))
+    # Search the rear half of the candidate tail, not merely the final 3 pixels.
+    # This is what allows a source-grounded root flare to be separated before flight.
+    search0=max(c0+3,c0+int(round(core_len*.45)))
+    if limit - search0 < 3:
+        return None, None, {"confidence": 0.0, "baseWidthPx": base}
 
     smooth = _median(np.nan_to_num(width, nan=base), 7)
-    threshold = base * 1.14
+    threshold = base * 1.10
     root_start = None
     run = 0
     for x in range(search0, limit):
         widening = smooth[x] >= threshold
         if widening:
             run += 1
-            if run >= 4:
+            if run >= 3:
                 root_start = x - run + 1
                 break
         else:
@@ -243,10 +262,11 @@ def detect_rear_root(
     root_center = root_center[np.isfinite(root_center)]
     axis_offset = abs(float(np.median(root_center)) - shaft_axis) if len(root_center) else 999.0
     growth = float(np.median(smooth[max(root_start, root_end - max(3, (root_end-root_start)//3)):root_end]) / base)
-    confidence = float(
-        np.clip((growth - 1.08) / 0.45, 0, 1)
-        * np.clip(1.0 - axis_offset / max(2.0, base * .22), 0, 1)
-    )
+    growth_conf = 1.0 if growth >= 1.14 else float(np.clip((growth-1.06)/.08,0,1))
+    offset_ratio = axis_offset / max(1.0, base)
+    offset_conf = 1.0 if offset_ratio <= .08 else float(np.clip(1.0-(offset_ratio-.08)/.20,0,1))
+    length_conf = float(np.clip((root_end-root_start)/max(3.0,(limit-search0)*.22),0,1))
+    confidence = float(growth_conf * offset_conf * (.85+.15*length_conf))
     return int(root_start), int(root_end), {
         "confidence": confidence,
         "baseWidthPx": base,
@@ -385,6 +405,8 @@ def author_tail_components(
     ]))
     if metrics["status"] != "PASS":
         status = str(metrics["status"])
+    elif integrated and r0 is None:
+        status = "NEEDS_MANUAL_REVIEW" if float(axis.get("confidence",0)) >= .75 and float(core_info.get("confidence",0)) >= .75 else "FAIL_SOURCE_UNSUITABLE"
     elif confidence >= .85:
         status = "PASS"
     elif confidence >= .65:
