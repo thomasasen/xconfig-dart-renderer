@@ -73,7 +73,11 @@ assert rooted["analysis"].root_axis_offset_px <= 0.5
 
 rotated = analyze(synthetic_tail(integrated=True, rotate_deg=-2.2), True)
 assert abs(rotated["axisSource"].angle_deg) > 1.5
-assert abs(rotated["axisAligned"].angle_deg) < 0.15
+assert abs(rotated["axisAligned"].angle_deg) < 0.15, (
+    f"rotated axis source={rotated['axisSource'].angle_deg:.4f} "
+    f"refine={rotated['axisRefinement'].angle_deg:.4f} "
+    f"aligned={rotated['axisAligned'].angle_deg:.4f}"
+)
 assert rotated["analysis"].status == PASS
 
 off_axis = analyze(synthetic_tail(integrated=True, root_offset=5), True)
