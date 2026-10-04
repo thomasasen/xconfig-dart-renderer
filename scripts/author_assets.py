@@ -354,7 +354,8 @@ def prepare_dedicated_flight_face(spec):
         'design':'MANDALORIAN_BLUE_SOURCE_ARTWORK',
         'canonicalProfile':'NO6_SUPPLIED_INFOGRAPHIC',
         'profileMaskApplied':True,
-        'geometrySource':'KNOWN_FLIGHT_SHAPE',
+        'geometrySource':'KNOWN_FLIGHT_FAMILY+REFERENCE_CONTOUR_APPROXIMATION',
+        'profileProvenance':PROFILE_PROVENANCE.get('NO6'),
     })
     save_component(horizontal,SRC/'web-mandalorian-kflex-frontal-source-grounded.png')
     return clean,qc
