@@ -18,9 +18,9 @@ OUT.mkdir(parents=True, exist_ok=True)
 SPECS={
  'prodigy': dict(file='target-luke-littler-g1-prodigy-95-swiss-23-gram_3.webp', rotate=True, bg='white', splits=[0.1625,0.56875,0.6875], rear=True, canonicalFlight=True, canonicalProfile='NO2'),
  'shift': dict(file='target-shift-sp-steeltip-90_3.webp', rotate=False, bg='white', splits=[0.1857,0.5214,0.6929], rear=True, canonicalFlight=True, canonicalProfile='NO6'),
- 'gary': dict(file='unicorn-w-c-gary-anderson-phase-6-90_1.webp', rotate=True, bg='white', splits=[0.1857,0.5214,0.7214], rear=False, canonicalFlight=True),
- 'chrono': dict(file='target-phil-taylor-power-chrono-sp-steeltip-95_3.webp', rotate=True, bg='white', splits=[0.2286,0.5714,0.7786], rear=False, canonicalFlight=True),
- 'world': dict(file='target-luke-littler-world-champion-90-swiss-23-gram_3.webp', rotate=True, bg='white', splits=[0.20625,0.55,0.7375], rear=True, canonicalFlight=True),
+ 'gary': dict(file='unicorn-w-c-gary-anderson-phase-6-90_1.webp', rotate=True, bg='white', splits=[0.1857,0.5214,0.7214], rear=False, canonicalFlight=True, canonicalProfile='STANDARD'),
+ 'chrono': dict(file='target-phil-taylor-power-chrono-sp-steeltip-95_3.webp', rotate=True, bg='white', splits=[0.2286,0.5714,0.7786], rear=False, canonicalFlight=True, canonicalProfile='VAPOR_S'),
+ 'world': dict(file='target-luke-littler-world-champion-90-swiss-23-gram_3.webp', rotate=True, bg='white', splits=[0.20625,0.55,0.7375], rear=True, canonicalFlight=True, canonicalProfile='NO6'),
  'auro': dict(file='shot-alchemy-auro-90_3.webp', rotate=True, bg='white', splits=[0.20,0.53125,0.73125], rear=False, canonicalFlight=True),
  'supa': dict(file='PW2022_SupaVenom_Steel_LEFT.webp', rotate=False, bg='alpha', splits=[0.15,0.525,0.7625], rear=False, canonicalFlight=True),
  'mandalorian': dict(
@@ -232,7 +232,12 @@ def largest_alpha_component(img:Image.Image, threshold=24):
 
 NO6_PROFILE=[[0.00,0.00],[0.08,0.30],[0.22,0.90],[0.68,1.00],[0.94,0.72],[1.00,0.35],[1.00,-0.35],[0.94,-0.72],[0.68,-1.00],[0.22,-0.90],[0.08,-0.30]]
 NO2_PROFILE=[[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[1.00,-0.45],[0.90,-0.82],[0.60,-1.00],[0.18,-0.96],[0.06,-0.34]]
-CANONICAL_PROFILES={'NO6':NO6_PROFILE,'NO2':NO2_PROFILE}
+STANDARD_PROFILE=[[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[1.00,-0.45],[0.90,-0.82],[0.60,-1.00],[0.18,-0.96],[0.06,-0.34]]
+# Vapor S is a narrow elongated flight. Exact manufacturer CAD is not available in
+# the source bundle, so this canonical outline is an explicit geometry heuristic,
+# while the printed artwork remains source-grounded.
+VAPOR_S_PROFILE=[[0.00,0.00],[0.10,0.24],[0.28,0.72],[0.56,1.00],[0.82,0.90],[1.00,0.48],[1.00,-0.48],[0.82,-0.90],[0.56,-1.00],[0.28,-0.72],[0.10,-0.24]]
+CANONICAL_PROFILES={'NO6':NO6_PROFILE,'NO2':NO2_PROFILE,'STANDARD':STANDARD_PROFILE,'VAPOR_S':VAPOR_S_PROFILE}
 
 def mask_to_flight_profile(image:Image.Image, profile):
     rgba=image.convert('RGBA')
@@ -505,7 +510,11 @@ for key,spec in SPECS.items():
         flight_qc.update({
             'canonicalProfile':spec['canonicalProfile'],
             'profileMaskApplied':True,
-            'geometrySource':'KNOWN_FLIGHT_SHAPE',
+            'geometrySource':(
+                'HEURISTIC_FLIGHT_SHAPE'
+                if spec['canonicalProfile']=='VAPOR_S'
+                else 'KNOWN_FLIGHT_SHAPE'
+            ),
         })
 
     for name,c in crops.items(): save_component(c,OUT/key/f'{name}.png')
