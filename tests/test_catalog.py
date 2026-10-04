@@ -2,8 +2,9 @@ from pathlib import Path
 import json, sys, math, re
 import numpy as np
 from PIL import Image
-from scripts.flight_geometry_reference import NO6_PROFILE, NO2_PROFILE, STANDARD_PROFILE, VAPOR_S_PROFILE, REFERENCE_DIMENSIONS
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT/'scripts'))
+from flight_geometry_reference import NO6_PROFILE, NO2_PROFILE, STANDARD_PROFILE, VAPOR_S_PROFILE, REFERENCE_DIMENSIONS
 cat=json.loads((ROOT/'data/catalog.json').read_text())
 author=json.loads((ROOT/'data/authoring-metadata.json').read_text())
 errors=[]
