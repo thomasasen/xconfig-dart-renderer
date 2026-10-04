@@ -228,10 +228,25 @@ def _best_elongated_roi(image, tail_span_ratio_min=1.45, require_full_signature=
             pad=max(2,round(min(cw,ch)*pad_fraction))
             x0=max(0,x-pad); y0=max(0,y-pad); x1=min(w,x+cw+pad); y1=min(h,y+ch+pad)
             crop=image.crop((x0,y0,x1,y1)).convert('RGBA')
+
+            # The full-image background estimate is reliable because its corners are
+            # actual catalogue background. A narrow vertical full-dart crop, however,
+            # may have point/flight pixels in its own corners. Re-estimating background
+            # there can classify white studio background as dart material. Preserve the
+            # already-computed full-image foreground mask for strict source candidates.
+            inherited_mask=mask[y0:y1,x0:x1].copy() if require_full_signature else None
             if crop.height > crop.width:
                 crop=crop.transpose(Image.Transpose.ROTATE_270)
+                if inherited_mask is not None:
+                    inherited_mask=cv2.rotate(inherited_mask,cv2.ROTATE_90_CLOCKWISE)
 
-            cmask,cdist,calpha=_foreground_mask(crop)
+            if inherited_mask is not None:
+                cmask=inherited_mask
+                cdist=None
+                calpha=np.asarray(crop)[:,:,3]
+            else:
+                cmask,cdist,calpha=_foreground_mask(crop)
+
             end_band=max(2,round(crop.width*0.14))
             def end_span(m):
                 ys=np.where(m>0)[0]
@@ -239,7 +254,11 @@ def _best_elongated_roi(image, tail_span_ratio_min=1.45, require_full_signature=
             left=end_span(cmask[:,:end_band]); right=end_span(cmask[:,-end_band:])
             if left > right*1.15:
                 crop=crop.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-                cmask,cdist,calpha=_foreground_mask(crop)
+                if inherited_mask is not None:
+                    cmask=np.ascontiguousarray(np.fliplr(cmask))
+                    calpha=np.ascontiguousarray(np.fliplr(calpha))
+                else:
+                    cmask,cdist,calpha=_foreground_mask(crop)
 
             # Product sheets may place spare shafts/barrels above or below the full
             # assembled dart. Anchor a corridor on the main dart's body axis using only
