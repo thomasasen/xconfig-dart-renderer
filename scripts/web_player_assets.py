@@ -93,6 +93,10 @@ SOURCE_GROUNDED_SPECS = {
         'splits': [0.19, 0.55, 0.69],
         'officialPage': 'https://www.target-darts.co.uk/nathan-aspinall-95k-sp',
         'sources': [
+            # Clean horizontal specification broadside. The surrounding typography is
+            # discarded by the elongated-dart geometry gate; only the assembled dart
+            # strip is retained as source evidence.
+            'https://kingstonbilliardsandgames.com/cdn/shop/files/Nathan-Aspinall-95K-SP-3.jpg?v=1765422255&width=1946',
             'https://www.180darts.nl/images/show/product/target-nathan-aspinall-95k-swiss-point-95-dartpijlen.jpg',
         ],
     },
