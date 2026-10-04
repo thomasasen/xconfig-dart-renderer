@@ -1,4 +1,4 @@
-import { buildSmoothJoinProfile, profileEndpointSlope, resolveBarrelRearSeam } from './geometry.js';
+import { buildSmoothBridgeProfile, buildSmoothJoinProfile, profileEndpointSlope, resolveBarrelRearSeam, resolveVisibleJoin } from './geometry.js';
 
 let THREE = null;
 const THREE_VERSION = '0.180.0';
@@ -429,14 +429,19 @@ export class SharedDartComponentRenderer {
     const rearTextureUrl = assembly.rearSystem
       ? assembly.rearSystem.shaftTexture
       : assembly.shaft?.texture;
+    const rootTextureUrl = assembly.rearSystem?.rootTexture || null;
 
     const pointTexture = await this.#texture(assembly.point?.texture);
     const barrelTexture = await this.#texture(assembly.barrel?.texture);
     const rearTexture = await this.#texture(rearTextureUrl);
+    const rootTexture = rootTextureUrl ? await this.#texture(rootTextureUrl) : null;
     if (generation !== this.assemblyGeneration) return this;
 
     const barrelRearCoverage = this.#measureEdgeCoverage(barrelTexture, 'right');
     const rearFrontCoverage = this.#measureEdgeCoverage(rearTexture, 'left');
+    const rearBackCoverage = this.#measureEdgeCoverage(rearTexture, 'right');
+    const rootFrontCoverage = rootTexture ? this.#measureEdgeCoverage(rootTexture, 'left') : 1;
+    const rootBackCoverage = rootTexture ? this.#measureEdgeCoverage(rootTexture, 'right') : 1;
     const barrelBodyCoverage = this.#measureBodyCoverage(barrelTexture);
     const rearBodyCoverage = this.#measureBodyCoverage(rearTexture);
 
@@ -446,6 +451,15 @@ export class SharedDartComponentRenderer {
     const pointDiameter = Math.max(.2, Number(assembly.point?.renderDiameterMm) || 2);
     const barrelDiameter = Math.max(.2, Number(assembly.barrel?.renderDiameterMm) || 2);
     const rearDiameterSafe = Math.max(.2, Number(rearDiameter) || 2);
+    const rootLengthSafe = rootTexture
+      ? Math.max(.1, Number(assembly.rearSystem?.renderRootLengthMm) || 2.5)
+      : 0;
+    const rootFrontDiameter = rootTexture
+      ? Math.max(.2, Number(assembly.rearSystem?.renderRootFrontDiameterMm) || rearDiameterSafe)
+      : rearDiameterSafe;
+    const rootRearDiameter = rootTexture
+      ? Math.max(.2, Number(assembly.rearSystem?.renderRootRearDiameterMm) || rootFrontDiameter)
+      : rootFrontDiameter;
     this.barrelRearJoinX = pointLength + barrelLength;
 
     const seam = resolveBarrelRearSeam({
@@ -478,6 +492,28 @@ export class SharedDartComponentRenderer {
     const barrelJoinSlope = profileEndpointSlope(barrelProfile, barrelLength, 'rear');
     const rearJoinSlope = profileEndpointSlope(rearProfile, rearLengthSafe, 'front');
 
+    let shaftRootSeam = null;
+    let rootProfile = null;
+    if (rootTexture) {
+      shaftRootSeam = resolveVisibleJoin({
+        leftNominalDiameterMm: rearDiameterSafe,
+        rightNominalDiameterMm: rootFrontDiameter,
+        leftCoverage: rearBackCoverage,
+        rightCoverage: rootFrontCoverage,
+        targetVisibleDiameterMm: rearDiameterSafe,
+      });
+      const rootFrontEnvelope = shaftRootSeam.rightEnvelopeMm;
+      const rootRearEnvelope = rootRearDiameter / Math.max(.15, rootBackCoverage);
+      rootProfile = buildSmoothBridgeProfile({
+        frontDiameterMm: rootFrontEnvelope,
+        rearDiameterMm: rootRearEnvelope,
+        lengthMm: rootLengthSafe,
+        flatFrontMm: Math.min(.5, rootLengthSafe * .18),
+        flatRearMm: Math.min(.5, rootLengthSafe * .18),
+        samples: 12,
+      });
+    }
+
     this.jointMetrics = {
       ...seam,
       barrelBodyCoverage,
@@ -489,7 +525,14 @@ export class SharedDartComponentRenderer {
       joinSlopeDeltaMmPerMm: Math.abs(barrelJoinSlope - rearJoinSlope),
       barrelId: assembly.barrel?.id,
       rearId: rearObject?.id,
-      policy: 'INTERNAL_ALPHA_BAND + SMOOTHSTEP + FLAT_TANGENT_JOIN',
+      shaftRootVisibleDeltaMm: Number(shaftRootSeam?.visibleDeltaMm || 0),
+      rootPresent: Boolean(rootTexture),
+      rootLengthMm: rootLengthSafe,
+      rootFrontDiameterMm: rootFrontDiameter,
+      rootRearDiameterMm: rootRearDiameter,
+      policy: rootTexture
+        ? 'BARREL_SHAFT_VISIBLE_JOIN + SHAFT_ROOT_VISIBLE_JOIN + SMOOTH_ROOT_BRIDGE'
+        : 'INTERNAL_ALPHA_BAND + SMOOTHSTEP + FLAT_TANGENT_JOIN',
     };
 
     let x = 0;
@@ -512,12 +555,20 @@ export class SharedDartComponentRenderer {
         profile: barrelProfile,
       },
       {
-        name: assembly.rearSystem ? 'rear-shaft' : 'shaft',
+        name: assembly.rearSystem ? 'rear-shaft-core' : 'shaft',
         length: rearLengthSafe,
         texture: rearTexture,
         profile: rearProfile,
       },
     ];
+    if (rootTexture && rootProfile) {
+      bodyDefinitions.push({
+        name: 'rear-root',
+        length: rootLengthSafe,
+        texture: rootTexture,
+        profile: rootProfile,
+      });
+    }
 
     for (const definition of bodyDefinitions) {
       const geometry = makeProfiledRibbonGeometry(
@@ -536,7 +587,8 @@ export class SharedDartComponentRenderer {
     const tail = assembly.rearSystem || assembly.flight;
     const flightLength = Number(tail.renderFlightLengthMm || tail.renderLengthMm || 42);
     const flightRadius = Number(tail.renderFlightRadiusMm || tail.renderRadiusMm || 18);
-    const flightRoot = x - 1.5;
+    const flightRootOverlapMm = Number(tail.flightRootOverlapMm ?? 1.5);
+    const flightRoot = x - flightRootOverlapMm;
     const flightGeometry = makeFlightGeometry(
       tail.planeProfile,
       flightRoot,
@@ -722,11 +774,14 @@ export class SharedDartComponentRenderer {
         maxTip < 1e-8 &&
         maxAxis < 1e-5 &&
         Number(this.jointMetrics?.visibleDeltaMm || 0) < 1e-8 &&
+        Number(this.jointMetrics?.shaftRootVisibleDeltaMm || 0) < 1e-8 &&
         Number(this.jointMetrics?.joinSlopeDeltaMmPerMm || 0) < 1e-8,
       maxTipDriftPx: maxTip,
       maxCanonicalAxisYErrorPx: maxAxis,
       jointVisibleDeltaMm: Number(this.jointMetrics?.visibleDeltaMm || 0),
       jointSlopeDeltaMmPerMm: Number(this.jointMetrics?.joinSlopeDeltaMmPerMm || 0),
+      shaftRootVisibleDeltaMm: Number(this.jointMetrics?.shaftRootVisibleDeltaMm || 0),
+      rootPresent: Boolean(this.jointMetrics?.rootPresent),
       planeOrientationDeg: [...PLANE_ORIENTATION_DEG],
       flightFacingSamples,
     };
