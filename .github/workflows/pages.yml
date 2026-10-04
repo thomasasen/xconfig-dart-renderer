@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - v1.4.1-flight-depth-backface
   pull_request:
     branches:
       - main
@@ -86,7 +87,7 @@ jobs:
 
   deploy:
     name: Deploy GitHub Pages
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v1.4.1-flight-depth-backface')
     needs: validate
     runs-on: ubuntu-latest
 
