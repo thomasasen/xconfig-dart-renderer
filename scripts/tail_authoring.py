@@ -568,6 +568,18 @@ def author_tail_components(image: Image.Image, seed_range=None, integrated: bool
         final_seed_start+max(2,int(final_span*fit_fraction)),
     )
     aligned_axis=analyze_axis(aligned,final_fit_range)
+    # A single resample can leave a small measurable residual because alpha-antialiasing
+    # changes the fitted silhouette. Apply one final rigid correction when that residual
+    # is still visible; never loop and never locally warp the source.
+    if .12 < abs(aligned_axis.angle_deg) <= 2.0:
+        aligned=align_image_to_axis(aligned,aligned_axis,max_auto_angle_deg=2.0)
+        final_seed_start,final_seed_end=_bounds_px(seed_range,aligned.width)
+        final_span=max(2,final_seed_end-final_seed_start)
+        final_fit_range=(
+            final_seed_start,
+            final_seed_start+max(2,int(final_span*fit_fraction)),
+        )
+        aligned_axis=analyze_axis(aligned,final_fit_range)
     profile = build_silhouette_profile(aligned, aligned_axis)
     shaft = detect_shaft_core(profile, seed_range=seed_range, integrated=integrated)
     root_candidate = detect_rear_root(profile, shaft)
