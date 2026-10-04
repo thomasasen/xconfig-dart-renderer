@@ -462,7 +462,7 @@ def _split_source_grounded(key,spec):
             'overallConfidence':tail_analysis['confidence'],
             'status':tail_analysis['status'],
         },
-        'rootAuthored':bool(spec['integrated'] and tail_result.get('rearRootImage') is not None),
+        'rootAuthored':bool(spec['integrated'] and tail_analysis['status'] in ('PASS','NEEDS_MANUAL_REVIEW') and tail_result.get('rearRootImage') is not None),
         'componentProvenance':{
             'point':'SOURCE-GROUNDED',
             'barrel':'SOURCE-GROUNDED',
