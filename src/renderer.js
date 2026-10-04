@@ -753,6 +753,51 @@ export class SharedDartComponentRenderer {
       this.planeMeshes.push(frontMesh);
     }
 
+    this.flightSpineMesh = null;
+    this.flightSpineMeta = null;
+    const spine = tail.finFaceAuthoring?.spineMaterial;
+    if (assembly.rearSystem && spine) {
+      const colorRgb = Array.isArray(spine.colorRgb) ? spine.colorRgb : [128, 128, 128];
+      const diameterMm = Math.max(.35, Number(spine.diameterMm || 1.0));
+      const opacity = clamp(Number(spine.opacity ?? .9), .1, 1);
+      const geometry = new THREE.CylinderGeometry(
+        diameterMm / 2,
+        diameterMm / 2,
+        flightLength,
+        12,
+        1,
+        false
+      );
+      geometry.rotateZ(-Math.PI / 2);
+      geometry.translate(flightRoot + flightLength / 2, 0, 0);
+      const material = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(
+          clamp(Number(colorRgb[0] || 0) / 255, 0, 1),
+          clamp(Number(colorRgb[1] || 0) / 255, 0, 1),
+          clamp(Number(colorRgb[2] || 0) / 255, 0, 1)
+        ),
+        transparent: opacity < .999,
+        opacity,
+        depthTest: true,
+        depthWrite: true,
+        side: THREE.DoubleSide,
+        toneMapped: false,
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.name = 'flight-integrated-axis-spine';
+      mesh.renderOrder = 40;
+      this.flightGroup.add(mesh);
+      this.flightSpineMesh = mesh;
+      this.flightSpineMeta = {
+        present: true,
+        diameterMm,
+        opacity,
+        colorRgb: colorRgb.map((value) => Number(value)),
+        provenance: spine.provenance || 'APPROXIMATED',
+        diameterProvenance: spine.diameterProvenance || 'HEURISTIC',
+      };
+    }
+
     this.totalLength = x + flightLength;
     this.scene.updateMatrixWorld(true);
     return this;
@@ -892,6 +937,7 @@ export class SharedDartComponentRenderer {
       flightMeshCount: this.planeMeshes?.length || 0,
       flightSurfaceMeshCount: this.flightSurfaceMeshes?.length || 0,
       flightFacing: this.#flightFacing(),
+      flightSpine: this.flightSpineMeta || { present: false },
       flightRenderOrder: (this.flightFins || []).map((fin) => ({
         name: fin.key,
         plane: fin.plane,
@@ -956,7 +1002,8 @@ export class SharedDartComponentRenderer {
         Number(this.jointMetrics?.joinSlopeDeltaMmPerMm || 0) < 1e-8 &&
         this.planeMeshes?.length === 4 &&
         this.flightSurfaceMeshes?.length === 8 &&
-        this.flightFins?.every((fin, index) => fin.azimuthDeg === FIN_AZIMUTH_DEG[index]),
+        this.flightFins?.every((fin, index) => fin.azimuthDeg === FIN_AZIMUTH_DEG[index]) &&
+        (!this.assembly?.rearSystem?.finFaceAuthoring?.spineMaterial || Boolean(this.flightSpineMesh)),
       maxTipDriftPx: maxTip,
       maxCanonicalAxisYErrorPx: maxAxis,
       jointVisibleDeltaMm: Number(this.jointMetrics?.visibleDeltaMm || 0),
@@ -966,6 +1013,7 @@ export class SharedDartComponentRenderer {
       finAzimuthDeg: [...FIN_AZIMUTH_DEG],
       flightMeshCount: this.planeMeshes?.length || 0,
       flightSurfaceMeshCount: this.flightSurfaceMeshes?.length || 0,
+      flightSpine: this.flightSpineMeta || { present: false },
       flightTopology: 'FOUR_EXPLICIT_RADIAL_FINS_0_90_180_270_WITH_SEPARATE_FACE_SURFACES',
       flightFacingSamples,
     };
