@@ -238,8 +238,14 @@ def author_visible_half_fins(
     bottom_back = _material_only_backface(bottom_source, material_alpha)
 
     metadata = {
-        "mode": "TWO_VISIBLE_HALF_FINS_RECTIFIED",
+        "mode": "REFERENCE_PLANE_SOURCE_SAMPLES",
         "sourceLabel": source_label,
+        "geometryModel": "FOUR_RADIAL_FINS_0_90_180_270",
+        "geometryInferenceFromPhoto": False,
+        "sourceAppearanceSampleCount": 2,
+        "referencePlane": "A",
+        "referenceRollDeg": 0,
+        "referencePlaneCalibration": "PLAUSIBLE_BROADSIDE_NOT_EXACT_RECONSTRUCTION",
         "faceStartPx": int(face_start),
         "faceEndPx": int(face_end),
         "axisPx": round(centre, 3),
