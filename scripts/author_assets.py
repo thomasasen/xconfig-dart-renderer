@@ -9,6 +9,7 @@ import cv2
 from tail_authoring import author_tail_components
 from flight_backface import build_backface_approximation
 from flight_fin_authoring import author_visible_half_fins
+from flight_geometry_reference import NO6_PROFILE, NO2_PROFILE, STANDARD_PROFILE, VAPOR_S_PROFILE, CANONICAL_PROFILES, PROFILE_PROVENANCE
 
 ROOT=Path(__file__).resolve().parents[1]
 SRC=ROOT/'assets/source'
@@ -232,14 +233,6 @@ def largest_alpha_component(img:Image.Image, threshold=24):
     rgba[:,:,3]=np.minimum(rgba[:,:,3],keep).astype(np.uint8)
     return trim_alpha(Image.fromarray(rgba,'RGBA'),threshold)
 
-NO6_PROFILE=[[0.00,0.00],[0.08,0.30],[0.22,0.90],[0.68,1.00],[0.94,0.72],[1.00,0.35],[1.00,-0.35],[0.94,-0.72],[0.68,-1.00],[0.22,-0.90],[0.08,-0.30]]
-NO2_PROFILE=[[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[1.00,-0.45],[0.90,-0.82],[0.60,-1.00],[0.18,-0.96],[0.06,-0.34]]
-STANDARD_PROFILE=[[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[1.00,-0.45],[0.90,-0.82],[0.60,-1.00],[0.18,-0.96],[0.06,-0.34]]
-# Vapor S is a narrow elongated flight. Exact manufacturer CAD is not available in
-# the source bundle, so this canonical outline is an explicit geometry heuristic,
-# while the printed artwork remains source-grounded.
-VAPOR_S_PROFILE=[[0.00,0.00],[0.10,0.24],[0.28,0.72],[0.56,1.00],[0.82,0.90],[1.00,0.48],[1.00,-0.48],[0.82,-0.90],[0.56,-1.00],[0.28,-0.72],[0.10,-0.24]]
-CANONICAL_PROFILES={'NO6':NO6_PROFILE,'NO2':NO2_PROFILE,'STANDARD':STANDARD_PROFILE,'VAPOR_S':VAPOR_S_PROFILE}
 
 def mask_to_flight_profile(image:Image.Image, profile):
     rgba=image.convert('RGBA')
@@ -511,8 +504,9 @@ for key,spec in SPECS.items():
             'geometrySource':(
                 'HEURISTIC_FLIGHT_SHAPE'
                 if spec['canonicalProfile']=='VAPOR_S'
-                else 'KNOWN_FLIGHT_SHAPE'
+                else 'KNOWN_FLIGHT_FAMILY+REFERENCE_CONTOUR_APPROXIMATION'
             ),
+            'profileProvenance':PROFILE_PROVENANCE.get(spec['canonicalProfile']),
         })
 
     fin_authoring=None
