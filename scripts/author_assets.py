@@ -474,6 +474,8 @@ for key,spec in SPECS.items():
     if tail_status in ('PASS','NEEDS_MANUAL_REVIEW'):
         tail_name='rear-shaft' if spec['rear'] else 'shaft'
         crops[tail_name]=tail_result['shaftCoreImage']
+        if spec['rear']:
+            crops['rear-shaft-core']=tail_result['shaftCoreImage']
         if spec['rear'] and tail_result.get('rearRootImage') is not None:
             crops['rear-root']=tail_result['rearRootImage']
     if spec['bg']=='dark-roi':
