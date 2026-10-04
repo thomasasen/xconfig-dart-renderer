@@ -73,6 +73,9 @@ SOURCE_GROUNDED_SPECS = {
         'officialPage': 'https://www.target-darts.co.uk/nathan-aspinall-95k-sp',
         'visibleHalfFins': True,
         'flightMaterialAlpha': 0.56,
+        # The exact review image has a narrow No.2 flight in perspective; its measured
+        # tail/body span ratio is ~1.43, just below the generic 1.45 close-up gate.
+        'tailSpanRatioMin': 1.38,
         'sources': [
             # Same steel-tip product sheet used in the manual review: one complete
             # assembled dart plus an independent barrel close-up on white.
@@ -160,7 +163,7 @@ def _foreground_mask(image):
     mask=cv2.morphologyEx(mask,cv2.MORPH_OPEN,np.ones((k,k),np.uint8))
     return mask,dist,alpha
 
-def _best_elongated_roi(image):
+def _best_elongated_roi(image, tail_span_ratio_min=1.45):
     mask,dist,source_alpha=_foreground_mask(image)
     h,w=mask.shape
     candidates=[]
@@ -268,9 +271,10 @@ def _best_elongated_roi(image):
                 raise ValueError('lacks measurable body/tail silhouette')
             body_span=float(np.median(body))
             tail_span=float(np.percentile(tail,75))
-            if tail_span < body_span*1.45:
+            ratio_min=float(tail_span_ratio_min)
+            if tail_span < body_span*ratio_min:
                 raise ValueError(
-                    f'tail span {tail_span:.1f}px vs body {body_span:.1f}px (need >= 1.45x)'
+                    f'tail span {tail_span:.1f}px vs body {body_span:.1f}px (need >= {ratio_min:.2f}x)'
                 )
             return result
         except Exception as exc:
@@ -395,7 +399,7 @@ def _split_source_grounded(key,spec):
     for candidate_url in spec['sources']:
         try:
             raw,_=_download_product_image([candidate_url])
-            candidate=_best_elongated_roi(raw)
+            candidate=_best_elongated_roi(raw,spec.get('tailSpanRatioMin',1.45))
             dart=candidate
             source_url=candidate_url
             break
