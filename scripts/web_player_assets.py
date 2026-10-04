@@ -8,6 +8,7 @@ import numpy as np
 import cv2
 from tail_authoring import author_tail_components
 from flight_backface import build_backface_approximation
+from flight_fin_authoring import author_visible_half_fins
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'assets' / 'components'
@@ -62,6 +63,37 @@ SOURCE_GROUNDED_SPECS = {
             'https://www.flightclub.ie/cdn/shop/files/download_31.png?v=1727272211',
             'https://dartshop-bonn.de/WebRoot/Store21/Shops/1be89036-dc4e-4547-8d3b-58f763e72e84/6709/06AB/5F9D/F017/838C/0A48/352D/E048/target-gabriel-clemens-95k-95-swiss.jpg',
             'https://www.dartswarehouse.nl/media/catalog/product/cache/f20831aa4fe732f409bd1d4a248f932d/image/314593a22/target-gabriel-clemens-95k-95-swiss.jpg',
+        ],
+    },
+    'aspinall-95k': {
+        'integrated': True,
+        'shape': 'No.2',
+        'profile': None,
+        'splits': [0.188, 0.551, 0.688],
+        'officialPage': 'https://www.target-darts.co.uk/nathan-aspinall-95k-sp',
+        'visibleHalfFins': True,
+        'flightMaterialAlpha': 0.56,
+        'sources': [
+            # Same steel-tip product sheet used in the manual review: one complete
+            # assembled dart plus an independent barrel close-up on white.
+            'https://www.180darts.nl/images/show/product/target-nathan-aspinall-95k-swiss-point-95-dartpijlen.jpg',
+            'https://www.dartfieber.de/media/d5/dc/20/1765360835/I_85104_190403_NATHAN_ASPINALL_95K_PACKAGING_-_Kopie.jpg?ts=1765360835',
+        ],
+    },
+    'bunting-95k': {
+        'integrated': True,
+        'shape': 'No.2',
+        'profile': None,
+        'splits': [0.191, 0.537, 0.684],
+        'officialPage': 'https://www.target-darts.co.uk/stephen-bunting-95k-sp',
+        'visibleHalfFins': True,
+        'flightMaterialAlpha': 0.58,
+        'sources': [
+            # Exact review-style product sheet: portrait, one complete assembled dart
+            # and a separate barrel close-up. The elongated-object gate extracts only
+            # the complete dart and discards the other panels.
+            'https://www.mcdartshop.nl/files/images/15553.jpg',
+            'https://www.deadeyedarts.com/cdn/shop/files/d3452-lot.jpg?v=1746158897&width=416',
         ],
     },
     'humphries-prestige': {
@@ -383,6 +415,7 @@ def _split_source_grounded(key,spec):
         bbox=part.getbbox()
         if bbox: part=part.crop(bbox)
         parts[name]=part
+    raw_flight_composite=parts['flight-plane-a'].copy()
 
     tail_result=author_tail_components(
         dart,
@@ -423,8 +456,53 @@ def _split_source_grounded(key,spec):
             'geometrySource':'KNOWN_FLIGHT_SHAPE',
         })
 
-    # Plane B is intentionally only an approximation. Do not mirror/copy source
-    # artwork: repeated text/logos on a perpendicular fin falsely implies known pixels.
+    fin_authoring=None
+    if spec.get('visibleHalfFins') and spec.get('integrated'):
+        authored_fins=author_visible_half_fins(
+            raw_flight_composite,
+            material_alpha=spec.get('flightMaterialAlpha'),
+            source_label=source_url,
+        )
+        parts['flight-fin-a-positive-front']=authored_fins.top
+        parts['flight-fin-b-positive-front']=authored_fins.bottom
+        parts['flight-fin-a-approx']=authored_fins.top_back
+        parts['flight-fin-b-approx']=authored_fins.bottom_back
+        fin_authoring={
+            **authored_fins.metadata,
+            'textures':{
+                'A-positive':{
+                    'front':'flight-fin-a-positive-front',
+                    'back':'flight-fin-a-approx',
+                    'frontProvenance':'SOURCE-GROUNDED+APPROXIMATED-ALPHA',
+                    'backProvenance':'APPROXIMATED',
+                    'vAtAxis':1,
+                },
+                'A-negative':{
+                    'front':'flight-fin-a-approx',
+                    'back':'flight-fin-a-approx',
+                    'frontProvenance':'APPROXIMATED',
+                    'backProvenance':'APPROXIMATED',
+                    'vAtAxis':0,
+                },
+                'B-positive':{
+                    'front':'flight-fin-b-positive-front',
+                    'back':'flight-fin-b-approx',
+                    'frontProvenance':'SOURCE-GROUNDED+APPROXIMATED-ALPHA',
+                    'backProvenance':'APPROXIMATED',
+                    'vAtAxis':0,
+                },
+                'B-negative':{
+                    'front':'flight-fin-b-approx',
+                    'back':'flight-fin-b-approx',
+                    'frontProvenance':'APPROXIMATED',
+                    'backProvenance':'APPROXIMATED',
+                    'vAtAxis':0,
+                },
+            },
+        }
+
+    # Legacy Plane B remains as a compatibility/material approximation for presets that
+    # have not yet been upgraded to per-half-fin face authoring.
     parts['flight-plane-b-approx']=backface(parts['flight-plane-a'])
 
     d=OUT/key
@@ -465,6 +543,7 @@ def _split_source_grounded(key,spec):
         'rearIntegrated':spec['integrated'],
         'flightExtractionMode':(flight_qc or {}).get('mode','DIRECT_SOURCE_FACE'),
         'flightApproximation':flight_qc,
+        'finFaceAuthoring':fin_authoring,
         'axisAuthoring':tail_result['axisAuthoring'],
         'tailSegmentation':tail_result['tailSegmentation'],
         'tailMetrics':tail_result['tailMetrics'],
