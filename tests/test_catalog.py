@@ -32,6 +32,12 @@ for pid,p in cat['presets'].items():
     point=c['points'].get(p['pointId']); barrel=c['barrels'].get(p['barrelId'])
     check(point is not None,f'{pid}: missing point');check(barrel is not None,f'{pid}: missing barrel')
     if point and barrel: check(point['interface']==barrel['pointInterface'],f'{pid}: point/barrel interface mismatch')
+    comparison=p.get('comparisonSourceImage','').replace('./','')
+    check(bool(comparison),f'{pid}: missing comparisonSourceImage')
+    if comparison: check((ROOT/comparison).exists(),f'{pid}: comparison source missing: {comparison}')
+    source_pose=p.get('sourceComparisonPose') or {}
+    check(source_pose.get('provenance')=='HEURISTIC-SOURCE-MATCH',f'{pid}: source comparison pose must stay explicitly heuristic')
+    check(abs(float(source_pose.get('incidenceDeg',999))) <= 1e-9,f'{pid}: source comparison must not add incidence perspective')
     rid=p.get('rearSystemId')
     if rid:
         rear=c['rearSystems'].get(rid);check(rear is not None,f'{pid}: missing rear');check(not p.get('shaftId') and not p.get('flightId'),f'{pid}: integrated rear must exclude shaft/flight')
@@ -85,6 +91,27 @@ for group,items in c.items():
             else:
                 check(plane_a=='SOURCE-GROUNDED',f'{group}/{cid}: product plane A must be source grounded')
             check(o.get('faceEvidence',{}).get('planeB')=='APPROXIMATED',f'{group}/{cid}: plane B must be approximated unless verified')
+            # V1.4: photographed silhouette/perspective is artwork evidence only.
+            # Physical fin geometry must come from a canonical profile, while source
+            # pixels are fitted through an explicit UV envelope.
+            check(o.get('planeProfileProvenance')=='CANONICAL-GEOMETRY-NOT-PHOTOGRAPHED-POSE',
+                  f'{group}/{cid}: photographed flight silhouette leaked into 3D geometry')
+            profile=o.get('planeProfile') or []
+            if profile:
+                top=max(float(p[1]) for p in profile)
+                bottom=min(float(p[1]) for p in profile)
+                check(top > .5 and bottom < -.5,f'{group}/{cid}: canonical flight profile has insufficient fin extent')
+                check(abs(top + bottom) <= .08,f'{group}/{cid}: canonical flight profile is not vertically balanced ({top}, {bottom})')
+            envelope=o.get('planeUvEnvelope') or []
+            check(len(envelope)>=12,f'{group}/{cid}: source UV envelope too small')
+            previous_u=-1.0
+            for row in envelope:
+                check(len(row)==3,f'{group}/{cid}: malformed UV envelope row {row}')
+                if len(row)!=3: continue
+                u,upper,lower=map(float,row)
+                check(previous_u <= u <= 1.0,f'{group}/{cid}: UV envelope is not monotonic')
+                check(0.0 <= upper <= lower <= 1.0,f'{group}/{cid}: invalid UV envelope bounds {row}')
+                previous_u=u
 
 # Web-researched player presets must keep their provenance explicit and their
 # local source panels present. In particular, Gabriel Clemens is a hard user
