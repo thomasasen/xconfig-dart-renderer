@@ -147,7 +147,13 @@ function bodyProfile({
   ];
 }
 
-function makeFlightGeometry(profile, root, length, radius) {
+function makeFlightGeometry(
+  profile,
+  root,
+  length,
+  radius,
+  { halfTexture = false, vAtAxis = 0.5 } = {}
+) {
   const points = Array.isArray(profile) && profile.length >= 3
     ? profile
     : [[0, 0], [.25, 1], [1, .8], [1, -.8], [.25, -1]];
@@ -163,11 +169,23 @@ function makeFlightGeometry(profile, root, length, radius) {
   const geometry = new THREE.ShapeGeometry(shape);
   const position = geometry.getAttribute('position');
   const uv = new Float32Array(position.count * 2);
+  const axisV = clamp(vAtAxis, 0, 1);
   for (let index = 0; index < position.count; index += 1) {
     const x = position.getX(index);
     const y = position.getY(index);
     uv[index * 2] = clamp((x - root) / length, 0, 1);
-    uv[index * 2 + 1] = clamp(.5 - y / (2 * radius), 0, 1);
+    if (halfTexture) {
+      const radial = clamp(Math.abs(y) / Math.max(.0001, radius), 0, 1);
+      uv[index * 2 + 1] = clamp(
+        axisV + (1 - 2 * axisV) * radial,
+        0,
+        1
+      );
+    } else {
+      // Legacy whole-plane texture: each physical half samples its corresponding
+      // half of the original full-height canonical texture.
+      uv[index * 2 + 1] = clamp(.5 - y / (2 * radius), 0, 1);
+    }
   }
   geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   geometry.computeBoundingSphere();
@@ -270,14 +288,14 @@ export class SharedDartComponentRenderer {
     return texture;
   }
 
-  #mat(texture, { flight = false } = {}) {
+  #mat(texture, { flight = false, side = THREE.DoubleSide } = {}) {
     const material = new THREE.MeshBasicMaterial({
       map: texture,
       transparent: true,
       alphaTest: .018,
       depthTest: true,
       depthWrite: !flight,
-      side: THREE.DoubleSide,
+      side,
       toneMapped: false,
     });
     material.forceSinglePass = true;
@@ -599,31 +617,100 @@ export class SharedDartComponentRenderer {
     const planeBTexture = await this.#texture(tail.planeBTexture || tail.planeATexture);
     if (generation !== this.assemblyGeneration) return this;
 
+    this.flightFins = [];
+    this.flightSurfaceMeshes = [];
     this.planeMeshes = [];
     const halfDefinitions = [
       ['negative', halfProfiles.negative],
       ['positive', halfProfiles.positive],
     ];
+
     for (let planeIndex = 0; planeIndex < 2; planeIndex += 1) {
+      const planeName = planeIndex ? 'B' : 'A';
       for (let halfIndex = 0; halfIndex < halfDefinitions.length; halfIndex += 1) {
         const [halfName, halfProfile] = halfDefinitions[halfIndex];
-        const geometry = makeFlightGeometry(
+        const finKey = `${planeName}-${halfName}`;
+        const authoredFace = tail.finTextures?.[finKey] || null;
+        const halfTexture = Boolean(authoredFace);
+        const vAtAxis = Number(authoredFace?.vAtAxis ?? .5);
+
+        // Explicit face authoring never lets a readable source texture bleed through
+        // the reverse side. Legacy designs conservatively use Plane A only on the
+        // camera-facing side of plane A; every reverse/perpendicular surface uses the
+        // already-labelled Plane-B approximation.
+        const defaultFrontUrl = planeIndex === 0
+          ? tail.planeATexture
+          : (tail.planeBTexture || tail.planeATexture);
+        const frontUrl = authoredFace?.front || defaultFrontUrl;
+        const backUrl = authoredFace?.back || tail.planeBTexture || tail.planeATexture;
+        const frontTexture = frontUrl === tail.planeATexture
+          ? planeATexture
+          : frontUrl === tail.planeBTexture
+            ? planeBTexture
+            : await this.#texture(frontUrl);
+        const backTexture = backUrl === tail.planeATexture
+          ? planeATexture
+          : backUrl === tail.planeBTexture
+            ? planeBTexture
+            : await this.#texture(backUrl);
+        if (generation !== this.assemblyGeneration) return this;
+
+        const frontGeometry = makeFlightGeometry(
           halfProfile,
           flightRoot,
           flightLength,
-          flightRadius
+          flightRadius,
+          { halfTexture, vAtAxis }
         );
-        const mesh = new THREE.Mesh(
-          geometry,
-          this.#mat(planeIndex === 0 ? planeATexture : planeBTexture, { flight: true })
+        const backGeometry = frontGeometry.clone();
+        const stableIndex = planeIndex * 2 + halfIndex;
+
+        const frontMesh = new THREE.Mesh(
+          frontGeometry,
+          this.#mat(frontTexture, { flight: true, side: THREE.FrontSide })
         );
-        mesh.rotation.x = deg(PLANE_ORIENTATION_DEG[planeIndex]);
-        mesh.name = `flight-plane-${planeIndex ? 'B' : 'A'}-${halfName}`;
-        mesh.userData.flightPlane = planeIndex ? 'B' : 'A';
-        mesh.userData.flightHalf = halfName;
-        mesh.userData.flightStableIndex = planeIndex * 2 + halfIndex;
-        this.flightGroup.add(mesh);
-        this.planeMeshes.push(mesh);
+        frontMesh.rotation.x = deg(PLANE_ORIENTATION_DEG[planeIndex]);
+        frontMesh.name = `flight-fin-${finKey}-front`;
+
+        const backMesh = new THREE.Mesh(
+          backGeometry,
+          this.#mat(backTexture, { flight: true, side: THREE.BackSide })
+        );
+        backMesh.rotation.x = deg(PLANE_ORIENTATION_DEG[planeIndex]);
+        backMesh.name = `flight-fin-${finKey}-back`;
+
+        for (const mesh of [frontMesh, backMesh]) {
+          mesh.userData.flightPlane = planeName;
+          mesh.userData.flightHalf = halfName;
+          mesh.userData.flightStableIndex = stableIndex;
+          this.flightGroup.add(mesh);
+          this.flightSurfaceMeshes.push(mesh);
+        }
+
+        frontMesh.userData.flightFace = 'front';
+        backMesh.userData.flightFace = 'back';
+
+        const fin = {
+          key: finKey,
+          plane: planeName,
+          half: halfName,
+          stableIndex,
+          frontMesh,
+          backMesh,
+          frontUrl,
+          backUrl,
+          frontProvenance: authoredFace?.frontProvenance
+            || (planeIndex === 0 ? tail.planeAProvenance : tail.planeBProvenance)
+            || 'UNKNOWN',
+          backProvenance: authoredFace?.backProvenance
+            || tail.planeBProvenance
+            || 'APPROXIMATED',
+          halfTexture,
+          vAtAxis,
+        };
+        this.flightFins.push(fin);
+        // Backwards-compatible physical-fin handle used by facing/self-test code.
+        this.planeMeshes.push(frontMesh);
       }
     }
 
@@ -642,10 +729,11 @@ export class SharedDartComponentRenderer {
   }
 
   #updateFlightOrder() {
-    if (!this.planeMeshes?.length) return;
+    if (!this.flightFins?.length) return;
     this.scene.updateMatrixWorld(true);
     this.camera.updateMatrixWorld(true);
-    const ranked = this.planeMeshes.map((mesh) => {
+    const ranked = this.flightFins.map((fin) => {
+      const mesh = fin.frontMesh;
       mesh.geometry.computeBoundingSphere();
       const center = mesh.geometry.boundingSphere.center.clone().applyMatrix4(mesh.matrixWorld);
       const cameraCenter = center.clone().applyMatrix4(this.camera.matrixWorldInverse);
@@ -653,27 +741,32 @@ export class SharedDartComponentRenderer {
         .applyQuaternion(mesh.getWorldQuaternion(new THREE.Quaternion()))
         .normalize();
       const facing = Math.abs(normal.z);
-      // A mathematically edge-on transparent half-fin has zero projected area. Keeping
-      // it active can still produce unstable raster fragments on some WebGL drivers.
-      mesh.visible = facing > 1e-4;
+      // Both face meshes describe one physical half-fin. Hide/order them together.
+      const visible = facing > 1e-4;
+      fin.frontMesh.visible = visible;
+      fin.backMesh.visible = visible;
       const cameraDepth = -cameraCenter.z;
-      mesh.userData.cameraDepth = cameraDepth;
+      fin.cameraDepth = cameraDepth;
+      fin.frontMesh.userData.cameraDepth = cameraDepth;
+      fin.backMesh.userData.cameraDepth = cameraDepth;
       return {
-        mesh,
+        fin,
         cameraDepth,
-        stableIndex: Number(mesh.userData.flightStableIndex) || 0,
+        stableIndex: fin.stableIndex,
       };
     });
 
-    // After splitting on the physical intersection line, the four transparent half-fins
-    // no longer intersect over an area. Their relative depth is therefore consistent
-    // within every overlapping region and a back-to-front half-fin order is valid.
+    // Physical half-fins meet only at the dart axis, so their painter order is valid.
+    // Front/back surface meshes of one fin share the same order; side culling guarantees
+    // that only the physically visible face contributes fragments.
     ranked.sort((a, b) =>
       (b.cameraDepth - a.cameraDepth) ||
       (a.stableIndex - b.stableIndex)
     );
-    ranked.forEach(({ mesh }, index) => {
-      mesh.renderOrder = 20 + index;
+    ranked.forEach(({ fin }, index) => {
+      const order = 20 + index;
+      fin.frontMesh.renderOrder = order;
+      fin.backMesh.renderOrder = order;
     });
   }
 
@@ -756,16 +849,22 @@ export class SharedDartComponentRenderer {
       tipDriftPx: tipDrift,
       canonicalAxisYErrorPx: axisYError,
       contract: XCONFIG_SPRITE_CONTRACT,
-      flightPlaneModel: 'FOUR_NON_INTERSECTING_HALF_FINS_SHARED_AXIS_90_DEG',
+      flightPlaneModel: 'FOUR_HALF_FINS_WITH_EXPLICIT_FRONT_BACK_FACES_SHARED_AXIS_90_DEG',
       flightMeshCount: this.planeMeshes?.length || 0,
+      flightSurfaceMeshCount: this.flightSurfaceMeshes?.length || 0,
       flightFacing: this.#flightFacing(),
-      flightRenderOrder: (this.planeMeshes || []).map((mesh) => ({
-        name: mesh.name,
-        plane: mesh.userData.flightPlane,
-        half: mesh.userData.flightHalf,
-        cameraDepth: Number(mesh.userData.cameraDepth || 0),
-        renderOrder: mesh.renderOrder,
-        visible: mesh.visible,
+      flightRenderOrder: (this.flightFins || []).map((fin) => ({
+        name: fin.key,
+        plane: fin.plane,
+        half: fin.half,
+        cameraDepth: Number(fin.cameraDepth || 0),
+        renderOrder: fin.frontMesh.renderOrder,
+        visible: fin.frontMesh.visible,
+        frontTexture: fin.frontUrl,
+        backTexture: fin.backUrl,
+        frontProvenance: fin.frontProvenance,
+        backProvenance: fin.backProvenance,
+        halfTexture: fin.halfTexture,
       })),
       jointSprite,
       jointMetrics: this.jointMetrics,
@@ -814,7 +913,8 @@ export class SharedDartComponentRenderer {
         Number(this.jointMetrics?.visibleDeltaMm || 0) < 1e-8 &&
         Number(this.jointMetrics?.shaftRootVisibleDeltaMm || 0) < 1e-8 &&
         Number(this.jointMetrics?.joinSlopeDeltaMmPerMm || 0) < 1e-8 &&
-        this.planeMeshes?.length === 4,
+        this.planeMeshes?.length === 4 &&
+        this.flightSurfaceMeshes?.length === 8,
       maxTipDriftPx: maxTip,
       maxCanonicalAxisYErrorPx: maxAxis,
       jointVisibleDeltaMm: Number(this.jointMetrics?.visibleDeltaMm || 0),
@@ -823,7 +923,8 @@ export class SharedDartComponentRenderer {
       rootPresent: Boolean(this.jointMetrics?.rootPresent),
       planeOrientationDeg: [...PLANE_ORIENTATION_DEG],
       flightMeshCount: this.planeMeshes?.length || 0,
-      flightTopology: 'FOUR_NON_INTERSECTING_HALF_FINS_SHARED_AXIS_90_DEG',
+      flightSurfaceMeshCount: this.flightSurfaceMeshes?.length || 0,
+      flightTopology: 'FOUR_HALF_FINS_WITH_EXPLICIT_FRONT_BACK_FACES_SHARED_AXIS_90_DEG',
       flightFacingSamples,
     };
   }
