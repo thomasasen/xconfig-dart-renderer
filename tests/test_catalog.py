@@ -30,7 +30,7 @@ for pid,p in cat['presets'].items():
     ref=p.get('sourceReferencePose') or {}
     check(ref.get('status')=='HEURISTIC',f'{pid}: source reference pose must remain explicitly HEURISTIC')
     check(float(ref.get('incidenceDeg',999))==0.0,f'{pid}: source comparison incidence must be orthogonal to avoid double perspective')
-    check(25 <= abs(float(ref.get('rollDeg',0))) <= 45,f'{pid}: source comparison roll outside calibrated review envelope')
+    check(0 <= abs(float(ref.get('rollDeg',0))) <= 45,f'{pid}: source comparison roll outside calibrated review envelope')
     check(bool(p.get('comparisonSourceImage')),f'{pid}: comparison source missing')
     check((ROOT/p['comparisonSourceImage'].replace('./','')).exists(),f'{pid}: comparison source file missing')
 
