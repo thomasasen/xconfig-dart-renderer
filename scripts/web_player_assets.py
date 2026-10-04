@@ -83,6 +83,10 @@ SOURCE_GROUNDED_SPECS = {
         # neighbouring barrel close-up is a different panel. This is a source-layout
         # constraint, not an assumption about the dart's real pose.
         'requiredCandidateOrientation': 'vertical',
+        # Normalized ROI of the complete assembled dart in the recorded primary
+        # product sheet. This explicitly excludes the separate barrel close-up at the
+        # right edge instead of trying to infer panel semantics from silhouette alone.
+        'primarySourceRoi': [0.54, 0.00, 0.84, 1.00],
         'sources': [
             # Same steel-tip product sheet used in the manual review: one complete
             # assembled dart plus an independent barrel close-up on white.
@@ -103,6 +107,9 @@ SOURCE_GROUNDED_SPECS = {
         # The complete assembled dart is vertical in this exact recorded sheet; use
         # that layout fact to reject the adjacent barrel detail panel.
         'requiredCandidateOrientation': 'vertical',
+        # Normalized ROI of the complete assembled dart in the recorded primary
+        # product sheet; the large barrel detail remains outside this window.
+        'primarySourceRoi': [0.53, 0.00, 0.83, 1.00],
         'sources': [
             # Exact review-style product sheet: portrait, one complete assembled dart
             # and a separate barrel close-up. The elongated-object gate extracts only
@@ -466,9 +473,18 @@ def _split_source_grounded(key,spec):
     errors=[]
     dart=None
     source_url=None
-    for candidate_url in spec['sources']:
+    for source_index,candidate_url in enumerate(spec['sources']):
         try:
             raw,_=_download_product_image([candidate_url])
+            roi_applied=None
+            if source_index == 0 and spec.get('primarySourceRoi'):
+                x0n,y0n,x1n,y1n=[float(v) for v in spec['primarySourceRoi']]
+                x0=max(0,min(raw.width-1,round(x0n*raw.width)))
+                y0=max(0,min(raw.height-1,round(y0n*raw.height)))
+                x1=max(x0+1,min(raw.width,round(x1n*raw.width)))
+                y1=max(y0+1,min(raw.height,round(y1n*raw.height)))
+                raw=raw.crop((x0,y0,x1,y1))
+                roi_applied=[x0n,y0n,x1n,y1n]
             candidate=_best_elongated_roi(
                 raw,
                 spec.get('tailSpanRatioMin',1.45),
@@ -614,6 +630,7 @@ def _split_source_grounded(key,spec):
     return {
         'sourceFile':source_name,
         'sourceUrl':source_url,
+        'sourceRoiNormalized':roi_applied,
         'sourcePage':spec['officialPage'],
         'flightProductPage':spec.get('flightProductPage'),
         'componentSources':{
