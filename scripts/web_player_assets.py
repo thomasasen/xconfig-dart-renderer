@@ -581,14 +581,17 @@ def _split_source_grounded(key,spec):
         fin_authoring={
             **authored_fins.metadata,
             'textures':{
-                # Broadside source: top/bottom are the two physical halves of the
-                # same face-on A plane. The perpendicular B plane is only visible as a
-                # narrow centre ridge, so its full surfaces remain APPROXIMATED.
+                # The product photo supplies two appearance samples. They are calibrated to
+                # the roll=0 reference plane only; the actual photographed roll is not
+                # claimed to be reconstructable. Perpendicular/hidden surfaces remain
+                # APPROXIMATED.
                 'A-positive':{
                     'front':'flight-fin-a-positive-front',
                     'back':'flight-fin-a-positive-approx',
                     'frontProvenance':'SOURCE-GROUNDED+APPROXIMATED-ALPHA',
                     'backProvenance':'APPROXIMATED',
+                    'frontSide':'FRONT',
+                    'azimuthDeg':0,
                     'vAtAxis':1,
                 },
                 'A-negative':{
@@ -596,6 +599,8 @@ def _split_source_grounded(key,spec):
                     'back':'flight-fin-a-negative-approx',
                     'frontProvenance':'SOURCE-GROUNDED+APPROXIMATED-ALPHA',
                     'backProvenance':'APPROXIMATED',
+                    'frontSide':'BACK',
+                    'azimuthDeg':180,
                     'vAtAxis':0,
                 },
                 'B-positive':{
@@ -603,6 +608,8 @@ def _split_source_grounded(key,spec):
                     'back':'flight-fin-a-positive-approx',
                     'frontProvenance':'APPROXIMATED',
                     'backProvenance':'APPROXIMATED',
+                    'frontSide':'FRONT',
+                    'azimuthDeg':90,
                     'vAtAxis':1,
                 },
                 'B-negative':{
@@ -610,6 +617,8 @@ def _split_source_grounded(key,spec):
                     'back':'flight-fin-a-negative-approx',
                     'frontProvenance':'APPROXIMATED',
                     'backProvenance':'APPROXIMATED',
+                    'frontSide':'BACK',
+                    'azimuthDeg':270,
                     'vAtAxis':0,
                 },
             },
@@ -649,7 +658,7 @@ def _split_source_grounded(key,spec):
             'alpha silhouette extraction',
             'component crop only; RGB pixels not redrawn',
             'when an exact flat flight source exists, Plane A is replaced by that flat source before 3D mapping',
-            'integrated side-view flights are de-occluded only in the source-hidden centre strip before 3D mapping',
+            'integrated side-view flight pixels are used as appearance samples only; canonical four-fin geometry is independent of the photographed perspective',
             'Plane B is a low-frequency approximation with no copied readable logo/text',
         ],
         'splitFractions':spec['splits'],
