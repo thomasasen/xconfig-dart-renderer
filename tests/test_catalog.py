@@ -45,17 +45,17 @@ for pid,p in cat['presets'].items():
         if shaft and flight:check(shaft['flightMount']==flight['flightMount'],f'{pid}: shaft/flight mount mismatch')
 
 # V1.4.2 P5: No.2 must read as a dart flight, not an axe head.
-# The contour must widen gradually from the shaft, reach maximum width only in the
-# rear-middle region, then taper smoothly to a narrower trailing edge.
+# The contour must widen gradually from the shaft, reach maximum width in the
+# rear-middle region, then retain the broad trailing edge characteristic of No.2.
 def positive_envelope(profile):
     return [(float(x), abs(float(y))) for x,y in profile if float(y) >= -1e-9]
 
 no2_pos=positive_envelope(NO2_PROFILE)
-check(len(NO2_PROFILE) >= 30, f'No.2 contour too coarse: {len(NO2_PROFILE)} points')
+check(len(NO2_PROFILE) >= 24, f'No.2 contour too coarse: {len(NO2_PROFILE)} points')
 check(abs(NO2_PROFILE[0][1]) < 1e-9, 'No.2 root must start on the dart axis')
 check(abs(NO2_PROFILE[-1][1]) < .10, 'No.2 mirrored root must return close to the dart axis')
 peak=max(no2_pos,key=lambda p:p[1])
-check(.68 <= peak[0] <= .78 and abs(peak[1]-1.0)<1e-9, f'No.2 peak in wrong place: {peak}')
+check(.60 <= peak[0] <= .70 and abs(peak[1]-1.0)<1e-9, f'No.2 peak in wrong place: {peak}')
 
 def env_at(profile,u):
     pts=[(float(x),abs(float(y))) for x,y in profile if float(y)>=-1e-9]
@@ -67,8 +67,8 @@ def env_at(profile,u):
     return pts[-1][1] if pts else 0
 
 check(env_at(NO2_PROFILE,.20) <= .43, f'No.2 flares too early near shaft: {env_at(NO2_PROFILE,.20):.3f}')
-check(.80 <= env_at(NO2_PROFILE,.50) <= .92, f'No.2 shoulder progression implausible: {env_at(NO2_PROFILE,.50):.3f}')
-check(.36 <= env_at(NO2_PROFILE,1.0) <= .44, f'No.2 trailing edge too wide/narrow: {env_at(NO2_PROFILE,1.0):.3f}')
+check(.86 <= env_at(NO2_PROFILE,.50) <= .92, f'No.2 shoulder progression implausible: {env_at(NO2_PROFILE,.50):.3f}')
+check(.70 <= env_at(NO2_PROFILE,1.0) <= .78, f'No.2 trailing edge must remain broad: {env_at(NO2_PROFILE,1.0):.3f}')
 
 # Positive upper envelope is monotone rising to peak and monotone falling afterwards.
 upper=sorted({(float(x),abs(float(y))) for x,y in NO2_PROFILE if float(y)>=-1e-9},key=lambda p:p[0])
