@@ -290,10 +290,9 @@ def _best_elongated_roi(image, tail_span_ratio_min=1.45, require_full_signature=
                     raise ValueError(
                         f'front is not point-like: point {point_span:.1f}px vs body {body_span:.1f}px'
                     )
-                if shaft_span > body_span*.82:
-                    raise ValueError(
-                        f'rear connector is not shaft-like: shaft {shaft_span:.1f}px vs body {body_span:.1f}px'
-                    )
+                # Integrated K-Flex stems can be nearly barrel-thick in low-resolution
+                # catalogue imagery, so shaft/body width is not a reliable hard gate.
+                # Point-vs-body and flight-vs-point remain the robust complete-dart cues.
                 if tail_span < point_span*3.0:
                     raise ValueError(
                         f'flight/point contrast too small: tail {tail_span:.1f}px vs point {point_span:.1f}px'
