@@ -579,6 +579,8 @@ NO2 = [[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[
 STD = NO2
 SOURCE_GROUNDED_SPECS['clemens-g2']['profile']=NO6
 SOURCE_GROUNDED_SPECS['clemens-95k']['profile']=NO6
+SOURCE_GROUNDED_SPECS['aspinall-95k']['profile']=NO2
+SOURCE_GROUNDED_SPECS['bunting-95k']['profile']=NO2
 SOURCE_GROUNDED_SPECS['humphries-prestige']['profile']=STD
 
 def font(size=24, bold=False):
