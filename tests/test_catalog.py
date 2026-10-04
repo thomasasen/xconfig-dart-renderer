@@ -310,7 +310,7 @@ for group in ('flights','rearSystems'):
 for group,items in (('flights',c['flights']),('rearSystems',c['rearSystems'])):
     for cid,obj in items.items():
         shape=obj.get('shape') if group=='flights' else obj.get('flightShape')
-        if shape in REFERENCE_DIMENSIONS:
+        if shape in REFERENCE_DIMENSIONS and cid != 'generic-slim-geometry':
             ref=REFERENCE_DIMENSIONS[shape]
             length_key='renderLengthMm' if group=='flights' else 'renderFlightLengthMm'
             radius_key='renderRadiusMm' if group=='flights' else 'renderFlightRadiusMm'
