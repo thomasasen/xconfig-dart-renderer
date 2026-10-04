@@ -182,17 +182,17 @@ A later production comparison may evaluate a smaller renderer such as OGL agains
 
 Flights are not treated as flat sprite decorations.
 
-The reference geometry consists of two complete planes intersecting on the dart axis at 90 degrees:
+The reference geometry is represented as four independently depth-sortable fins arranged as two orthogonal fin pairs around the dart axis:
 
 ```text
-Plane A
-   │
-───┼───
-   │
-Plane B
+        Fin A+
+          │
+Fin B- ───┼─── Fin B+
+          │
+        Fin A-
 ```
 
-Together they represent the four physical fins of a standard flight.
+Together they represent the four physical fins of a standard flight. Each fin is a separate mesh so transparent texture blending and depth ordering cannot make one full plane overpaint the other.
 
 Roll rotates this complete structure around the dart axis.
 
