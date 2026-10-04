@@ -51,21 +51,39 @@ def render(a,inc=35,roll=0):
         warp_quad(canvas,tex,src,dst)
     tail=a['rearSystem'] or a['flight']; fl=float(tail.get('renderFlightLengthMm',tail.get('renderLengthMm',42))); rad=float(tail.get('renderFlightRadiusMm',tail.get('renderRadiusMm',18)));root=x-float(tail.get('flightRootOverlapMm',1.5))
     phi=math.radians(roll)
-    planes=[]
+    half_fins=[]
     for idx,extra in enumerate([0,math.pi/2]):
         ang=phi+extra; fin=ey*math.cos(ang)+ez*math.sin(ang)
-        # average depth used for painter sorting. Camera is +Z, farther = smaller z.
-        avgz=(local(axis,ey,ez,root+fl/2,0,0)+fin*0)[2]
-        planes.append((avgz,idx,fin))
-    planes.sort(key=lambda q:q[0])
-    for _,idx,fin in planes:
+        for sign in (-1,1):
+            # Each full plane is split on the dart axis. The half-fin centre is enough
+            # for stable painter ordering because the resulting surfaces no longer
+            # intersect over an area; they only share the physical axis boundary.
+            center=local(axis,ey,ez,root+fl/2)+fin*(sign*rad*.5)
+            half_fins.append((center[2],idx,sign,fin))
+    # Camera is +Z, so smaller world Z is farther away and must be composited first.
+    half_fins.sort(key=lambda q:q[0])
+    for _,idx,sign,fin in half_fins:
         tex=load_rgba(tail['planeATexture'] if idx==0 else tail.get('planeBTexture',tail['planeATexture']));h,w=tex.shape[:2]
-        src=[[0,h-1],[w-1,h-1],[w-1,0],[0,0]]
-        dst=[project(local(axis,ey,ez,root)-fin*rad), project(local(axis,ey,ez,root+fl)-fin*rad), project(local(axis,ey,ez,root+fl)+fin*rad), project(local(axis,ey,ez,root)+fin*rad)]
-        # Exactly edge-on flight planes have zero projected area. OpenCV's homography
-        # becomes singular in that limit and can fill the entire QA frame with texture
-        # colour. The production renderer correctly has zero visible area there, so the
-        # software reference must skip the same degenerate case.
+        mid=(h-1)/2.0
+        if sign < 0:
+            src=[[0,h-1],[w-1,h-1],[w-1,mid],[0,mid]]
+            dst=[
+                project(local(axis,ey,ez,root)-fin*rad),
+                project(local(axis,ey,ez,root+fl)-fin*rad),
+                project(local(axis,ey,ez,root+fl)),
+                project(local(axis,ey,ez,root)),
+            ]
+        else:
+            src=[[0,mid],[w-1,mid],[w-1,0],[0,0]]
+            dst=[
+                project(local(axis,ey,ez,root)),
+                project(local(axis,ey,ez,root+fl)),
+                project(local(axis,ey,ez,root+fl)+fin*rad),
+                project(local(axis,ey,ez,root)+fin*rad),
+            ]
+        # Exactly edge-on half-fins have zero projected area. OpenCV's homography becomes
+        # singular in that limit, so the software reference skips the same degenerate
+        # surface that the production renderer hides.
         poly=np.asarray(dst,dtype=np.float32)
         area=abs(float(cv2.contourArea(poly)))
         if area < 0.5:
@@ -73,7 +91,7 @@ def render(a,inc=35,roll=0):
         warp_quad(canvas,tex,src,dst)
     # hard invariant marker, only debug metadata: projected local origin is exactly TIP by formula.
     drift=float(np.linalg.norm(project(np.zeros(3))-TIP))
-    return Image.fromarray(canvas,'RGBA'),{'tipDriftPx':drift,'incidenceDeg':inc,'rollDeg':roll,'planeModel':'TWO_FULL_INTERSECTING_PLANES_SHARED_AXIS_90_DEG'}
+    return Image.fromarray(canvas,'RGBA'),{'tipDriftPx':drift,'incidenceDeg':inc,'rollDeg':roll,'planeModel':'FOUR_NON_INTERSECTING_HALF_FINS_SHARED_AXIS_90_DEG','halfFinCount':4}
 
 def panel(im,title,size=(789,365)):
     c=Image.new('RGBA',size,(18,22,29,255));thumb=im.copy();thumb.thumbnail((size[0],331),Image.Resampling.LANCZOS);c.alpha_composite(thumb,(0,30));ImageDraw.Draw(c).text((10,8),title,fill='white');return c

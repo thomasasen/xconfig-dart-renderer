@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "serve": "npm run setup-assets && python -m http.server 4173",
-    "validate": "npm run setup-assets && python tests/test_tail_authoring.py && python tests/test_catalog.py && node tests/test_builder_state.mjs && node tests/test_compatibility.mjs && node tests/test_geometry.mjs && node --check src/geometry.js && node --check src/renderer.js && node --check src/compatibility.js && node --check src/builder-state.js && node --check src/app.js",
+    "validate": "npm run setup-assets && python tests/test_tail_authoring.py && python tests/test_backface_authoring.py && python tests/test_catalog.py && node tests/test_builder_state.mjs && node tests/test_compatibility.mjs && node tests/test_geometry.mjs && node --check src/geometry.js && node --check src/renderer.js && node --check src/compatibility.js && node --check src/builder-state.js && node --check src/app.js",
     "qa": "python scripts/browser_qa.py",
     "qa:static": "python scripts/qa_static.py",
     "qa:pose": "python scripts/software_pose_qa.py",

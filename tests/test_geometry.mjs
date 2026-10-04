@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { buildSmoothBridgeProfile, buildSmoothJoinProfile, profileEndpointSlope, resolveBarrelRearSeam, resolveVisibleJoin, rotatePointAroundPivot } from '../src/geometry.js';
+import { buildSmoothBridgeProfile, buildSmoothJoinProfile, profileEndpointSlope, resolveBarrelRearSeam, resolveVisibleJoin, rotatePointAroundPivot, splitFlightProfile } from '../src/geometry.js';
 
 const seam = resolveBarrelRearSeam({
   barrelDiameterMm: 6.5,
@@ -92,6 +92,28 @@ for (let i = 1; i < rootBridge.length; i += 1) {
   assert.ok(rootBridge[i][1] + 1e-10 >= rootBridge[i - 1][1], 'root bridge must not pinch while widening');
 }
 
+function polygonArea(points) {
+  let area = 0;
+  for (let i = 0; i < points.length; i += 1) {
+    const a = points[i];
+    const b = points[(i + 1) % points.length];
+    area += a[0] * b[1] - b[0] * a[1];
+  }
+  return Math.abs(area) / 2;
+}
+
+const flightProfile = [[0, 0], [.14, .42], [.30, 1], [1, .78], [1, -.78], [.30, -1], [.14, -.42]];
+const splitFlight = splitFlightProfile(flightProfile);
+assert.ok(splitFlight.positive.length >= 3);
+assert.ok(splitFlight.negative.length >= 3);
+assert.ok(splitFlight.positive.every(([, y]) => y >= -1e-9), 'positive half-fin must not cross below the dart axis');
+assert.ok(splitFlight.negative.every(([, y]) => y <= 1e-9), 'negative half-fin must not cross above the dart axis');
+assert.ok(splitFlight.positive.some(([, y]) => Math.abs(y) < 1e-9), 'positive half-fin must retain the shared dart-axis boundary');
+assert.ok(splitFlight.negative.some(([, y]) => Math.abs(y) < 1e-9), 'negative half-fin must retain the shared dart-axis boundary');
+const fullArea = polygonArea(flightProfile);
+const splitArea = polygonArea(splitFlight.positive) + polygonArea(splitFlight.negative);
+assert.ok(Math.abs(fullArea - splitArea) < 1e-9, `half-fin split must preserve profile area: ${fullArea} vs ${splitArea}`);
+
 const pivot = { x: 0, y: 212 };
 for (const angle of [-75, -30, 0, 30, 75]) {
   const rotatedPivot = rotatePointAroundPivot(pivot, angle, pivot);
@@ -100,4 +122,4 @@ for (const angle of [-75, -30, 0, 30, 75]) {
 const p = rotatePointAroundPivot({ x: 100, y: 212 }, 90, pivot);
 assert.ok(Math.abs(p.x) < 1e-9);
 assert.ok(Math.abs(p.y - 312) < 1e-9);
-console.log('PASS: seam/root thickness and tangent continuity hold; screen rotation preserves the tip pivot');
+console.log('PASS: seam/root continuity, four-half-fin profile split and fixed tip pivot hold');

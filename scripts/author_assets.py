@@ -7,6 +7,7 @@ import numpy as np
 from PIL import Image, ImageEnhance, ImageFilter, ImageDraw, ImageFont
 import cv2
 from tail_authoring import author_tail_components
+from flight_backface import build_backface_approximation
 
 ROOT=Path(__file__).resolve().parents[1]
 SRC=ROOT/'assets/source'
@@ -440,17 +441,9 @@ def canonicalize_integrated_flight_face(img:Image.Image):
     }
 
 def make_backface(front:Image.Image)->Image.Image:
-    # Unknown reverse faces must not repeat legible logos/text from Plane A. Preserve
-    # the silhouette and low-frequency colour identity, but deliberately remove detail.
-    base=trim_alpha(front.convert('RGBA'),3)
-    w,h=base.size
-    sw=max(6,min(18,max(1,w//18))); sh=max(6,min(18,max(1,h//18)))
-    low=base.convert('RGB').resize((sw,sh),Image.Resampling.BOX).resize((w,h),Image.Resampling.BILINEAR)
-    low=ImageEnhance.Color(low).enhance(.45)
-    low=ImageEnhance.Brightness(low).enhance(.68)
-    rgba=low.convert('RGBA')
-    rgba.putalpha(base.getchannel('A'))
-    return rgba
+    # Reverse faces are unknown and remain APPROXIMATED. Keep source-derived material
+    # colour/translucency but remove readable Plane-A artwork instead of dark-blurring it.
+    return build_backface_approximation(trim_alpha(front.convert('RGBA'),3))
 
 meta={}
 for key,spec in SPECS.items():
