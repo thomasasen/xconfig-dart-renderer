@@ -16,8 +16,8 @@ OUT.mkdir(parents=True, exist_ok=True)
 # Authoring coordinates are deliberately image-space only. Physical geometry lives in catalog.json.
 # splits = fractions of the extracted horizontal dart length: point | barrel | shaft/rear | flight.
 SPECS={
- 'prodigy': dict(file='target-luke-littler-g1-prodigy-95-swiss-23-gram_3.webp', rotate=True, bg='white', splits=[0.1625,0.56875,0.6875], rear=True, canonicalFlight=True),
- 'shift': dict(file='target-shift-sp-steeltip-90_3.webp', rotate=False, bg='white', splits=[0.1857,0.5214,0.6929], rear=True, canonicalFlight=True),
+ 'prodigy': dict(file='target-luke-littler-g1-prodigy-95-swiss-23-gram_3.webp', rotate=True, bg='white', splits=[0.1625,0.56875,0.6875], rear=True, canonicalFlight=True, canonicalProfile='NO2'),
+ 'shift': dict(file='target-shift-sp-steeltip-90_3.webp', rotate=False, bg='white', splits=[0.1857,0.5214,0.6929], rear=True, canonicalFlight=True, canonicalProfile='NO6'),
  'gary': dict(file='unicorn-w-c-gary-anderson-phase-6-90_1.webp', rotate=True, bg='white', splits=[0.1857,0.5214,0.7214], rear=False, canonicalFlight=True),
  'chrono': dict(file='target-phil-taylor-power-chrono-sp-steeltip-95_3.webp', rotate=True, bg='white', splits=[0.2286,0.5714,0.7786], rear=False, canonicalFlight=True),
  'world': dict(file='target-luke-littler-world-champion-90-swiss-23-gram_3.webp', rotate=True, bg='white', splits=[0.20625,0.55,0.7375], rear=True, canonicalFlight=True),
@@ -231,6 +231,8 @@ def largest_alpha_component(img:Image.Image, threshold=24):
     return trim_alpha(Image.fromarray(rgba,'RGBA'),threshold)
 
 NO6_PROFILE=[[0.00,0.00],[0.08,0.30],[0.22,0.90],[0.68,1.00],[0.94,0.72],[1.00,0.35],[1.00,-0.35],[0.94,-0.72],[0.68,-1.00],[0.22,-0.90],[0.08,-0.30]]
+NO2_PROFILE=[[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[1.00,-0.45],[0.90,-0.82],[0.60,-1.00],[0.18,-0.96],[0.06,-0.34]]
+CANONICAL_PROFILES={'NO6':NO6_PROFILE,'NO2':NO2_PROFILE}
 
 def mask_to_flight_profile(image:Image.Image, profile):
     rgba=image.convert('RGBA')
@@ -490,6 +492,22 @@ for key,spec in SPECS.items():
         flight_qc=dedicated_qc
     elif spec.get('canonicalFlight'):
         crops['flight-plane-a'],flight_qc=canonicalize_integrated_flight_face(crops['flight-plane-a'])
+
+    # Batch 2A: photographed side-view silhouettes are not canonical fin geometry.
+    # For product families whose actual mounted flight shape is known, keep the
+    # source-grounded artwork but constrain alpha and renderer geometry to the
+    # canonical No.2/No.6 envelope. This prevents photographed perspective and
+    # cross-fin protrusions from becoming permanent 3D mesh geometry.
+    canonical_profile=CANONICAL_PROFILES.get(spec.get('canonicalProfile'))
+    if canonical_profile is not None:
+        crops['flight-plane-a']=mask_to_flight_profile(crops['flight-plane-a'],canonical_profile)
+        flight_qc=dict(flight_qc or {})
+        flight_qc.update({
+            'canonicalProfile':spec['canonicalProfile'],
+            'profileMaskApplied':True,
+            'geometrySource':'KNOWN_FLIGHT_SHAPE',
+        })
+
     for name,c in crops.items(): save_component(c,OUT/key/f'{name}.png')
     flight=trim_alpha(crops['flight-plane-a'],3)
     back=make_backface(flight)
@@ -499,7 +517,7 @@ for key,spec in SPECS.items():
       'normalizedWidth':im.width,'normalizedHeight':im.height,
       'splitsPx':[p1,p2,p3],
       'splitFractions':spec['splits'],
-      'flightProfile':flight_profile(flight),
+      'flightProfile':canonical_profile if canonical_profile is not None else flight_profile(flight),
       'rearIntegrated':spec['rear'],
       'flightExtractionMode':(flight_qc or {}).get('mode','DIRECT_SOURCE_FACE'),
       'flightPlaneAProvenance':'SOURCE-GROUNDED+APPROXIMATED-OCCLUSION' if flight_qc and (flight_qc.get('mode') in ('PRIMARY_FACE_DEOCCLUDED','DEDICATED_FRONTAL_KFLEX_SOURCE')) else 'SOURCE-GROUNDED',

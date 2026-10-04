@@ -402,7 +402,13 @@ def _split_source_grounded(key,spec):
     flight_qc=None
     if flight_texture is not None:
         parts['flight-plane-a']=flight_texture
-        flight_qc={'mode':'FLAT_FLIGHT_SOURCE','approximatedPixelFraction':0.0}
+        flight_qc={
+            'mode':'FLAT_FLIGHT_SOURCE',
+            'approximatedPixelFraction':0.0,
+            'canonicalProfile':spec.get('shape'),
+            'profileMaskApplied':True,
+            'geometrySource':'KNOWN_FLIGHT_SHAPE',
+        }
     else:
         # A side-view classic flight can contain the same photographed fold/cross-fin
         # problem as an integrated K-Flex. Canonicalize any side-view Plane A for which
