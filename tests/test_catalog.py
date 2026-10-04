@@ -118,7 +118,10 @@ for group,items in c.items():
 # requirement and is covered in both a classic and integrated rear setup.
 web_sources={x['presetId']:x for x in cat.get('webPlayerSources',[])}
 check({'clemens-g2-23','clemens-95k-23'} <= set(web_sources),'Gabriel Clemens web presets missing')
-source_grounded_players={'clemens-g2-23','clemens-95k-23','humphries-prestige-22'}
+source_grounded_players={
+    'clemens-g2-23','clemens-95k-23','cross-95k-23','aspinall-95k-22',
+    'bunting-95k-23','mvg-signature-22','humphries-prestige-22'
+}
 for pid,entry in web_sources.items():
     p=cat['presets'].get(pid)
     check(p is not None,f'web source points at missing preset {pid}')
