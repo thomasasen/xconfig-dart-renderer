@@ -80,6 +80,63 @@ def save_runtime_review(page,pid):
     for i,card in enumerate(cards): sheet.paste(card,(i*789,0))
     sheet.save(OUT/f'runtime-{pid}-source-vs-render.png')
 
+
+DEPTH_QA_PRESETS=(
+    'clemens-g2-23',
+    'prodigy-23',
+    'shift',
+    'mandalorian-24',
+    'clemens-95k-23',
+    'humphries-prestige-22',
+    'cross-95k-23',
+    'mvg-signature-22',
+)
+DEPTH_QA_ROLLS=(-45,-30,-15,0,15,30,45)
+DEPTH_QA_INCIDENCES=(20,35,50)
+
+def save_flight_depth_matrix(page,pid):
+    page.evaluate('(pid)=>window.__APP_API__.applyPreset(pid)',pid)
+    wait_render(page,pid)
+    samples=[]
+    tiles=[]
+    topology_ok=True
+    order_ok=True
+    for incidence in DEPTH_QA_INCIDENCES:
+        for roll in DEPTH_QA_ROLLS:
+            pose={'screenRotationDeg':0,'incidenceDeg':incidence,'rollDeg':roll}
+            page.evaluate('(pose)=>window.__APP_API__.setPose(pose)',pose)
+            render=page.evaluate('window.__POC_LAST_RENDER__')
+            posed=(render or {}).get('posed') or {}
+            order=posed.get('flightRenderOrder') or []
+            model_ok=posed.get('flightPlaneModel')=='FOUR_NON_INTERSECTING_HALF_FINS_SHARED_AXIS_90_DEG'
+            mesh_ok=posed.get('flightMeshCount')==4 and len(order)==4
+            unique_orders=len({item.get('renderOrder') for item in order})==4 if len(order)==4 else False
+            topology_ok=topology_ok and model_ok and mesh_ok
+            order_ok=order_ok and unique_orders
+            samples.append({
+                'incidenceDeg':incidence,
+                'rollDeg':roll,
+                'model':posed.get('flightPlaneModel'),
+                'meshCount':posed.get('flightMeshCount'),
+                'renderOrder':order,
+                'tipDriftPx':posed.get('tipDriftPx'),
+            })
+            image=Image.open(BytesIO(page.locator('#posed').screenshot(type='png'))).convert('RGBA')
+            tiles.append(_panel(image,f'i={incidence}° · r={roll:+}°',width=320,height=180))
+
+    cols=len(DEPTH_QA_ROLLS); rows=len(DEPTH_QA_INCIDENCES)
+    sheet=Image.new('RGB',(cols*320,rows*180),(10,13,18))
+    for index,tile in enumerate(tiles):
+        sheet.paste(tile,((index%cols)*320,(index//cols)*180))
+    sheet.save(OUT/f'flight-depth-roll-{pid}.png')
+    return {
+        'presetId':pid,
+        'topologyOk':topology_ok,
+        'renderOrderOk':order_ok,
+        'sampleCount':len(samples),
+        'samples':samples,
+    }
+
 try:
     server=subprocess.Popen(
         [sys.executable,'-m','http.server','4173'],
@@ -119,6 +176,7 @@ try:
         max_slope_delta=0.0
         max_shaft_root_delta=0.0
         self_tests=[]
+        depth_qa={}
 
         for pid in preset_ids:
             page.evaluate('(pid)=>window.__APP_API__.applyPreset(pid)',pid)
@@ -155,6 +213,15 @@ try:
             if pid in ('clemens-g2-23','clemens-95k-23'):
                 seam_results[pid]=render
                 save_seam_zoom(page,pid,render)
+
+        # P0 regression matrix: 7 roll angles x 3 incidence values for the critical
+        # source-grounded, integrated, player-reconstruction and heuristic designs.
+        for pid in DEPTH_QA_PRESETS:
+            depth_qa[pid]=save_flight_depth_matrix(page,pid)
+        depth_ok=all(
+            item.get('topologyOk') and item.get('renderOrderOk') and item.get('sampleCount')==21
+            for item in depth_qa.values()
+        ) and len(depth_qa)==len(DEPTH_QA_PRESETS)
 
         # Verify all three independent pose controls update final render metadata.
         page.evaluate('window.__APP_API__.setPose({screenRotationDeg: 32, incidenceDeg: 52, rollDeg: 28})')
@@ -218,6 +285,7 @@ try:
             context_ok and
             seam_ok and
             labels_ok and
+            depth_ok and
             all_self_tests and
             no_js_errors and
             max_tip < 1e-8 and
@@ -241,6 +309,8 @@ try:
             'labelsOk':labels_ok,
             'weightLabelViolations':weight_label_violations,
             'runtimeReviewPresets':list(REVIEW_PRESETS),
+            'flightDepthQa':depth_qa,
+            'flightDepthQaPassed':depth_ok,
             'contextLoss':{
                 'request':loss_request,
                 'before':before,
