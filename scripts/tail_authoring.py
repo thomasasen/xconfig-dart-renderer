@@ -469,10 +469,19 @@ def author_tail_components(
         axis,
         canonical_root_axis_offset_px=canonical_root_offset,
     )
+    effective_root_conf=float(root_info.get("confidence",0.0)) if integrated else 1.0
+    if integrated and root is not None and canonical_root_offset is not None:
+        # A one-sided photographed fin can make the raw root silhouette look off-axis.
+        # After that fin is classified out, confidence follows the canonical axial root.
+        med_for_root=max(1.0,float(metrics.get("medianShaftWidthPx",1.0)))
+        canonical_ratio=float(canonical_root_offset)/med_for_root
+        growth=float(root_info.get("growthRatio",1.0))
+        if canonical_ratio <= .08 and growth >= 1.10:
+            effective_root_conf=max(effective_root_conf,.90)
     confidence = float(np.mean([
         float(axis.get("confidence", 0.0)),
         float(core_info.get("confidence", 0.0)),
-        float(root_info.get("confidence", 0.0)) if integrated else 1.0,
+        effective_root_conf,
     ]))
     if metrics["status"] != "PASS":
         status = str(metrics["status"])
@@ -513,7 +522,8 @@ def author_tail_components(
             "shaftCore": [int(c0), int(c1)],
             "rearRoot": [int(r0), int(r1)] if r0 is not None and r1 is not None else None,
             "rootGrowthRatio": float(root_info.get("growthRatio", 1.0)) if integrated else None,
-            "rootAxisOffsetPx": float(root_info.get("axisOffsetPx", 0.0)) if integrated and root_info.get("axisOffsetPx") is not None else None,
+            "rootAxisOffsetPx": float(metrics.get("rootAxisOffset")) if integrated and metrics.get("rootAxisOffset") is not None else None,
+            "rootRawAxisOffsetPx": float(metrics.get("rootRawAxisOffset")) if integrated and metrics.get("rootRawAxisOffset") is not None else None,
             "method": "AXIS_WIDTH_PROFILE_V1",
             "confidence": confidence,
         },
