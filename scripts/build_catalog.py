@@ -295,7 +295,7 @@ for item in web_player_sources:
 
 catalog={
  'schemaVersion':1,
- 'rendererContract':{'width':789,'height':331,'tip':{'x':0,'y':212},'flightPlaneModel':'FOUR_HALF_FINS_WITH_EXPLICIT_FRONT_BACK_FACES_SHARED_AXIS_90_DEG','poseModel':'axis Vec3 + roll','screenRotation':'outside renderer','flatPerspective3DPath':False},
+ 'rendererContract':{'width':789,'height':331,'tip':{'x':0,'y':212},'flightPlaneModel':'FOUR_EXPLICIT_RADIAL_FINS_0_90_180_270_WITH_SEPARATE_FACE_SURFACES','poseModel':'axis Vec3 + roll','screenRotation':'outside renderer','flatPerspective3DPath':False},
  'evidenceStatus':[SRC,WEB,HEU,APP,UNK],
  'compatibility':{
    'rules':[
@@ -303,7 +303,7 @@ catalog={
      'BarrelDefinition.rearThread must equal ShaftDefinition.rearThread or RearSystemDefinition.rearThread.',
      'ShaftDefinition.flightMount must equal FlightDefinition.flightMount.',
      'RearSystemDefinition is mutually exclusive with ShaftDefinition + FlightDefinition.',
-     'Integrated rear system remains one catalog entity; renderer may internally split it into shaft-core + optional rear-root + two flight planes.',
+     'Integrated rear system remains one catalog entity; renderer may internally split it into shaft-core + optional rear-root + four radial flight fins.',
    ],
    'interfaces':{'SWISS_POINT':'Target Swiss Point compatible barrel nose','PRESS_FIT':'traditional steel point press-fit','2BA':'standard rear barrel thread','FOLDED_FLIGHT_SLOT':'classic shaft slot / separate folded flight'}
  },
