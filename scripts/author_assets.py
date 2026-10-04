@@ -26,7 +26,7 @@ SPECS={
  'mandalorian': dict(
    file='190840STARWARSMANDALORIAN95_STEElTIP_GALLERY_DE_PT01.webp',
    rotate=False, bg='dark-roi', roi=(38,175,765,350),
-   splits=[0.19,0.565,0.725], rear=True, canonicalFlight=False, rearVerticalTrim='SATURATION',
+   splits=[0.19,0.565,0.725], rear=True, canonicalFlight=False,
    flightWebMode='KFLEX_CENTER_DART_FRONT',
    flightProductPage='https://www.target-darts.co.uk/star-wars-mandalorian-sp',
    flightWebSources=[
