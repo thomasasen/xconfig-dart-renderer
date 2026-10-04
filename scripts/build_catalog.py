@@ -225,7 +225,11 @@ flights['generic-slim-geometry']={
  'renderLengthMm':46,'renderRadiusMm':10.5,
  'planeProfile':[[0,0],[0.09,0.35],[0.23,0.72],[1,0.48],[1,-0.48],[0.23,-0.72],[0.09,-0.35]],
  'planeProfileProvenance':'CANONICAL-GEOMETRY-NOT-PHOTOGRAPHED-POSE',
- 'planeUvEnvelope':[[0,0.5,0.5],[0.09,0.325,0.675],[0.23,0.14,0.86],[1,0.26,0.74]],
+ 'planeUvEnvelope':[
+   [0.0,0.50,0.50],[0.0833,0.34,0.66],[0.1667,0.20,0.80],[0.25,0.14,0.86],
+   [0.3333,0.155,0.845],[0.4167,0.17,0.83],[0.5,0.185,0.815],[0.5833,0.20,0.80],
+   [0.6667,0.215,0.785],[0.75,0.23,0.77],[0.8333,0.24,0.76],[0.9167,0.25,0.75],[1.0,0.26,0.74],
+ ],
  'planeATexture':'./assets/components/generic/slim-plane-a.png','planeBTexture':'./assets/components/generic/slim-plane-b-approx.png',
  'faceEvidence':{'planeA':HEU,'planeB':APP},
  'evidence':[ev(HEU,'Generic Slim flight geometry prepared for builder compatibility/shape testing; not tied to a supplied product image.')]
