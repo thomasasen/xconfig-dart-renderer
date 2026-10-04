@@ -86,6 +86,45 @@ for pid,entry in web_sources.items():
             check(entry.get('flightExtractionMode')=='PRIMARY_FACE_DEOCCLUDED',f'{pid}: side-view must de-occlude photographed cross-fin')
         check(provenance.get('flight-plane-b-approx')=='APPROXIMATED',f'{pid}: plane B must remain approximated')
 
+# V1.3.3 tail authoring metadata is a hard QA surface for every source-backed
+# dart that passed through automatic component authoring.
+tail_statuses={
+    'PASS','FAIL_AXIS','FAIL_ROOT_INCLUDED_IN_SHAFT','FAIL_ROOT_ALIGNMENT',
+    'FAIL_ALPHA_HAZE','FAIL_COMPOSITE_FLIGHT','FAIL_SOURCE_UNSUITABLE','NEEDS_MANUAL_REVIEW',
+}
+tail_authored={key:value for key,value in author.items() if isinstance(value,dict) and value.get('tailAuthoring')}
+check('mandalorian' in tail_authored,'mandalorian: missing V1.3.3 tail QA')
+check('atat' in tail_authored,'atat: missing V1.3.3 tail QA')
+for product,info in tail_authored.items():
+    qa=info.get('tailAuthoring') or {}
+    check(qa.get('status') in tail_statuses,f'{product}: invalid tail status {qa.get("status")}')
+    check((info.get('axisAuthoring') or {}).get('method')=='ROBUST_CENTERLINE_FIT_V1',f'{product}: missing robust global axis authoring')
+    check((info.get('tailSegmentation') or {}).get('method')=='AXIS_WIDTH_PROFILE_V1',f'{product}: missing width-profile tail segmentation')
+    check(float(qa.get('overallConfidence',0))>=0,f'{product}: invalid tail confidence')
+    check(not str(qa.get('status','')).startswith('FAIL_'),f'{product}: hard tail authoring failure {qa.get("status")}')
+    med=max(1.0,float(qa.get('shaftWidthMedianPx') or 1))
+    if qa.get('status')=='PASS':
+        check(float(qa.get('shaftAxisResidualP95Px',999))/med<=.11+1e-9,f'{product}: PASS shaft axis residual exceeds gate')
+        check(float(qa.get('shaftCenterJumpMaxPx',999))/med<=.20+1e-9,f'{product}: PASS shaft center jump exceeds gate')
+        check(float(qa.get('shaftWidthCV',999))<=.18+1e-9,f'{product}: PASS shaft width CV exceeds gate')
+        check(float(qa.get('rootLeakIntoShaftRatio',999))<=1.28+1e-9,f'{product}: PASS includes root flare in shaft core')
+        check(float(qa.get('tailAlphaHaze',999))<=.12+1e-9,f'{product}: PASS contains excessive alpha haze')
+        if qa.get('rootAxisOffsetPx') is not None:
+            check(float(qa['rootAxisOffsetPx'])/med<=.20+1e-9,f'{product}: PASS root axis offset exceeds gate')
+
+for rid,rear in c['rearSystems'].items():
+    if rear.get('rootTexture'):
+        check(rear.get('renderRootLengthMm',0)>0,f'{rid}: root texture without root length')
+        check(rear.get('renderRootFrontDiameterMm',0)>0,f'{rid}: missing root front diameter')
+        check(rear.get('renderRootRearDiameterMm',0)>=rear.get('renderRootFrontDiameterMm',0),f'{rid}: root must not pinch below shaft at the connection')
+        check(abs(float(rear.get('flightRootOverlapMm',0))-.6)<1e-9,f'{rid}: explicit root must use calibrated 0.6-mm flight overlap')
+        physical=rear.get('shaftLengthMm')
+        if isinstance(physical,(int,float)):
+            total=float(rear.get('renderShaftLengthMm',0))+float(rear.get('renderRootLengthMm',0))
+            check(abs(total-float(physical))<1e-6,f'{rid}: shaft-core + root length must preserve physical rear length')
+    else:
+        check(abs(float(rear.get('flightRootOverlapMm',1.5))-1.5)<1e-9,f'{rid}: legacy rear fallback overlap changed unexpectedly')
+
 # G2 Plane A must come from the exact flat No.6 source, not from the assembled
 # dart's already-perspectival composite flight. This prevents a regression to the
 # original four-times/composite-flight failure mode.
