@@ -24,6 +24,42 @@ def flight_meta(product):
   'flightApproximation':m.get('flightApproximation'),
  }
 
+def tail_render_meta(product,total_length_mm,shaft_diameter_mm=5.2):
+ m=meta.get(product,{})
+ if not m.get('rootAuthored'):
+  return None
+ seg=m.get('tailSegmentation') or {}
+ core=seg.get('shaftCore')
+ root=seg.get('rearRoot')
+ if not core or not root or len(core)!=2 or len(root)!=2:
+  return None
+ core_px=max(1,float(core[1])-float(core[0]))
+ root_px=max(1,float(root[1])-float(root[0]))
+ ratio=root_px/(core_px+root_px)
+ # Render geometry, not a manufacturer dimension: keep the source-derived proportion
+ # within a conservative physical envelope so one noisy boundary cannot dominate.
+ total=float(total_length_mm or 20)
+ root_len=max(1.2,min(4.5,total*ratio))
+ shaft_len=max(0.5,total-root_len)
+ growth=float(seg.get('rootGrowthRatio') or 1.16)
+ growth=max(1.0,min(1.45,growth))
+ diameter=float(shaft_diameter_mm or 5.2)
+ return {
+  'shaftTexture':tex(product,'rear-shaft-core'),
+  'renderShaftLengthMm':round(shaft_len,4),
+  'rootTexture':tex(product,'rear-root'),
+  'renderRootLengthMm':round(root_len,4),
+  'renderRootFrontDiameterMm':diameter,
+  'renderRootRearDiameterMm':round(diameter*growth,4),
+  'flightRootOverlapMm':0.6,
+  'tailQa':{
+    'axisAuthoring':m.get('axisAuthoring'),
+    'tailSegmentation':seg,
+    'tailMetrics':m.get('tailMetrics'),
+    'tailAuthoring':m.get('tailAuthoring'),
+  },
+ }
+
 source_analysis=[
  {'file':'190840STARWARSMANDALORIAN95_STEElTIP_GALLERY_DE_PT01.webp','classification':'INTEGRATED_REAR_SYSTEM','identifiedAs':'Target Star Wars Mandalorian SP','confidence':'HIGH','reason':'Die gelieferte Infografik benennt K-Flex, 2BA, 30/35-mm Swiss Point, 52-mm Barrel und 19-mm Short und bezeichnet den montierten blauen Flight ausdrücklich als No.6 (Extra: No.2). Aktuelle Target-Webdaten widersprechen dieser Zuordnung; für die konkrete Designquelle hat deshalb die gelieferte Infografik Vorrang.','evidence':[ev(SRC,'Produkt-/Komponentenangaben sind direkt im Bild lesbar.'),ev(WEB,'Target bestätigt Mandalorian SP, 95% Tungsten, 52-mm Barrel, 30-mm Swiss Storm Point und Short K-Flex.','https://www.targetdarts.com/us/star-wars-mandalorian-sp')]},
  {'file':'190843-STARWARSAT-AT90_STEELTIP_GALLERY_DE_PT01.webp','classification':'CLASSIC_MODULAR','identifiedAs':'Target Star Wars AT-AT SP','confidence':'HIGH','reason':'Infografik zeigt Pro Grip Short plus separate No.6-Flights; kein integriertes Rear-System.','evidence':[ev(SRC,'30-mm Point, 47.55-mm Barrel, 34-mm Short-Shaft, No.6 im Bild.'),ev(WEB,'Target bestätigt 90% Tungsten, Pro Grip Short, No.6 Pro Ultra Flight.','https://www.targetdarts.com/us/star-wars-at-at-sp')]},
@@ -58,7 +94,11 @@ def flight(id,name,shape,product,evidence=None,renderLength=42,renderRadius=18,p
   flights[id]['safeRollMinDeg']=safe[0]; flights[id]['safeRollMaxDeg']=safe[1]
 def rear(id,name,system,length,shape,product,evidence=None,renderFlightLength=42,renderRadius=18,safe=(-18,18),planeAStatus=SRC,visualAuthoring='SOURCE-GROUNDED'):
  fm=flight_meta(product)
- rears[id]={'kind':'RearSystemDefinition','id':id,'name':visible_preset_name(name),'rearThread':'2BA','integrated':True,'system':system,'shaftLengthMm':length,'flightShape':shape,'renderShaftLengthMm':length or 20,'renderShaftDiameterMm':5.2,'renderFlightLengthMm':renderFlightLength,'renderFlightRadiusMm':renderRadius,'shaftTexture':tex(product,'rear-shaft'),'planeProfile':profile(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'planeAProvenance':fm['planeAProvenance'],'planeBProvenance':fm['planeBProvenance'],'flightExtractionMode':fm['flightExtractionMode'],'flightApproximation':fm['flightApproximation'],'visualAuthoring':visualAuthoring,'safeRollMinDeg':safe[0],'safeRollMaxDeg':safe[1],'evidence':evidence or []}
+ diameter=5.2
+ authored=tail_render_meta(product,length or 20,diameter)
+ rears[id]={'kind':'RearSystemDefinition','id':id,'name':visible_preset_name(name),'rearThread':'2BA','integrated':True,'system':system,'shaftLengthMm':length,'flightShape':shape,'renderShaftLengthMm':length or 20,'renderShaftDiameterMm':diameter,'renderFlightLengthMm':renderFlightLength,'renderFlightRadiusMm':renderRadius,'shaftTexture':tex(product,'rear-shaft'),'planeProfile':profile(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'planeAProvenance':fm['planeAProvenance'],'planeBProvenance':fm['planeBProvenance'],'flightExtractionMode':fm['flightExtractionMode'],'flightApproximation':fm['flightApproximation'],'visualAuthoring':visualAuthoring,'safeRollMinDeg':safe[0],'safeRollMaxDeg':safe[1],'evidence':evidence or []}
+ if authored:
+  rears[id].update(authored)
 WEIGHT_RE=re.compile(r'\s+(\d+(?:[.,]\d+)?)\s*g\b',re.IGNORECASE)
 
 def visible_preset_name(name):
@@ -228,7 +268,7 @@ catalog={
      'BarrelDefinition.rearThread must equal ShaftDefinition.rearThread or RearSystemDefinition.rearThread.',
      'ShaftDefinition.flightMount must equal FlightDefinition.flightMount.',
      'RearSystemDefinition is mutually exclusive with ShaftDefinition + FlightDefinition.',
-     'Integrated rear system is represented as one catalog entity even though renderer internally has shaft-body + two flight planes.',
+     'Integrated rear system remains one catalog entity; renderer may internally split it into shaft-core + optional rear-root + two flight planes.',
    ],
    'interfaces':{'SWISS_POINT':'Target Swiss Point compatible barrel nose','PRESS_FIT':'traditional steel point press-fit','2BA':'standard rear barrel thread','FOLDED_FLIGHT_SLOT':'classic shaft slot / separate folded flight'}
  },
