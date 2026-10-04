@@ -418,6 +418,8 @@ def author_tail_components(
         "tailSegmentation": {
             "shaftCore": [int(c0), int(c1)],
             "rearRoot": [int(r0), int(r1)] if r0 is not None and r1 is not None else None,
+            "rootGrowthRatio": float(root_info.get("growthRatio", 1.0)) if integrated else None,
+            "rootAxisOffsetPx": float(root_info.get("axisOffsetPx", 0.0)) if integrated and root_info.get("axisOffsetPx") is not None else None,
             "method": "AXIS_WIDTH_PROFILE_V1",
             "confidence": confidence,
         },
