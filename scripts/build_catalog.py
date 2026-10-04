@@ -1,5 +1,6 @@
 from pathlib import Path
 import json, re
+from flight_geometry_reference import reference_dimensions
 ROOT=Path(__file__).resolve().parents[1]
 meta=json.loads((ROOT/'data/authoring-metadata.json').read_text())
 
@@ -117,7 +118,8 @@ def shaft(id,name,length,product,evidence=None,renderLength=None):
  shafts[id]={'kind':'ShaftDefinition','id':id,'name':visible_preset_name(name),'rearThread':'2BA','flightMount':'FOLDED_FLIGHT_SLOT','lengthMm':length,'renderLengthMm':renderLength or length or 30,'renderDiameterMm':4.8,'texture':tex(product,'shaft'),'evidence':evidence or []}
 def flight(id,name,shape,product,evidence=None,renderLength=42,renderRadius=18,planeAStatus=SRC,visualAuthoring='SOURCE-GROUNDED',safe=None):
  fm=flight_meta(product)
- flights[id]={'kind':'FlightDefinition','id':id,'name':visible_preset_name(name),'flightMount':'FOLDED_FLIGHT_SLOT','shape':shape,'renderLengthMm':renderLength,'renderRadiusMm':renderRadius,'planeProfile':profile(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'planeAProvenance':fm['planeAProvenance'],'planeBProvenance':fm['planeBProvenance'],'flightExtractionMode':fm['flightExtractionMode'],'flightApproximation':fm['flightApproximation'],'flightGeometry':fm['flightGeometry'],'visualAuthoring':visualAuthoring,'evidence':evidence or []}
+ resolved_len,resolved_radius,geometry_source=reference_dimensions(shape,renderLength,renderRadius)
+ flights[id]={'kind':'FlightDefinition','id':id,'name':visible_preset_name(name),'flightMount':'FOLDED_FLIGHT_SLOT','shape':shape,'renderLengthMm':resolved_len,'renderRadiusMm':resolved_radius,'renderWidthMm':round(resolved_radius*2,4),'renderGeometrySource':geometry_source,'planeProfile':profile(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'planeAProvenance':fm['planeAProvenance'],'planeBProvenance':fm['planeBProvenance'],'flightExtractionMode':fm['flightExtractionMode'],'flightApproximation':fm['flightApproximation'],'flightGeometry':fm['flightGeometry'],'visualAuthoring':visualAuthoring,'evidence':evidence or []}
  if fm.get('finTextures'):
   flights[id]['finTextures']=fm['finTextures']
   flights[id]['finFaceAuthoring']={k:v for k,v in (fm.get('finFaceAuthoring') or {}).items() if k!='textures'}
@@ -126,8 +128,9 @@ def flight(id,name,shape,product,evidence=None,renderLength=42,renderRadius=18,p
 def rear(id,name,system,length,shape,product,evidence=None,renderFlightLength=42,renderRadius=18,safe=(-18,18),planeAStatus=SRC,visualAuthoring='SOURCE-GROUNDED'):
  fm=flight_meta(product)
  diameter=5.2
+ resolved_len,resolved_radius,geometry_source=reference_dimensions(shape,renderFlightLength,renderRadius)
  authored=tail_render_meta(product,length or 20,diameter)
- rears[id]={'kind':'RearSystemDefinition','id':id,'name':visible_preset_name(name),'rearThread':'2BA','integrated':True,'system':system,'shaftLengthMm':length,'flightShape':shape,'renderShaftLengthMm':length or 20,'renderShaftDiameterMm':diameter,'renderFlightLengthMm':renderFlightLength,'renderFlightRadiusMm':renderRadius,'shaftTexture':tex(product,'rear-shaft'),'planeProfile':profile(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'planeAProvenance':fm['planeAProvenance'],'planeBProvenance':fm['planeBProvenance'],'flightExtractionMode':fm['flightExtractionMode'],'flightApproximation':fm['flightApproximation'],'flightGeometry':fm['flightGeometry'],'visualAuthoring':visualAuthoring,'safeRollMinDeg':safe[0],'safeRollMaxDeg':safe[1],'evidence':evidence or []}
+ rears[id]={'kind':'RearSystemDefinition','id':id,'name':visible_preset_name(name),'rearThread':'2BA','integrated':True,'system':system,'shaftLengthMm':length,'flightShape':shape,'renderShaftLengthMm':length or 20,'renderShaftDiameterMm':diameter,'renderFlightLengthMm':resolved_len,'renderFlightRadiusMm':resolved_radius,'renderFlightWidthMm':round(resolved_radius*2,4),'renderGeometrySource':geometry_source,'shaftTexture':tex(product,'rear-shaft'),'planeProfile':profile(product),'planeATexture':tex(product,'flight-plane-a'),'planeBTexture':tex(product,'flight-plane-b-approx'),'faceEvidence':{'planeA':planeAStatus,'planeB':APP},'planeAProvenance':fm['planeAProvenance'],'planeBProvenance':fm['planeBProvenance'],'flightExtractionMode':fm['flightExtractionMode'],'flightApproximation':fm['flightApproximation'],'flightGeometry':fm['flightGeometry'],'visualAuthoring':visualAuthoring,'safeRollMinDeg':safe[0],'safeRollMaxDeg':safe[1],'evidence':evidence or []}
  if fm.get('finTextures'):
   rears[id]['finTextures']=fm['finTextures']
   rears[id]['finFaceAuthoring']={k:v for k,v in (fm.get('finFaceAuthoring') or {}).items() if k!='textures'}
@@ -295,7 +298,7 @@ for item in web_player_sources:
 
 catalog={
  'schemaVersion':1,
- 'rendererContract':{'width':789,'height':331,'tip':{'x':0,'y':212},'flightPlaneModel':'FOUR_HALF_FINS_WITH_EXPLICIT_FRONT_BACK_FACES_SHARED_AXIS_90_DEG','poseModel':'axis Vec3 + roll','screenRotation':'outside renderer','flatPerspective3DPath':False},
+ 'rendererContract':{'width':789,'height':331,'tip':{'x':0,'y':212},'flightPlaneModel':'FOUR_EXPLICIT_RADIAL_FINS_0_90_180_270_WITH_SEPARATE_FACE_SURFACES','poseModel':'axis Vec3 + roll','screenRotation':'outside renderer','flatPerspective3DPath':False},
  'evidenceStatus':[SRC,WEB,HEU,APP,UNK],
  'compatibility':{
    'rules':[
@@ -303,7 +306,7 @@ catalog={
      'BarrelDefinition.rearThread must equal ShaftDefinition.rearThread or RearSystemDefinition.rearThread.',
      'ShaftDefinition.flightMount must equal FlightDefinition.flightMount.',
      'RearSystemDefinition is mutually exclusive with ShaftDefinition + FlightDefinition.',
-     'Integrated rear system remains one catalog entity; renderer may internally split it into shaft-core + optional rear-root + two flight planes.',
+     'Integrated rear system remains one catalog entity; renderer may internally split it into shaft-core + optional rear-root + four radial flight fins.',
    ],
    'interfaces':{'SWISS_POINT':'Target Swiss Point compatible barrel nose','PRESS_FIT':'traditional steel point press-fit','2BA':'standard rear barrel thread','FOLDED_FLIGHT_SLOT':'classic shaft slot / separate folded flight'}
  },

@@ -9,6 +9,7 @@ import cv2
 from tail_authoring import author_tail_components
 from flight_backface import build_backface_approximation
 from flight_fin_authoring import author_visible_half_fins
+from flight_geometry_reference import NO6_PROFILE, NO2_PROFILE, STANDARD_PROFILE
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'assets' / 'components'
@@ -552,7 +553,7 @@ def _split_source_grounded(key,spec):
             'approximatedPixelFraction':0.0,
             'canonicalProfile':spec.get('shape'),
             'profileMaskApplied':True,
-            'geometrySource':'KNOWN_FLIGHT_SHAPE',
+            'geometrySource':'KNOWN_FLIGHT_FAMILY+REFERENCE_CONTOUR_APPROXIMATION',
         }
     else:
         # A side-view classic/integrated flight can contain the same photographed
@@ -564,7 +565,7 @@ def _split_source_grounded(key,spec):
         flight_qc.update({
             'canonicalProfile':spec.get('shape'),
             'profileMaskApplied':True,
-            'geometrySource':'KNOWN_FLIGHT_SHAPE',
+            'geometrySource':'KNOWN_FLIGHT_FAMILY+REFERENCE_CONTOUR_APPROXIMATION',
         })
 
     fin_authoring=None
@@ -573,6 +574,7 @@ def _split_source_grounded(key,spec):
             raw_flight_composite,
             material_alpha=spec.get('flightMaterialAlpha'),
             source_label=source_url,
+            canonical_profile=spec.get('profile'),
         )
         parts['flight-fin-a-positive-front']=authored_fins.top
         parts['flight-fin-a-negative-front']=authored_fins.bottom
@@ -581,14 +583,17 @@ def _split_source_grounded(key,spec):
         fin_authoring={
             **authored_fins.metadata,
             'textures':{
-                # Broadside source: top/bottom are the two physical halves of the
-                # same face-on A plane. The perpendicular B plane is only visible as a
-                # narrow centre ridge, so its full surfaces remain APPROXIMATED.
+                # The product photo supplies two appearance samples. They are calibrated to
+                # the roll=0 reference plane only; the actual photographed roll is not
+                # claimed to be reconstructable. Perpendicular/hidden surfaces remain
+                # APPROXIMATED.
                 'A-positive':{
                     'front':'flight-fin-a-positive-front',
                     'back':'flight-fin-a-positive-approx',
                     'frontProvenance':'SOURCE-GROUNDED+APPROXIMATED-ALPHA',
                     'backProvenance':'APPROXIMATED',
+                    'frontSide':'FRONT',
+                    'azimuthDeg':0,
                     'vAtAxis':1,
                 },
                 'A-negative':{
@@ -596,6 +601,8 @@ def _split_source_grounded(key,spec):
                     'back':'flight-fin-a-negative-approx',
                     'frontProvenance':'SOURCE-GROUNDED+APPROXIMATED-ALPHA',
                     'backProvenance':'APPROXIMATED',
+                    'frontSide':'BACK',
+                    'azimuthDeg':180,
                     'vAtAxis':0,
                 },
                 'B-positive':{
@@ -603,6 +610,8 @@ def _split_source_grounded(key,spec):
                     'back':'flight-fin-a-positive-approx',
                     'frontProvenance':'APPROXIMATED',
                     'backProvenance':'APPROXIMATED',
+                    'frontSide':'FRONT',
+                    'azimuthDeg':90,
                     'vAtAxis':1,
                 },
                 'B-negative':{
@@ -610,6 +619,8 @@ def _split_source_grounded(key,spec):
                     'back':'flight-fin-a-negative-approx',
                     'frontProvenance':'APPROXIMATED',
                     'backProvenance':'APPROXIMATED',
+                    'frontSide':'BACK',
+                    'azimuthDeg':270,
                     'vAtAxis':0,
                 },
             },
@@ -649,7 +660,7 @@ def _split_source_grounded(key,spec):
             'alpha silhouette extraction',
             'component crop only; RGB pixels not redrawn',
             'when an exact flat flight source exists, Plane A is replaced by that flat source before 3D mapping',
-            'integrated side-view flights are de-occluded only in the source-hidden centre strip before 3D mapping',
+            'integrated side-view flight pixels are used as appearance samples only; canonical four-fin geometry is independent of the photographed perspective',
             'Plane B is a low-frequency approximation with no copied readable logo/text',
         ],
         'splitFractions':spec['splits'],
@@ -689,9 +700,9 @@ def _split_source_grounded(key,spec):
 # They are locally authored from inspected product images so the POC stays self-contained.
 # Physical dimensions are kept separately in catalog.json and are not inferred from these drawings.
 
-NO6 = [[0.00,0.00],[0.08,0.30],[0.22,0.90],[0.68,1.00],[0.94,0.72],[1.00,0.35],[1.00,-0.35],[0.94,-0.72],[0.68,-1.00],[0.22,-0.90],[0.08,-0.30]]
-NO2 = [[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[1.00,-0.45],[0.90,-0.82],[0.60,-1.00],[0.18,-0.96],[0.06,-0.34]]
-STD = NO2
+NO6 = NO6_PROFILE
+NO2 = NO2_PROFILE
+STD = STANDARD_PROFILE
 SOURCE_GROUNDED_SPECS['clemens-g2']['profile']=NO6
 SOURCE_GROUNDED_SPECS['clemens-95k']['profile']=NO6
 SOURCE_GROUNDED_SPECS['aspinall-95k']['profile']=NO2

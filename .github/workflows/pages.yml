@@ -6,6 +6,7 @@ on:
       - main
       - v1.4.1-flight-depth-backface
       - v1.4.1b-flight-source-fidelity
+      - v1.4.2-canonical-flight-material
   pull_request:
     branches:
       - main
@@ -61,10 +62,10 @@ jobs:
         run: python scripts/browser_qa.py
 
       - name: Upload renderer QA artifact
-        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/v1.4.1b-flight-source-fidelity'
+        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/v1.4.1b-flight-source-fidelity' || github.ref == 'refs/heads/v1.4.2-canonical-flight-material'
         uses: actions/upload-artifact@v4
         with:
-          name: v1.4.1b-renderer-qa
+          name: v1.4.2-renderer-qa
           if-no-files-found: error
           path: |
             data/catalog.json
@@ -88,7 +89,7 @@ jobs:
 
   deploy:
     name: Deploy GitHub Pages
-    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v1.4.1-flight-depth-backface' || github.ref == 'refs/heads/v1.4.1b-flight-source-fidelity')
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v1.4.1-flight-depth-backface' || github.ref == 'refs/heads/v1.4.1b-flight-source-fidelity' || github.ref == 'refs/heads/v1.4.2-canonical-flight-material')
     needs: validate
     runs-on: ubuntu-latest
 

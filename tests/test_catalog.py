@@ -3,6 +3,8 @@ import json, sys, math, re
 import numpy as np
 from PIL import Image
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT/'scripts'))
+from flight_geometry_reference import NO6_PROFILE, NO2_PROFILE, STANDARD_PROFILE, VAPOR_S_PROFILE, REFERENCE_DIMENSIONS
 cat=json.loads((ROOT/'data/catalog.json').read_text())
 author=json.loads((ROOT/'data/authoring-metadata.json').read_text())
 errors=[]
@@ -12,7 +14,7 @@ def check(cond,msg):
 check(cat['rendererContract']['width']==789,'renderer width != 789')
 check(cat['rendererContract']['height']==331,'renderer height != 331')
 check(cat['rendererContract']['tip']=={'x':0,'y':212},'tip != (0,212)')
-check(cat['rendererContract']['flightPlaneModel']=='FOUR_HALF_FINS_WITH_EXPLICIT_FRONT_BACK_FACES_SHARED_AXIS_90_DEG','wrong V4 flight model')
+check(cat['rendererContract']['flightPlaneModel']=='FOUR_EXPLICIT_RADIAL_FINS_0_90_180_270_WITH_SEPARATE_FACE_SURFACES','wrong V4 flight model')
 check(cat['rendererContract']['flatPerspective3DPath'] is False,'flatPerspective must be off in 3D path')
 check(len(cat['sourceAnalysis'])==15,f"expected 15 sources, got {len(cat['sourceAnalysis'])}")
 classes={'CLASSIC_MODULAR','INTEGRATED_REAR_SYSTEM','GEOMETRY_REFERENCE','ANGLED_REFERENCE','NEEDS_MANUAL_REVIEW'}
@@ -41,6 +43,44 @@ for pid,p in cat['presets'].items():
         check(shaft is not None,f'{pid}: missing shaft');check(flight is not None,f'{pid}: missing flight')
         if shaft and barrel:check(shaft['rearThread']==barrel['rearThread'],f'{pid}: shaft/barrel thread mismatch')
         if shaft and flight:check(shaft['flightMount']==flight['flightMount'],f'{pid}: shaft/flight mount mismatch')
+
+# V1.4.2 P5: No.2 must read as a dart flight, not an axe head.
+# The contour must widen gradually from the shaft, reach maximum width in the
+# rear-middle region, then retain the broad trailing edge characteristic of No.2.
+def positive_envelope(profile):
+    return [(float(x), abs(float(y))) for x,y in profile if float(y) >= -1e-9]
+
+no2_pos=positive_envelope(NO2_PROFILE)
+check(len(NO2_PROFILE) >= 24, f'No.2 contour too coarse: {len(NO2_PROFILE)} points')
+check(abs(NO2_PROFILE[0][1]) < 1e-9, 'No.2 root must start on the dart axis')
+check(abs(NO2_PROFILE[-1][1]) < .10, 'No.2 mirrored root must return close to the dart axis')
+peak=max(no2_pos,key=lambda p:p[1])
+check(.60 <= peak[0] <= .70 and abs(peak[1]-1.0)<1e-9, f'No.2 peak in wrong place: {peak}')
+
+def env_at(profile,u):
+    pts=[(float(x),abs(float(y))) for x,y in profile if float(y)>=-1e-9]
+    pts=sorted(pts,key=lambda p:p[0])
+    for (x0,y0),(x1,y1) in zip(pts,pts[1:]):
+        if x0 <= u <= x1 and x1>x0:
+            t=(u-x0)/(x1-x0)
+            return y0+(y1-y0)*t
+    return pts[-1][1] if pts else 0
+
+check(env_at(NO2_PROFILE,.20) <= .43, f'No.2 flares too early near shaft: {env_at(NO2_PROFILE,.20):.3f}')
+check(.86 <= env_at(NO2_PROFILE,.50) <= .92, f'No.2 shoulder progression implausible: {env_at(NO2_PROFILE,.50):.3f}')
+check(.70 <= env_at(NO2_PROFILE,1.0) <= .78, f'No.2 trailing edge must remain broad: {env_at(NO2_PROFILE,1.0):.3f}')
+
+# Positive upper envelope is monotone rising to peak and monotone falling afterwards.
+upper=sorted({(float(x),abs(float(y))) for x,y in NO2_PROFILE if float(y)>=-1e-9},key=lambda p:p[0])
+peak_idx=max(range(len(upper)),key=lambda i:upper[i][1])
+check(all(upper[i+1][1] >= upper[i][1]-1e-9 for i in range(peak_idx)), 'No.2 front shoulder contains an inward notch')
+check(all(upper[i+1][1] <= upper[i][1]+1e-9 for i in range(peak_idx,len(upper)-1)), 'No.2 rear shoulder contains an outward notch')
+
+# Prodigy is the regression preset that exposed the axe-head silhouette.
+prodigy=cat['presets']['prodigy-23']
+prodigy_rear=c['rearSystems'][prodigy['rearSystemId']]
+check(prodigy_rear.get('flightShape')=='No.2','prodigy: expected No.2 K-Flex family')
+check(prodigy_rear.get('planeProfile')==NO2_PROFILE,'prodigy: must use the canonical smooth No.2 contour')
 
 # V1.3.3 tail authoring metadata is a hard contract for every source-grounded
 # product image that passed through the shared analyzer.
@@ -130,10 +170,30 @@ for pid in critical_fin_presets:
     check(set(fins)=={'A-positive','A-negative','B-positive','B-negative'},f'{pid}: missing explicit four-fin face map')
     meta_face=tail.get('finFaceAuthoring') or {}
     check(meta_face.get('mirroringUsed') is False,f'{pid}: source fin authoring must not mirror artwork')
-    check(meta_face.get('visibleSourceFinCount')==2,f'{pid}: expected exactly two source-grounded broadside half-fins')
+    check(meta_face.get('geometryModel')=='FOUR_RADIAL_FINS_0_90_180_270',f'{pid}: canonical four-fin geometry contract missing')
+    check(meta_face.get('geometryInferenceFromPhoto') is False,f'{pid}: product photo must not be treated as recovered flight geometry')
+    check(meta_face.get('sourceAppearanceSampleCount')==2,f'{pid}: expected two source appearance samples')
+    check(meta_face.get('referencePlane')=='A' and meta_face.get('referenceRollDeg')==0,f'{pid}: source samples must be calibrated to the reference plane only')
+    check(meta_face.get('referencePlaneCalibration')=='PLAUSIBLE_BROADSIDE_NOT_EXACT_RECONSTRUCTION',f'{pid}: photo-roll uncertainty not disclosed')
+    spine=meta_face.get('spineMaterial') or {}
+    check(spine.get('provenance')=='APPROXIMATED_SOURCE_DERIVED_MATERIAL',f'{pid}: integrated flight spine provenance missing')
+    check(spine.get('diameterProvenance')=='HEURISTIC',f'{pid}: spine diameter must remain explicitly heuristic')
+    check(abs(float(spine.get('diameterMm',0))-1.0)<1e-9,f'{pid}: unexpected spine diameter {spine.get("diameterMm")}')
+    check(len(spine.get('colorRgb') or [])==3,f'{pid}: source-derived spine material colour missing')
+    check(.72 <= float(spine.get('opacity',0)) <= .96,f'{pid}: spine opacity implausible')
+    check(meta_face.get('visibleSourceFinCount')==2,f'{pid}: compatibility source sample count changed')
     check(meta_face.get('hiddenFinCount')==2,f'{pid}: expected two unobserved perpendicular half-fins')
+    expected_layout={
+        'A-positive':(0,'FRONT'),
+        'B-positive':(90,'FRONT'),
+        'A-negative':(180,'BACK'),
+        'B-negative':(270,'BACK'),
+    }
     for key in ('A-positive','A-negative','B-positive','B-negative'):
         face=fins.get(key) or {}
+        expected_azimuth,expected_front_side=expected_layout[key]
+        check(face.get('azimuthDeg')==expected_azimuth,f'{pid}/{key}: wrong radial fin azimuth {face.get("azimuthDeg")}')
+        check(face.get('frontSide')==expected_front_side,f'{pid}/{key}: wrong physical source-face side {face.get("frontSide")}')
         front=face.get('front'); back=face.get('back')
         check(bool(front) and (ROOT/front.replace('./','')).exists(),f'{pid}/{key}: missing front texture')
         check(bool(back) and (ROOT/back.replace('./','')).exists(),f'{pid}/{key}: missing back texture')
@@ -178,19 +238,17 @@ check((ROOT/'assets/source/web-mandalorian-kflex-frontal-source-grounded.png').e
 check((mandalorian_author.get('flightApproximation') or {}).get('design')=='MANDALORIAN_BLUE_SOURCE_ARTWORK','mandalorian: dedicated flight source is not tagged as blue Mandalorian artwork')
 check((mandalorian_author.get('flightApproximation') or {}).get('canonicalProfile')=='NO6_SUPPLIED_INFOGRAPHIC','mandalorian: dedicated flight is not masked to supplied No.6 profile')
 check((mandalorian_author.get('flightApproximation') or {}).get('profileMaskApplied') is True,'mandalorian: No.6 profile mask was not applied')
-check((mandalorian_author.get('flightApproximation') or {}).get('geometrySource')=='KNOWN_FLIGHT_SHAPE','mandalorian: geometry source must be canonical No.6')
+check((mandalorian_author.get('flightApproximation') or {}).get('geometrySource')=='KNOWN_FLIGHT_FAMILY+REFERENCE_CONTOUR_APPROXIMATION','mandalorian: No.6 family/contour provenance missing')
 mando_rear=c['rearSystems'].get('mandalorian-kflex-short',{})
 check(mando_rear.get('flightShape')=='No.6',f"mandalorian: mounted flight shape must follow supplied infographic No.6, got {mando_rear.get('flightShape')}")
-check(abs(float(mando_rear.get('renderFlightLengthMm',0))-41.5)<1e-9,'mandalorian: No.6 render length must be 41.5 mm')
-check(abs(float(mando_rear.get('renderFlightRadiusMm',0))-17.2)<1e-9,'mandalorian: No.6 render radius must be 17.2 mm')
+check(abs(float(mando_rear.get('renderFlightLengthMm',0))-REFERENCE_DIMENSIONS['No.6']['lengthMm'])<1e-9,'mandalorian: No.6 reference length drift')
+check(abs(float(mando_rear.get('renderFlightRadiusMm',0))-REFERENCE_DIMENSIONS['No.6']['radiusMm'])<1e-9,'mandalorian: No.6 reference radius drift')
 m_frac=float((mandalorian_author.get('flightApproximation') or {}).get('approximatedPixelFraction',0))
 check(.15 < m_frac < .35,f'mandalorian: dedicated-source approximation fraction implausible: {m_frac}')
 
 # V1.4 Batch 2A: known flight families must use canonical fin geometry rather
 # than a silhouette sampled from a photographed side view. RGB artwork remains
 # source-grounded; only the alpha/mesh envelope is normalized to the known shape.
-NO6_PROFILE=[[0.00,0.00],[0.08,0.30],[0.22,0.90],[0.68,1.00],[0.94,0.72],[1.00,0.35],[1.00,-0.35],[0.94,-0.72],[0.68,-1.00],[0.22,-0.90],[0.08,-0.30]]
-NO2_PROFILE=[[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[1.00,-0.45],[0.90,-0.82],[0.60,-1.00],[0.18,-0.96],[0.06,-0.34]]
 for product,expected_name,expected_profile in (
     ('prodigy','NO2',NO2_PROFILE),
     ('shift','NO6',NO6_PROFILE),
@@ -198,7 +256,7 @@ for product,expected_name,expected_profile in (
     qa=author.get(product,{}).get('flightApproximation') or {}
     check(qa.get('canonicalProfile')==expected_name,f'{product}: canonical profile not recorded')
     check(qa.get('profileMaskApplied') is True,f'{product}: canonical flight alpha mask not applied')
-    check(qa.get('geometrySource')=='KNOWN_FLIGHT_SHAPE',f'{product}: flight geometry still source-silhouette-derived')
+    check(qa.get('geometrySource')=='KNOWN_FLIGHT_FAMILY+REFERENCE_CONTOUR_APPROXIMATION',f'{product}: flight family/contour provenance wrong')
     preset_id='prodigy-23' if product=='prodigy' else 'shift'
     preset=cat['presets'][preset_id]
     tail=c['rearSystems'][preset['rearSystemId']]
@@ -207,11 +265,9 @@ for product,expected_name,expected_profile in (
 g2_qa=author.get('clemens-g2',{}).get('flightApproximation') or {}
 check(g2_qa.get('mode')=='FLAT_FLIGHT_SOURCE','clemens-g2: flat flight source regressed')
 check(g2_qa.get('profileMaskApplied') is True,'clemens-g2: flat flight is not masked to canonical No.6 geometry')
-check(g2_qa.get('geometrySource')=='KNOWN_FLIGHT_SHAPE','clemens-g2: geometry source must be the known No.6 shape')
+check(g2_qa.get('geometrySource')=='KNOWN_FLIGHT_FAMILY+REFERENCE_CONTOUR_APPROXIMATION','clemens-g2: No.6 family/contour provenance wrong')
 check(c['flights']['clemens-g2-no6'].get('planeProfile')==NO6_PROFILE,'clemens-g2: renderer plane profile is not canonical No.6')
 
-STANDARD_PROFILE=[[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[1.00,-0.45],[0.90,-0.82],[0.60,-1.00],[0.18,-0.96],[0.06,-0.34]]
-VAPOR_S_PROFILE=[[0.00,0.00],[0.10,0.24],[0.28,0.72],[0.56,1.00],[0.82,0.90],[1.00,0.48],[1.00,-0.48],[0.82,-0.90],[0.56,-1.00],[0.28,-0.72],[0.10,-0.24]]
 
 # V1.4 Batch 2D: source-grounded side views may supply artwork pixels, but the
 # canonical fin envelope comes from the verified flight family.
@@ -223,7 +279,7 @@ for product,preset_id,expected_name,expected_profile in (
 ):
     qa=author.get(product,{}).get('flightApproximation') or {}
     check(qa.get('profileMaskApplied') is True,f'{product}: canonical profile mask not applied')
-    check(qa.get('geometrySource')=='KNOWN_FLIGHT_SHAPE',f'{product}: geometry still derived from photographed silhouette')
+    check(qa.get('geometrySource')=='KNOWN_FLIGHT_FAMILY+REFERENCE_CONTOUR_APPROXIMATION',f'{product}: geometry family/contour provenance wrong')
     check(qa.get('canonicalProfile')==expected_name,f'{product}: wrong canonical profile tag {qa.get("canonicalProfile")}')
     preset=cat['presets'][preset_id]
     tail=c['rearSystems'][preset['rearSystemId']] if preset.get('rearSystemId') else c['flights'][preset['flightId']]
@@ -251,12 +307,12 @@ for product,preset_id,component_group,component_id,expected_shape,expected_profi
     check(cg.get('artworkSource')=='HEURISTIC_RECONSTRUCTION',f'{product}: catalog launders reconstructed artwork into source-grounded data')
 
 for product,preset_id,expected_name,expected_profile,expected_source in (
-    ('world','world-champion','NO6',NO6_PROFILE,'KNOWN_FLIGHT_SHAPE'),
-    ('gary','gary-phase6','STANDARD',STANDARD_PROFILE,'KNOWN_FLIGHT_SHAPE'),
+    ('world','world-champion','NO6',NO6_PROFILE,'KNOWN_FLIGHT_FAMILY+REFERENCE_CONTOUR_APPROXIMATION'),
+    ('gary','gary-phase6','STANDARD',STANDARD_PROFILE,'KNOWN_FLIGHT_FAMILY+REFERENCE_CONTOUR_APPROXIMATION'),
     ('chrono','chrono','VAPOR_S',VAPOR_S_PROFILE,'HEURISTIC_FLIGHT_SHAPE'),
-    ('auro','auro','NO6',NO6_PROFILE,'KNOWN_FLIGHT_SHAPE'),
-    ('supa','supa-venom','STANDARD',STANDARD_PROFILE,'KNOWN_FLIGHT_SHAPE'),
-    ('atat','atat-23','NO6',NO6_PROFILE,'KNOWN_FLIGHT_SHAPE'),
+    ('auro','auro','NO6',NO6_PROFILE,'KNOWN_FLIGHT_FAMILY+REFERENCE_CONTOUR_APPROXIMATION'),
+    ('supa','supa-venom','STANDARD',STANDARD_PROFILE,'KNOWN_FLIGHT_FAMILY+REFERENCE_CONTOUR_APPROXIMATION'),
+    ('atat','atat-23','NO6',NO6_PROFILE,'KNOWN_FLIGHT_FAMILY+REFERENCE_CONTOUR_APPROXIMATION'),
 ):
     qa=author.get(product,{}).get('flightApproximation') or {}
     check(qa.get('canonicalProfile')==expected_name,f'{product}: canonical profile not recorded')
@@ -287,6 +343,18 @@ for group in ('flights','rearSystems'):
         ea=high_frequency_energy(a); eb=high_frequency_energy(b)
         if ea>3.0:
             check(eb <= ea*.82+0.25,f'{group}/{cid}: approximated Plane B retains too much copied front-side detail ({eb:.2f} vs {ea:.2f})')
+
+# Project flight reference dimensions are render references, not universal manufacturer CAD.
+for group,items in (('flights',c['flights']),('rearSystems',c['rearSystems'])):
+    for cid,obj in items.items():
+        shape=obj.get('shape') if group=='flights' else obj.get('flightShape')
+        if shape in REFERENCE_DIMENSIONS and cid != 'generic-slim-geometry':
+            ref=REFERENCE_DIMENSIONS[shape]
+            length_key='renderLengthMm' if group=='flights' else 'renderFlightLengthMm'
+            radius_key='renderRadiusMm' if group=='flights' else 'renderFlightRadiusMm'
+            check(abs(float(obj.get(length_key,0))-float(ref['lengthMm']))<1e-9,f'{group}/{cid}: reference flight length drift')
+            check(abs(float(obj.get(radius_key,0))-float(ref['radiusMm']))<1e-9,f'{group}/{cid}: reference flight radius drift')
+            check(obj.get('renderGeometrySource')=='PROJECT_REFERENCE_DIMENSIONS_NOT_MANUFACTURER_CAD',f'{group}/{cid}: render dimension provenance missing')
 
 # Visible preset labels are render-design identities, not SKU/weight identities.
 weight_re=re.compile(r'\b\d+(?:[.,]\d+)?\s*g\b',re.I)

@@ -21,8 +21,35 @@ d.rectangle((135, 62, 180, 82), fill=(245, 220, 45, 255))
 d.rectangle((255, 180, 330, 202), fill=(30, 215, 230, 255))
 d.rectangle((15, 121, 405, 129), fill=(95, 10, 110, 255))
 
-result = author_visible_half_fins(im, material_alpha=0.68, source_label="synthetic")
+profile = [
+    [0.00,0.00],[0.08,0.30],[0.22,0.90],[0.68,1.00],[0.94,0.72],[1.00,0.35],
+    [1.00,-0.35],[0.94,-0.72],[0.68,-1.00],[0.22,-0.90],[0.08,-0.30],
+]
+result = author_visible_half_fins(
+    im,
+    material_alpha=0.68,
+    source_label="synthetic",
+    canonical_profile=profile,
+)
 assert result.metadata["mirroringUsed"] is False
+assert result.metadata["geometryModel"] == "FOUR_RADIAL_FINS_0_90_180_270"
+assert result.metadata["geometryInferenceFromPhoto"] is False
+assert result.metadata["sourceAppearanceSampleCount"] == 2
+assert result.metadata["referencePlane"] == "A"
+assert result.metadata["referenceRollDeg"] == 0
+assert result.metadata["referencePlaneCalibration"] == "PLAUSIBLE_BROADSIDE_NOT_EXACT_RECONSTRUCTION"
+assert result.metadata["textureCoordinateModel"] == "CANONICAL_GLOBAL_RADIAL_V"
+assert result.metadata["geometryOwnsCoverage"] is True
+assert result.metadata["canonicalProfileApplied"] is True
+spine=result.metadata["spineMaterial"]
+assert spine["provenance"] == "APPROXIMATED_SOURCE_DERIVED_MATERIAL"
+assert spine["diameterProvenance"] == "HEURISTIC"
+assert abs(float(spine["diameterMm"]) - 1.0) < 1e-9
+assert len(spine["colorRgb"]) == 3
+assert 0.72 <= float(spine["opacity"]) <= 0.96
+assert result.metadata["edgePolicy"] == "APPROXIMATED_SOURCE_BOUNDARY_INSET_AND_MATTE_DECONTAMINATION"
+assert abs(result.metadata["sourceOuterTrimFraction"] - 0.12) < 1e-9
+assert abs(result.metadata["sourceTailTrimFraction"] - 0.05) < 1e-9
 assert result.metadata["visibleSourceFinCount"] == 2
 assert result.metadata["hiddenFinCount"] == 2
 assert result.metadata["alphaPolicy"] == "APPROXIMATED_FROM_WHITE_BACKDROP"
@@ -37,6 +64,15 @@ assert int(((top[:, :, 0] > 210) & (top[:, :, 1] > 180) & (top[:, :, 2] < 100)).
 assert int(((bottom[:, :, 0] < 80) & (bottom[:, :, 1] > 170) & (bottom[:, :, 2] > 170)).sum()) > 20
 assert np.max(top[:, :, 3]) < 255, "material alpha reconstruction should keep moulded plastic translucent"
 assert np.max(bottom[:, :, 3]) < 255, "material alpha reconstruction should keep moulded plastic translucent"
+
+# Geometry owns silhouette coverage, so canonical-material alpha should be smooth and
+# must not reproduce jagged source segmentation at the outer flight boundary.
+for name,arr in (("top",top),("bottom",bottom)):
+    alpha=arr[:, :, 3]
+    visible=alpha > 0
+    assert visible.any(), f"{name} canonical texture unexpectedly empty"
+    material_band=alpha[(alpha > 120) & (alpha < 230)]
+    assert material_band.size > 100, f"{name} lacks reconstructed translucent material"
 
 # Reverse surfaces are unseen source information. They must not contain a readable/
 # mirrored copy of the source artwork. Material-only backfaces should therefore have
@@ -62,4 +98,4 @@ for name,arr in (("top",top_back),("bottom",bottom_back)):
         f"{name} reverse alpha still contains artwork structure: std={alpha[interior].std():.3f}"
     )
 
-print("PASS: composite flight yields distinct source faces, matte-cleaned fronts and RGB/alpha-detail-free reverses")
+print("PASS: source appearance samples stay separate from canonical four-fin geometry and reverse artwork")

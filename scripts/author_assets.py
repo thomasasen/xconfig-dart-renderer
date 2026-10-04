@@ -9,6 +9,7 @@ import cv2
 from tail_authoring import author_tail_components
 from flight_backface import build_backface_approximation
 from flight_fin_authoring import author_visible_half_fins
+from flight_geometry_reference import NO6_PROFILE, NO2_PROFILE, STANDARD_PROFILE, VAPOR_S_PROFILE, CANONICAL_PROFILES, PROFILE_PROVENANCE
 
 ROOT=Path(__file__).resolve().parents[1]
 SRC=ROOT/'assets/source'
@@ -232,14 +233,6 @@ def largest_alpha_component(img:Image.Image, threshold=24):
     rgba[:,:,3]=np.minimum(rgba[:,:,3],keep).astype(np.uint8)
     return trim_alpha(Image.fromarray(rgba,'RGBA'),threshold)
 
-NO6_PROFILE=[[0.00,0.00],[0.08,0.30],[0.22,0.90],[0.68,1.00],[0.94,0.72],[1.00,0.35],[1.00,-0.35],[0.94,-0.72],[0.68,-1.00],[0.22,-0.90],[0.08,-0.30]]
-NO2_PROFILE=[[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[1.00,-0.45],[0.90,-0.82],[0.60,-1.00],[0.18,-0.96],[0.06,-0.34]]
-STANDARD_PROFILE=[[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[1.00,-0.45],[0.90,-0.82],[0.60,-1.00],[0.18,-0.96],[0.06,-0.34]]
-# Vapor S is a narrow elongated flight. Exact manufacturer CAD is not available in
-# the source bundle, so this canonical outline is an explicit geometry heuristic,
-# while the printed artwork remains source-grounded.
-VAPOR_S_PROFILE=[[0.00,0.00],[0.10,0.24],[0.28,0.72],[0.56,1.00],[0.82,0.90],[1.00,0.48],[1.00,-0.48],[0.82,-0.90],[0.56,-1.00],[0.28,-0.72],[0.10,-0.24]]
-CANONICAL_PROFILES={'NO6':NO6_PROFILE,'NO2':NO2_PROFILE,'STANDARD':STANDARD_PROFILE,'VAPOR_S':VAPOR_S_PROFILE}
 
 def mask_to_flight_profile(image:Image.Image, profile):
     rgba=image.convert('RGBA')
@@ -361,7 +354,8 @@ def prepare_dedicated_flight_face(spec):
         'design':'MANDALORIAN_BLUE_SOURCE_ARTWORK',
         'canonicalProfile':'NO6_SUPPLIED_INFOGRAPHIC',
         'profileMaskApplied':True,
-        'geometrySource':'KNOWN_FLIGHT_SHAPE',
+        'geometrySource':'KNOWN_FLIGHT_FAMILY+REFERENCE_CONTOUR_APPROXIMATION',
+        'profileProvenance':PROFILE_PROVENANCE.get('NO6'),
     })
     save_component(horizontal,SRC/'web-mandalorian-kflex-frontal-source-grounded.png')
     return clean,qc
@@ -511,8 +505,9 @@ for key,spec in SPECS.items():
             'geometrySource':(
                 'HEURISTIC_FLIGHT_SHAPE'
                 if spec['canonicalProfile']=='VAPOR_S'
-                else 'KNOWN_FLIGHT_SHAPE'
+                else 'KNOWN_FLIGHT_FAMILY+REFERENCE_CONTOUR_APPROXIMATION'
             ),
+            'profileProvenance':PROFILE_PROVENANCE.get(spec['canonicalProfile']),
         })
 
     fin_authoring=None
@@ -521,6 +516,7 @@ for key,spec in SPECS.items():
             raw_flight_composite,
             material_alpha=spec.get('flightMaterialAlpha'),
             source_label=spec['file'],
+            canonical_profile=canonical_profile,
         )
         crops['flight-fin-a-positive-front']=authored_fins.top
         crops['flight-fin-a-negative-front']=authored_fins.bottom
@@ -529,14 +525,17 @@ for key,spec in SPECS.items():
         fin_authoring={
             **authored_fins.metadata,
             'textures':{
-                # A broadside product photo exposes the two halves of ONE physical
-                # plane around the dart axis. The perpendicular B plane is edge-on and
-                # therefore has no recoverable artwork surface in this source.
+                # The photo supplies two appearance samples around the dart axis. They are
+                # calibrated to a plausible reference plane at roll=0; this is not an
+                # exact reconstruction of the photographed 3D roll. Geometry remains the
+                # independent four-fin canonical model.
                 'A-positive':{
                     'front':'flight-fin-a-positive-front',
                     'back':'flight-fin-a-positive-approx',
                     'frontProvenance':'SOURCE-GROUNDED+APPROXIMATED-ALPHA',
                     'backProvenance':'APPROXIMATED',
+                    'frontSide':'FRONT',
+                    'azimuthDeg':0,
                     'vAtAxis':1,
                 },
                 'A-negative':{
@@ -544,6 +543,8 @@ for key,spec in SPECS.items():
                     'back':'flight-fin-a-negative-approx',
                     'frontProvenance':'SOURCE-GROUNDED+APPROXIMATED-ALPHA',
                     'backProvenance':'APPROXIMATED',
+                    'frontSide':'BACK',
+                    'azimuthDeg':180,
                     'vAtAxis':0,
                 },
                 'B-positive':{
@@ -551,6 +552,8 @@ for key,spec in SPECS.items():
                     'back':'flight-fin-a-positive-approx',
                     'frontProvenance':'APPROXIMATED',
                     'backProvenance':'APPROXIMATED',
+                    'frontSide':'FRONT',
+                    'azimuthDeg':90,
                     'vAtAxis':1,
                 },
                 'B-negative':{
@@ -558,6 +561,8 @@ for key,spec in SPECS.items():
                     'back':'flight-fin-a-negative-approx',
                     'frontProvenance':'APPROXIMATED',
                     'backProvenance':'APPROXIMATED',
+                    'frontSide':'BACK',
+                    'azimuthDeg':270,
                     'vAtAxis':0,
                 },
             },
@@ -603,7 +608,7 @@ for key,spec in SPECS.items():
         'SOURCE-GROUNDED axis/width-profile tail authoring; '
         + tail_status
         + '; dedicated frontal flight sources are preferred over photographed composite side views; '
-        + ('two source-grounded halves of the broadside A-plane are rectified without mirroring; perpendicular B-plane remains approximated; ' if fin_authoring else '')
+        + ('two source-grounded appearance samples are calibrated to the roll=0 reference plane without claiming exact photo roll; perpendicular/hidden surfaces remain approximated; ' if fin_authoring else '')
         + 'only explicitly recorded occlusion/reverse/hidden surfaces are approximated'
       ),
     }
