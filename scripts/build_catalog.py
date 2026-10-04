@@ -224,6 +224,8 @@ flights['generic-slim-geometry']={
  'kind':'FlightDefinition','id':'generic-slim-geometry','name':'Generic Slim Geometry QA','flightMount':'FOLDED_FLIGHT_SLOT','shape':'Slim',
  'renderLengthMm':46,'renderRadiusMm':10.5,
  'planeProfile':[[0,0],[0.09,0.35],[0.23,0.72],[1,0.48],[1,-0.48],[0.23,-0.72],[0.09,-0.35]],
+ 'planeProfileProvenance':'CANONICAL-GEOMETRY-NOT-PHOTOGRAPHED-POSE',
+ 'planeUvEnvelope':[[0,0.5,0.5],[0.09,0.325,0.675],[0.23,0.14,0.86],[1,0.26,0.74]],
  'planeATexture':'./assets/components/generic/slim-plane-a.png','planeBTexture':'./assets/components/generic/slim-plane-b-approx.png',
  'faceEvidence':{'planeA':HEU,'planeB':APP},
  'evidence':[ev(HEU,'Generic Slim flight geometry prepared for builder compatibility/shape testing; not tied to a supplied product image.')]
