@@ -1,5 +1,5 @@
 from __future__ import annotations
-import json, subprocess, time, sys, re
+import json, subprocess, time, sys, re, base64
 from io import BytesIO
 from pathlib import Path
 from PIL import Image, ImageDraw
@@ -20,6 +20,10 @@ except Exception as e:
     (OUT/'browser-qa.json').write_text(json.dumps(out,indent=2),encoding='utf8')
     print(json.dumps(out,indent=2));sys.exit(2)
 
+def canvas_image(page, selector):
+    data_url=page.evaluate("(sel)=>document.querySelector(sel).toDataURL('image/png')",selector)
+    return Image.open(BytesIO(base64.b64decode(data_url.split(',',1)[1]))).convert('RGBA')
+
 def wait_render(page,pid,timeout=15000):
     page.wait_for_function(
         """pid => window.__POC_LAST_RENDER__ && window.__POC_LAST_RENDER__.presetId === pid""",
@@ -29,8 +33,7 @@ def wait_render(page,pid,timeout=15000):
     return page.evaluate('window.__POC_LAST_RENDER__')
 
 def save_seam_zoom(page,pid,render_meta):
-    raw=page.locator('#orthogonal').screenshot(type='png')
-    image=Image.open(BytesIO(raw)).convert('RGB')
+    image=canvas_image(page,'#orthogonal').convert('RGB')
     joint=(render_meta.get('reference') or {}).get('jointSprite') or {}
     jx=float(joint.get('x',0)); jy=float(joint.get('y',212))
     sx=image.width/789.0; sy=image.height/331.0
@@ -122,8 +125,8 @@ def _visual_delta(source,rendered):
 def save_runtime_review(page,pid):
     preset=CAT['presets'][pid]
     source=Image.open(ROOT/preset.get('comparisonSourceImage',preset['sourceImage']).replace('./','')).convert('RGBA')
-    orthogonal=Image.open(BytesIO(page.locator('#orthogonal').screenshot(type='png'))).convert('RGBA')
-    posed=Image.open(BytesIO(page.locator('#posed').screenshot(type='png'))).convert('RGBA')
+    orthogonal=canvas_image(page,'#orthogonal')
+    posed=canvas_image(page,'#posed')
     c=CAT['components']
     tail=c['rearSystems'][preset['rearSystemId']] if preset.get('rearSystemId') else c['flights'][preset['flightId']]
     titles=[
@@ -200,7 +203,7 @@ try:
             preset=CAT['presets'][pid]
             source_path=preset.get('comparisonSourceImage',preset['sourceImage']).replace('./','')
             source_image=Image.open(ROOT/source_path).convert('RGBA')
-            reference_image=Image.open(BytesIO(page.locator('#orthogonal').screenshot(type='png'))).convert('RGBA')
+            reference_image=canvas_image(page,'#orthogonal')
             visual=_visual_delta(source_image,reference_image)
             visual_checks.append({'presetId':pid,**visual})
             results.append({
