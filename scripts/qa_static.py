@@ -121,6 +121,49 @@ def tail_texture_audit(pid,p):
         'tailQa':tq,
     }
 
+def fin_face_audit(pid,p,tail,source_path):
+    fins=tail.get('finTextures') or {}
+    if not fins:
+        return None
+
+    order=('A-positive','A-negative','B-positive','B-negative')
+    cellw,cellh=380,275
+    sheet=Image.new('RGBA',(cellw*4,cellh*2),(13,16,22,255))
+    d=ImageDraw.Draw(sheet)
+    metrics={}
+
+    for col,key in enumerate(order):
+        face=fins.get(key) or {}
+        for row,side in enumerate(('front','back')):
+            path=face.get(side)
+            panel=Image.new('RGBA',(cellw,cellh),(25,29,37,255))
+            if path and (ROOT/path.replace('./','')).exists():
+                raw=img(path)
+                fitted=fit(raw,(cellw,cellh-48),(25,29,37,255))
+                panel.alpha_composite(fitted,(0,44))
+                arr=np.asarray(raw.convert('RGBA'))
+                visible=arr[:,:,3]>8
+                mean_alpha=float(arr[:,:,3][visible].mean()) if visible.any() else 0.0
+                metrics[f'{key}:{side}']={
+                    'texture':path,
+                    'provenance':face.get(f'{side}Provenance'),
+                    'meanVisibleAlpha':mean_alpha,
+                    'maxAlpha':int(arr[:,:,3].max()),
+                }
+            else:
+                metrics[f'{key}:{side}']={'texture':path,'missing':True}
+            pd=ImageDraw.Draw(panel)
+            pd.text((8,8),f'{key} · {side}',fill='white')
+            pd.text((8,24),str(face.get(f'{side}Provenance','UNKNOWN')),fill=(180,195,215))
+            sheet.alpha_composite(panel,(col*cellw,row*cellh))
+
+    sheet.convert('RGB').save(OUT/'qa'/f'flight-fin-faces-{pid}.png')
+    return {
+        'source':source_path,
+        'authoring':tail.get('finFaceAuthoring'),
+        'faces':metrics,
+    }
+
 def flight_texture_audit(pid,p):
     a=assembly_for(p); tail=a['rearSystem'] or a['flight']
     source_path=p['sourceImage']
@@ -144,6 +187,7 @@ def flight_texture_audit(pid,p):
     ridge=center_ridge_score(plane_a_raw)
     d.text((540,405),f'high-frequency A={ea:.2f} · B={eb:.2f} · ratio={ratio:.2f} · center-ridge={ridge:.2f}',fill=(180,195,215))
     canvas.convert('RGB').save(OUT/'qa'/f'flight-textures-{pid}.png')
+    fin_qa=fin_face_audit(pid,p,tail,source_path)
     return {
       'name':p['name'],
       'planeAProvenance':tail.get('planeAProvenance',tail.get('faceEvidence',{}).get('planeA')),
@@ -154,6 +198,7 @@ def flight_texture_audit(pid,p):
       'backfaceDetailRatio':ratio,
       'centerRidgeScore':ridge,
       'qaSource':source_path,
+      'finFaceQA':fin_qa,
     }
 
 qa={'presets':{},'freeCombinations':[],'flightTextureQA':{},'tailTextureQA':{}}

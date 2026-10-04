@@ -12,7 +12,7 @@ def check(cond,msg):
 check(cat['rendererContract']['width']==789,'renderer width != 789')
 check(cat['rendererContract']['height']==331,'renderer height != 331')
 check(cat['rendererContract']['tip']=={'x':0,'y':212},'tip != (0,212)')
-check(cat['rendererContract']['flightPlaneModel']=='TWO_FULL_INTERSECTING_PLANES_SHARED_AXIS_90_DEG','wrong V4 flight model')
+check(cat['rendererContract']['flightPlaneModel']=='FOUR_HALF_FINS_WITH_EXPLICIT_FRONT_BACK_FACES_SHARED_AXIS_90_DEG','wrong V4 flight model')
 check(cat['rendererContract']['flatPerspective3DPath'] is False,'flatPerspective must be off in 3D path')
 check(len(cat['sourceAnalysis'])==15,f"expected 15 sources, got {len(cat['sourceAnalysis'])}")
 classes={'CLASSIC_MODULAR','INTEGRATED_REAR_SYSTEM','GEOMETRY_REFERENCE','ANGLED_REFERENCE','NEEDS_MANUAL_REVIEW'}
@@ -91,7 +91,7 @@ for group,items in c.items():
 # requirement and is covered in both a classic and integrated rear setup.
 web_sources={x['presetId']:x for x in cat.get('webPlayerSources',[])}
 check({'clemens-g2-23','clemens-95k-23'} <= set(web_sources),'Gabriel Clemens web presets missing')
-source_grounded_players={'clemens-g2-23','clemens-95k-23','humphries-prestige-22'}
+source_grounded_players={'clemens-g2-23','clemens-95k-23','aspinall-95k-22','bunting-95k-23','humphries-prestige-22'}
 for pid,entry in web_sources.items():
     p=cat['presets'].get(pid)
     check(p is not None,f'web source points at missing preset {pid}')
@@ -113,6 +113,37 @@ for pid,entry in web_sources.items():
             check(provenance.get('flight-plane-a')=='SOURCE-GROUNDED+APPROXIMATED-OCCLUSION',f'{pid}: side-view Plane A must disclose de-occlusion approximation')
             check(entry.get('flightExtractionMode')=='PRIMARY_FACE_DEOCCLUDED',f'{pid}: side-view must de-occlude photographed cross-fin')
         check(provenance.get('flight-plane-b-approx')=='APPROXIMATED',f'{pid}: plane B must remain approximated')
+
+# V1.4.1b: the four user-reported integrated designs must keep source artwork only on
+# the broadside A-plane front faces. Nothing may obtain readable source art by mirroring
+# it onto a reverse face or onto the perpendicular B plane.
+critical_fin_presets={
+    'prodigy-23',
+    'shift',
+    'aspinall-95k-22',
+    'bunting-95k-23',
+}
+for pid in critical_fin_presets:
+    p=cat['presets'][pid]
+    tail=c['rearSystems'][p['rearSystemId']]
+    fins=tail.get('finTextures') or {}
+    check(set(fins)=={'A-positive','A-negative','B-positive','B-negative'},f'{pid}: missing explicit four-fin face map')
+    meta_face=tail.get('finFaceAuthoring') or {}
+    check(meta_face.get('mirroringUsed') is False,f'{pid}: source fin authoring must not mirror artwork')
+    check(meta_face.get('visibleSourceFinCount')==2,f'{pid}: expected exactly two source-grounded broadside half-fins')
+    check(meta_face.get('hiddenFinCount')==2,f'{pid}: expected two unobserved perpendicular half-fins')
+    for key in ('A-positive','A-negative','B-positive','B-negative'):
+        face=fins.get(key) or {}
+        front=face.get('front'); back=face.get('back')
+        check(bool(front) and (ROOT/front.replace('./','')).exists(),f'{pid}/{key}: missing front texture')
+        check(bool(back) and (ROOT/back.replace('./','')).exists(),f'{pid}/{key}: missing back texture')
+        check(face.get('backProvenance')=='APPROXIMATED',f'{pid}/{key}: reverse face must remain APPROXIMATED')
+        if key.startswith('A-'):
+            check(str(face.get('frontProvenance','')).startswith('SOURCE-GROUNDED'),f'{pid}/{key}: broadside source face must stay source-grounded')
+            check(front != back,f'{pid}/{key}: readable source front must not be reused as reverse texture')
+        else:
+            check(face.get('frontProvenance')=='APPROXIMATED',f'{pid}/{key}: perpendicular unobserved face must remain APPROXIMATED')
+    check(fins['A-positive']['front'] != fins['A-negative']['front'],f'{pid}: two visible source half-fins must remain distinct assets')
 
 # G2 Plane A must come from the exact flat No.6 source, not from the assembled
 # dart's already-perspectival composite flight. This prevents a regression to the
@@ -186,6 +217,8 @@ VAPOR_S_PROFILE=[[0.00,0.00],[0.10,0.24],[0.28,0.72],[0.56,1.00],[0.82,0.90],[1.
 # canonical fin envelope comes from the verified flight family.
 for product,preset_id,expected_name,expected_profile in (
     ('clemens-95k','clemens-95k-23','No.6',NO6_PROFILE),
+    ('aspinall-95k','aspinall-95k-22','No.2',NO2_PROFILE),
+    ('bunting-95k','bunting-95k-23','No.2',NO2_PROFILE),
     ('humphries-prestige','humphries-prestige-22','Standard',STANDARD_PROFILE),
 ):
     qa=author.get(product,{}).get('flightApproximation') or {}
@@ -198,13 +231,11 @@ for product,preset_id,expected_name,expected_profile in (
 
 check(c['rearSystems']['mandalorian-kflex-short'].get('planeProfile')==NO6_PROFILE,'mandalorian: renderer plane profile is not canonical No.6')
 
-# V1.4 Batch 2E: these four designs remain HEURISTIC artwork reconstructions,
-# but their physical flight family is web-verified and must stay independent of
-# the reconstruction artwork.
+# V1.4 Batch 2E legacy reconstructions that have not yet been upgraded to
+# source-grounded artwork. Aspinall/Bunting intentionally moved out of this set
+# in V1.4.1b because real product pixels are now extracted.
 for product,preset_id,component_group,component_id,expected_shape,expected_profile in (
     ('cross-95k','cross-95k-23','rearSystems','cross-95k-kflex-no6-short','No.6',NO6_PROFILE),
-    ('aspinall-95k','aspinall-95k-22','rearSystems','aspinall-95k-kflex-no2-short','No.2',NO2_PROFILE),
-    ('bunting-95k','bunting-95k-23','rearSystems','bunting-95k-kflex-no2-short','No.2',NO2_PROFILE),
     ('mvg-signature','mvg-signature-22','flights','mvg-signature-no2','No.2',NO2_PROFILE),
 ):
     info=author.get(product,{})

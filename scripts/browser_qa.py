@@ -89,6 +89,8 @@ DEPTH_QA_PRESETS=(
     'clemens-95k-23',
     'humphries-prestige-22',
     'cross-95k-23',
+    'aspinall-95k-22',
+    'bunting-95k-23',
     'mvg-signature-22',
 )
 DEPTH_QA_ROLLS=(-45,-30,-15,0,15,30,45)
@@ -108,16 +110,28 @@ def save_flight_depth_matrix(page,pid):
             render=page.evaluate('window.__POC_LAST_RENDER__')
             posed=(render or {}).get('posed') or {}
             order=posed.get('flightRenderOrder') or []
-            model_ok=posed.get('flightPlaneModel')=='FOUR_NON_INTERSECTING_HALF_FINS_SHARED_AXIS_90_DEG'
-            mesh_ok=posed.get('flightMeshCount')==4 and len(order)==4
+            model_ok=posed.get('flightPlaneModel')=='FOUR_HALF_FINS_WITH_EXPLICIT_FRONT_BACK_FACES_SHARED_AXIS_90_DEG'
+            mesh_ok=posed.get('flightMeshCount')==4 and posed.get('flightSurfaceMeshCount')==8 and len(order)==4
             unique_orders=len({item.get('renderOrder') for item in order})==4 if len(order)==4 else False
             topology_ok=topology_ok and model_ok and mesh_ok
             order_ok=order_ok and unique_orders
+
+            if pid in ('prodigy-23','shift','aspinall-95k-22','bunting-95k-23'):
+                by_name={item.get('name'):item for item in order}
+                face_policy=(
+                    set(by_name)=={'A-positive','A-negative','B-positive','B-negative'} and
+                    all(str(by_name[k].get('frontProvenance','')).startswith('SOURCE-GROUNDED') for k in ('A-positive','A-negative')) and
+                    all(by_name[k].get('backProvenance')=='APPROXIMATED' for k in by_name) and
+                    all(by_name[k].get('frontProvenance')=='APPROXIMATED' for k in ('B-positive','B-negative')) and
+                    all(by_name[k].get('frontTexture')!=by_name[k].get('backTexture') for k in ('A-positive','A-negative'))
+                )
+                topology_ok=topology_ok and face_policy
             samples.append({
                 'incidenceDeg':incidence,
                 'rollDeg':roll,
                 'model':posed.get('flightPlaneModel'),
                 'meshCount':posed.get('flightMeshCount'),
+                'surfaceMeshCount':posed.get('flightSurfaceMeshCount'),
                 'renderOrder':order,
                 'tipDriftPx':posed.get('tipDriftPx'),
             })

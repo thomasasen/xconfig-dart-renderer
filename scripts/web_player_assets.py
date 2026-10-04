@@ -8,6 +8,7 @@ import numpy as np
 import cv2
 from tail_authoring import author_tail_components
 from flight_backface import build_backface_approximation
+from flight_fin_authoring import author_visible_half_fins
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'assets' / 'components'
@@ -62,6 +63,59 @@ SOURCE_GROUNDED_SPECS = {
             'https://www.flightclub.ie/cdn/shop/files/download_31.png?v=1727272211',
             'https://dartshop-bonn.de/WebRoot/Store21/Shops/1be89036-dc4e-4547-8d3b-58f763e72e84/6709/06AB/5F9D/F017/838C/0A48/352D/E048/target-gabriel-clemens-95k-95-swiss.jpg',
             'https://www.dartswarehouse.nl/media/catalog/product/cache/f20831aa4fe732f409bd1d4a248f932d/image/314593a22/target-gabriel-clemens-95k-95-swiss.jpg',
+        ],
+    },
+    'aspinall-95k': {
+        'integrated': True,
+        'shape': 'No.2',
+        'profile': None,
+        'splits': [0.188, 0.551, 0.688],
+        'officialPage': 'https://www.target-darts.co.uk/nathan-aspinall-95k-sp',
+        'visibleHalfFins': True,
+        'flightMaterialAlpha': 0.56,
+        # The exact review image has a narrow No.2 flight in perspective; its measured
+        # tail/body span ratio is ~1.43, just below the generic 1.45 close-up gate.
+        'tailSpanRatioMin': 1.38,
+        'flightPointRatioMin': 2.30,
+        'allowManualTailReview': True,
+        'requireFullSignature': True,
+        # This recorded product sheet contains the complete dart vertically; the
+        # neighbouring barrel close-up is a different panel. This is a source-layout
+        # constraint, not an assumption about the dart's real pose.
+        'requiredCandidateOrientation': 'vertical',
+        # Normalized ROI of the complete assembled dart in the recorded primary
+        # product sheet. This explicitly excludes the separate barrel close-up at the
+        # right edge instead of trying to infer panel semantics from silhouette alone.
+        'primarySourceRoi': [0.54, 0.00, 0.84, 1.00],
+        'sources': [
+            # Same steel-tip product sheet used in the manual review: one complete
+            # assembled dart plus an independent barrel close-up on white.
+            'https://www.180darts.nl/images/show/product/target-nathan-aspinall-95k-swiss-point-95-dartpijlen.jpg',
+            'https://www.dartfieber.de/media/d5/dc/20/1765360835/I_85104_190403_NATHAN_ASPINALL_95K_PACKAGING_-_Kopie.jpg?ts=1765360835',
+        ],
+    },
+    'bunting-95k': {
+        'integrated': True,
+        'shape': 'No.2',
+        'profile': None,
+        'splits': [0.191, 0.537, 0.684],
+        'officialPage': 'https://www.target-darts.co.uk/stephen-bunting-95k-sp',
+        'visibleHalfFins': True,
+        'flightMaterialAlpha': 0.58,
+        'allowManualTailReview': True,
+        'requireFullSignature': True,
+        # The complete assembled dart is vertical in this exact recorded sheet; use
+        # that layout fact to reject the adjacent barrel detail panel.
+        'requiredCandidateOrientation': 'vertical',
+        # Normalized ROI of the complete assembled dart in the recorded primary
+        # product sheet; the large barrel detail remains outside this window.
+        'primarySourceRoi': [0.40, 0.00, 0.74, 1.00],
+        'sources': [
+            # Exact review-style product sheet: portrait, one complete assembled dart
+            # and a separate barrel close-up. The elongated-object gate extracts only
+            # the complete dart and discards the other panels.
+            'https://www.mcdartshop.nl/files/images/15553.jpg',
+            'https://www.deadeyedarts.com/cdn/shop/files/d3452-lot.jpg?v=1746158897&width=416',
         ],
     },
     'humphries-prestige': {
@@ -128,7 +182,7 @@ def _foreground_mask(image):
     mask=cv2.morphologyEx(mask,cv2.MORPH_OPEN,np.ones((k,k),np.uint8))
     return mask,dist,alpha
 
-def _best_elongated_roi(image):
+def _best_elongated_roi(image, tail_span_ratio_min=1.45, require_full_signature=False, flight_point_ratio_min=3.0, required_orientation=None):
     mask,dist,source_alpha=_foreground_mask(image)
     h,w=mask.shape
     candidates=[]
@@ -169,13 +223,37 @@ def _best_elongated_roi(image):
     errors=[]
     for score,x,y,cw,ch,orientation in sorted(candidates,key=lambda item:item[0],reverse=True):
         try:
-            pad=max(4,round(min(cw,ch)*0.20))
+            if required_orientation and orientation != required_orientation:
+                raise ValueError(
+                    f'source-layout orientation {orientation!r} does not match required {required_orientation!r}'
+                )
+            # Product sheets place a large barrel close-up immediately beside the
+            # complete vertical dart. The generic 20% pad can therefore pull foreign
+            # panel pixels into the point/shaft silhouette. Strict full-dart candidates
+            # use only a narrow antialias safety margin around the detected object.
+            pad_fraction=0.04 if require_full_signature else 0.20
+            pad=max(2,round(min(cw,ch)*pad_fraction))
             x0=max(0,x-pad); y0=max(0,y-pad); x1=min(w,x+cw+pad); y1=min(h,y+ch+pad)
             crop=image.crop((x0,y0,x1,y1)).convert('RGBA')
+
+            # The full-image background estimate is reliable because its corners are
+            # actual catalogue background. A narrow vertical full-dart crop, however,
+            # may have point/flight pixels in its own corners. Re-estimating background
+            # there can classify white studio background as dart material. Preserve the
+            # already-computed full-image foreground mask for strict source candidates.
+            inherited_mask=mask[y0:y1,x0:x1].copy() if require_full_signature else None
             if crop.height > crop.width:
                 crop=crop.transpose(Image.Transpose.ROTATE_270)
+                if inherited_mask is not None:
+                    inherited_mask=cv2.rotate(inherited_mask,cv2.ROTATE_90_CLOCKWISE)
 
-            cmask,cdist,calpha=_foreground_mask(crop)
+            if inherited_mask is not None:
+                cmask=inherited_mask
+                cdist=None
+                calpha=np.asarray(crop)[:,:,3]
+            else:
+                cmask,cdist,calpha=_foreground_mask(crop)
+
             end_band=max(2,round(crop.width*0.14))
             def end_span(m):
                 ys=np.where(m>0)[0]
@@ -183,24 +261,33 @@ def _best_elongated_roi(image):
             left=end_span(cmask[:,:end_band]); right=end_span(cmask[:,-end_band:])
             if left > right*1.15:
                 crop=crop.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-                cmask,cdist,calpha=_foreground_mask(crop)
+                if inherited_mask is not None:
+                    cmask=np.ascontiguousarray(np.fliplr(cmask))
+                    calpha=np.ascontiguousarray(np.fliplr(calpha))
+                else:
+                    cmask,cdist,calpha=_foreground_mask(crop)
 
             # Product sheets may place spare shafts/barrels above or below the full
             # assembled dart. Anchor a corridor on the main dart's body axis using only
             # the central x-range, then discard off-axis foreground before per-column
             # silhouette filling. This keeps the real flight while preventing a second
             # product row from turning into a rectangular alpha bridge.
-            x_body0=max(0,int(cmask.shape[1]*.18))
-            x_body1=max(x_body0+1,int(cmask.shape[1]*.72))
-            row_score=(cmask[:,x_body0:x_body1]>0).sum(axis=1)
-            if row_score.max()>0:
-                axis_row=int(np.argmax(row_score))
-                corridor_half=max(12,int(round(cmask.shape[0]*.32)))
-                ylo=max(0,axis_row-corridor_half)
-                yhi=min(cmask.shape[0],axis_row+corridor_half+1)
-                corridor=np.zeros_like(cmask)
-                corridor[ylo:yhi,:]=255
-                cmask=np.where(corridor>0,cmask,0).astype(np.uint8)
+            # Multi-panel generic sources need an axis corridor to reject nearby
+            # spare components. Strict candidates are already narrow isolated full-dart
+            # strips; applying the same corridor would clip the wide flight and destroy
+            # the very tail signature used to validate them.
+            if not require_full_signature:
+                x_body0=max(0,int(cmask.shape[1]*.18))
+                x_body1=max(x_body0+1,int(cmask.shape[1]*.72))
+                row_score=(cmask[:,x_body0:x_body1]>0).sum(axis=1)
+                if row_score.max()>0:
+                    axis_row=int(np.argmax(row_score))
+                    corridor_half=max(12,int(round(cmask.shape[0]*.32)))
+                    ylo=max(0,axis_row-corridor_half)
+                    yhi=min(cmask.shape[0],axis_row+corridor_half+1)
+                    corridor=np.zeros_like(cmask)
+                    corridor[ylo:yhi,:]=255
+                    cmask=np.where(corridor>0,cmask,0).astype(np.uint8)
 
             silhouette=np.zeros_like(cmask)
             for xcol in range(cmask.shape[1]):
@@ -230,15 +317,41 @@ def _best_elongated_roi(image):
                 ys=np.where(rmask[:,xcol]>0)[0]
                 spans.append(0 if len(ys)==0 else int(ys.max()-ys.min()+1))
             n=len(spans)
-            body=np.array([v for v in spans[int(n*.30):int(n*.62)] if v>0],dtype=float)
-            tail=np.array([v for v in spans[int(n*.82):] if v>0],dtype=float)
-            if len(body)==0 or len(tail)==0:
-                raise ValueError('lacks measurable body/tail silhouette')
+            point=np.array([v for v in spans[int(n*.03):int(n*.16)] if v>0],dtype=float)
+            body=np.array([v for v in spans[int(n*.30):int(n*.60)] if v>0],dtype=float)
+            shaft=np.array([v for v in spans[int(n*.63):int(n*.76)] if v>0],dtype=float)
+            tail=np.array([v for v in spans[int(n*.82):int(n*.98)] if v>0],dtype=float)
+            if len(point)==0 or len(body)==0 or len(shaft)==0 or len(tail)==0:
+                raise ValueError('lacks measurable point/body/shaft/tail silhouette')
+            point_span=float(np.median(point))
             body_span=float(np.median(body))
+            shaft_span=float(np.median(shaft))
             tail_span=float(np.percentile(tail,75))
-            if tail_span < body_span*1.45:
+            ratio_min=float(tail_span_ratio_min)
+
+            # A barrel close-up can accidentally satisfy the old "large tail" rule when
+            # another panel intrudes near one end. A complete assembled dart has a much
+            # stronger physical signature: thin steel point -> thicker barrel -> thinner
+            # shaft -> substantially wider flight. Require all four zones.
+            if require_full_signature:
+                # Once a recorded product sheet supplies a unique source-layout
+                # orientation, only reject an obviously barrel-like "point". A tighter
+                # generic point/flight ratio proved brittle for low-resolution K-Flex
+                # catalogues and is unnecessary when the neighbouring close-up has
+                # already been excluded by source layout.
+                point_ratio_limit=.95 if required_orientation else .58
+                if point_span > body_span*point_ratio_limit:
+                    raise ValueError(
+                        f'front is not point-like: point {point_span:.1f}px vs body {body_span:.1f}px'
+                    )
+                if not required_orientation and tail_span < point_span*float(flight_point_ratio_min):
+                    raise ValueError(
+                        f'flight/point contrast too small: tail {tail_span:.1f}px vs point {point_span:.1f}px '
+                        f'(need >= {float(flight_point_ratio_min):.2f}x)'
+                    )
+            if tail_span < body_span*ratio_min:
                 raise ValueError(
-                    f'tail span {tail_span:.1f}px vs body {body_span:.1f}px (need >= 1.45x)'
+                    f'tail span {tail_span:.1f}px vs body {body_span:.1f}px (need >= {ratio_min:.2f}x)'
                 )
             return result
         except Exception as exc:
@@ -360,10 +473,25 @@ def _split_source_grounded(key,spec):
     errors=[]
     dart=None
     source_url=None
-    for candidate_url in spec['sources']:
+    for source_index,candidate_url in enumerate(spec['sources']):
         try:
             raw,_=_download_product_image([candidate_url])
-            candidate=_best_elongated_roi(raw)
+            roi_applied=None
+            if source_index == 0 and spec.get('primarySourceRoi'):
+                x0n,y0n,x1n,y1n=[float(v) for v in spec['primarySourceRoi']]
+                x0=max(0,min(raw.width-1,round(x0n*raw.width)))
+                y0=max(0,min(raw.height-1,round(y0n*raw.height)))
+                x1=max(x0+1,min(raw.width,round(x1n*raw.width)))
+                y1=max(y0+1,min(raw.height,round(y1n*raw.height)))
+                raw=raw.crop((x0,y0,x1,y1))
+                roi_applied=[x0n,y0n,x1n,y1n]
+            candidate=_best_elongated_roi(
+                raw,
+                spec.get('tailSpanRatioMin',1.45),
+                bool(spec.get('requireFullSignature')),
+                spec.get('flightPointRatioMin',3.0),
+                spec.get('requiredCandidateOrientation'),
+            )
             dart=candidate
             source_url=candidate_url
             break
@@ -383,6 +511,7 @@ def _split_source_grounded(key,spec):
         bbox=part.getbbox()
         if bbox: part=part.crop(bbox)
         parts[name]=part
+    raw_flight_composite=parts['flight-plane-a'].copy()
 
     tail_result=author_tail_components(
         dart,
@@ -391,6 +520,21 @@ def _split_source_grounded(key,spec):
         integrated=bool(spec['integrated']),
     )
     tail_analysis=tail_result['analysis'].to_dict()
+    # Some clean catalogue sheets contain a valid, very stable shaft core but the large
+    # integrated flight lowers the global axis-confidence score. For explicitly reviewed
+    # sources we may downgrade only FAIL_SOURCE_UNSUITABLE -> NEEDS_MANUAL_REVIEW when
+    # the local tail metrics themselves are PASS. This does not invent a rear root: if
+    # the analyzer cannot separate one, rootAuthored remains false.
+    tail_metrics=tail_result.get('tailMetrics') or {}
+    if (
+        spec.get('allowManualTailReview') and
+        tail_analysis.get('status')=='FAIL_SOURCE_UNSUITABLE' and
+        tail_metrics.get('status')=='PASS' and
+        float(tail_metrics.get('shaftWidthCV',1)) < .08 and
+        float(tail_metrics.get('tailAlphaHaze',1)) < .08
+    ):
+        tail_analysis['status']='NEEDS_MANUAL_REVIEW'
+        tail_analysis['manualReviewReason']='stable shaft-core metrics; global axis confidence reduced by large integrated-flight silhouette'
     tail_name='rear-shaft' if spec['integrated'] else 'shaft'
     if tail_analysis['status'] in ('PASS','NEEDS_MANUAL_REVIEW'):
         parts[tail_name]=tail_result['shaftCoreImage']
@@ -423,8 +567,56 @@ def _split_source_grounded(key,spec):
             'geometrySource':'KNOWN_FLIGHT_SHAPE',
         })
 
-    # Plane B is intentionally only an approximation. Do not mirror/copy source
-    # artwork: repeated text/logos on a perpendicular fin falsely implies known pixels.
+    fin_authoring=None
+    if spec.get('visibleHalfFins') and spec.get('integrated'):
+        authored_fins=author_visible_half_fins(
+            raw_flight_composite,
+            material_alpha=spec.get('flightMaterialAlpha'),
+            source_label=source_url,
+        )
+        parts['flight-fin-a-positive-front']=authored_fins.top
+        parts['flight-fin-a-negative-front']=authored_fins.bottom
+        parts['flight-fin-a-positive-approx']=authored_fins.top_back
+        parts['flight-fin-a-negative-approx']=authored_fins.bottom_back
+        fin_authoring={
+            **authored_fins.metadata,
+            'textures':{
+                # Broadside source: top/bottom are the two physical halves of the
+                # same face-on A plane. The perpendicular B plane is only visible as a
+                # narrow centre ridge, so its full surfaces remain APPROXIMATED.
+                'A-positive':{
+                    'front':'flight-fin-a-positive-front',
+                    'back':'flight-fin-a-positive-approx',
+                    'frontProvenance':'SOURCE-GROUNDED+APPROXIMATED-ALPHA',
+                    'backProvenance':'APPROXIMATED',
+                    'vAtAxis':1,
+                },
+                'A-negative':{
+                    'front':'flight-fin-a-negative-front',
+                    'back':'flight-fin-a-negative-approx',
+                    'frontProvenance':'SOURCE-GROUNDED+APPROXIMATED-ALPHA',
+                    'backProvenance':'APPROXIMATED',
+                    'vAtAxis':0,
+                },
+                'B-positive':{
+                    'front':'flight-fin-a-positive-approx',
+                    'back':'flight-fin-a-positive-approx',
+                    'frontProvenance':'APPROXIMATED',
+                    'backProvenance':'APPROXIMATED',
+                    'vAtAxis':1,
+                },
+                'B-negative':{
+                    'front':'flight-fin-a-negative-approx',
+                    'back':'flight-fin-a-negative-approx',
+                    'frontProvenance':'APPROXIMATED',
+                    'backProvenance':'APPROXIMATED',
+                    'vAtAxis':0,
+                },
+            },
+        }
+
+    # Legacy Plane B remains as a compatibility/material approximation for presets that
+    # have not yet been upgraded to per-half-fin face authoring.
     parts['flight-plane-b-approx']=backface(parts['flight-plane-a'])
 
     d=OUT/key
@@ -438,6 +630,7 @@ def _split_source_grounded(key,spec):
     return {
         'sourceFile':source_name,
         'sourceUrl':source_url,
+        'sourceRoiNormalized':roi_applied,
         'sourcePage':spec['officialPage'],
         'flightProductPage':spec.get('flightProductPage'),
         'componentSources':{
@@ -465,6 +658,7 @@ def _split_source_grounded(key,spec):
         'rearIntegrated':spec['integrated'],
         'flightExtractionMode':(flight_qc or {}).get('mode','DIRECT_SOURCE_FACE'),
         'flightApproximation':flight_qc,
+        'finFaceAuthoring':fin_authoring,
         'axisAuthoring':tail_result['axisAuthoring'],
         'tailSegmentation':tail_result['tailSegmentation'],
         'tailMetrics':tail_result['tailMetrics'],
@@ -500,6 +694,8 @@ NO2 = [[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[
 STD = NO2
 SOURCE_GROUNDED_SPECS['clemens-g2']['profile']=NO6
 SOURCE_GROUNDED_SPECS['clemens-95k']['profile']=NO6
+SOURCE_GROUNDED_SPECS['aspinall-95k']['profile']=NO2
+SOURCE_GROUNDED_SPECS['bunting-95k']['profile']=NO2
 SOURCE_GROUNDED_SPECS['humphries-prestige']['profile']=STD
 
 def font(size=24, bold=False):
