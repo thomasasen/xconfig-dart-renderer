@@ -26,39 +26,54 @@ def flight_meta(product):
 
 def tail_render_meta(product,total_length_mm,shaft_diameter_mm=5.2):
  m=meta.get(product,{})
- if not m.get('rootAuthored'):
+ tail_authoring=m.get('tailAuthoring') or {}
+ if tail_authoring.get('status') not in ('PASS','NEEDS_MANUAL_REVIEW'):
   return None
  seg=m.get('tailSegmentation') or {}
  core=seg.get('shaftCore')
- root=seg.get('rearRoot')
- if not core or not root or len(core)!=2 or len(root)!=2:
+ if not core or len(core)!=2:
   return None
+
+ total=float(total_length_mm or 20)
+ diameter=float(shaft_diameter_mm or 5.2)
+ result={
+  # A clean canonical shaft-core is useful independently of whether a distinct
+  # physical root can be separated with enough confidence.
+  'shaftTexture':tex(product,'rear-shaft-core'),
+  'renderShaftLengthMm':total,
+  'tailQa':{
+    'axisAuthoring':m.get('axisAuthoring'),
+    'tailSegmentation':seg,
+    'tailMetrics':m.get('tailMetrics'),
+    'tailAuthoring':tail_authoring,
+  },
+ }
+
+ if not m.get('rootAuthored'):
+  return result
+
+ root=seg.get('rearRoot')
+ if not root or len(root)!=2:
+  return result
+
  core_px=max(1,float(core[1])-float(core[0]))
  root_px=max(1,float(root[1])-float(root[0]))
  ratio=root_px/(core_px+root_px)
  # Render geometry, not a manufacturer dimension: keep the source-derived proportion
  # within a conservative physical envelope so one noisy boundary cannot dominate.
- total=float(total_length_mm or 20)
  root_len=max(1.2,min(4.5,total*ratio))
  shaft_len=max(0.5,total-root_len)
  growth=float(seg.get('rootGrowthRatio') or 1.16)
  growth=max(1.0,min(1.45,growth))
- diameter=float(shaft_diameter_mm or 5.2)
- return {
-  'shaftTexture':tex(product,'rear-shaft-core'),
+ result.update({
   'renderShaftLengthMm':round(shaft_len,4),
   'rootTexture':tex(product,'rear-root'),
   'renderRootLengthMm':round(root_len,4),
   'renderRootFrontDiameterMm':diameter,
   'renderRootRearDiameterMm':round(diameter*growth,4),
   'flightRootOverlapMm':0.6,
-  'tailQa':{
-    'axisAuthoring':m.get('axisAuthoring'),
-    'tailSegmentation':seg,
-    'tailMetrics':m.get('tailMetrics'),
-    'tailAuthoring':m.get('tailAuthoring'),
-  },
- }
+ })
+ return result
 
 source_analysis=[
  {'file':'190840STARWARSMANDALORIAN95_STEElTIP_GALLERY_DE_PT01.webp','classification':'INTEGRATED_REAR_SYSTEM','identifiedAs':'Target Star Wars Mandalorian SP','confidence':'HIGH','reason':'Die gelieferte Infografik benennt K-Flex, 2BA, 30/35-mm Swiss Point, 52-mm Barrel und 19-mm Short und bezeichnet den montierten blauen Flight ausdrücklich als No.6 (Extra: No.2). Aktuelle Target-Webdaten widersprechen dieser Zuordnung; für die konkrete Designquelle hat deshalb die gelieferte Infografik Vorrang.','evidence':[ev(SRC,'Produkt-/Komponentenangaben sind direkt im Bild lesbar.'),ev(WEB,'Target bestätigt Mandalorian SP, 95% Tungsten, 52-mm Barrel, 30-mm Swiss Storm Point und Short K-Flex.','https://www.targetdarts.com/us/star-wars-mandalorian-sp')]},
