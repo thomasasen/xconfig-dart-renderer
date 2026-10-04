@@ -199,7 +199,9 @@ function makeFlightFinGeometry(profile, root, length, radius, sign) {
     const x = position.getX(index);
     const y = position.getY(index);
     uv[index * 2] = clamp((x - root) / length, 0, 1);
-    uv[index * 2 + 1] = clamp(.5 - y / (2 * radius), 0, 1);
+    // Three.js UV v=0 is the texture bottom. Positive local Y is the visual top,
+    // so positive fin geometry must sample the upper half of the authored flight.
+    uv[index * 2 + 1] = clamp(.5 + y / (2 * radius), 0, 1);
   }
   geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   geometry.computeBoundingSphere();
