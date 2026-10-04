@@ -154,6 +154,30 @@ check(abs(float(mando_rear.get('renderFlightRadiusMm',0))-17.2)<1e-9,'mandaloria
 m_frac=float((mandalorian_author.get('flightApproximation') or {}).get('approximatedPixelFraction',0))
 check(.15 < m_frac < .35,f'mandalorian: dedicated-source approximation fraction implausible: {m_frac}')
 
+# V1.4 Batch 2A: known flight families must use canonical fin geometry rather
+# than a silhouette sampled from a photographed side view. RGB artwork remains
+# source-grounded; only the alpha/mesh envelope is normalized to the known shape.
+NO6_PROFILE=[[0.00,0.00],[0.08,0.30],[0.22,0.90],[0.68,1.00],[0.94,0.72],[1.00,0.35],[1.00,-0.35],[0.94,-0.72],[0.68,-1.00],[0.22,-0.90],[0.08,-0.30]]
+NO2_PROFILE=[[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[1.00,-0.45],[0.90,-0.82],[0.60,-1.00],[0.18,-0.96],[0.06,-0.34]]
+for product,expected_name,expected_profile in (
+    ('prodigy','NO2',NO2_PROFILE),
+    ('shift','NO6',NO6_PROFILE),
+):
+    qa=author.get(product,{}).get('flightApproximation') or {}
+    check(qa.get('canonicalProfile')==expected_name,f'{product}: canonical profile not recorded')
+    check(qa.get('profileMaskApplied') is True,f'{product}: canonical flight alpha mask not applied')
+    check(qa.get('geometrySource')=='KNOWN_FLIGHT_SHAPE',f'{product}: flight geometry still source-silhouette-derived')
+    preset_id='prodigy-23' if product=='prodigy' else 'shift'
+    preset=cat['presets'][preset_id]
+    tail=c['rearSystems'][preset['rearSystemId']]
+    check(tail.get('planeProfile')==expected_profile,f'{product}: renderer plane profile is not canonical {expected_name}')
+
+g2_qa=author.get('clemens-g2',{}).get('flightApproximation') or {}
+check(g2_qa.get('mode')=='FLAT_FLIGHT_SOURCE','clemens-g2: flat flight source regressed')
+check(g2_qa.get('profileMaskApplied') is True,'clemens-g2: flat flight is not masked to canonical No.6 geometry')
+check(g2_qa.get('geometrySource')=='KNOWN_FLIGHT_SHAPE','clemens-g2: geometry source must be the known No.6 shape')
+check(c['flights']['clemens-g2-no6'].get('planeProfile')==NO6_PROFILE,'clemens-g2: renderer plane profile is not canonical No.6')
+
 check(k95_author.get('flightExtractionMode')=='PRIMARY_FACE_DEOCCLUDED','clemens-95k: composite K-Flex face must be de-occluded')
 check((k95_author.get('flightApproximation') or {}).get('deocclusionMethod')=='STRIP_COLLAPSE_RESAMPLE','clemens-95k: wrong de-occlusion method')
 check((k95_author.get('componentProvenance') or {}).get('flight-plane-a')=='SOURCE-GROUNDED+APPROXIMATED-OCCLUSION','clemens-95k: Plane A provenance must disclose approximated occlusion strip')
