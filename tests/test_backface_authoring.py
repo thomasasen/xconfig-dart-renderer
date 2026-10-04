@@ -62,6 +62,25 @@ assert np.linalg.norm(back_median - front_material) < 42, (
 )
 
 assert np.any(back_arr[:, :, 3] == 128), "semi-transparent source material must remain semi-transparent"
+
+
+# A dark flight with large gold/white artwork is the regression case that previously
+# collapsed into a muddy brown/grey blurred backside. Dominant substrate colour must win.
+dark = Image.new("RGBA", (360, 220), (0, 0, 0, 0))
+dd = ImageDraw.Draw(dark)
+dd.polygon([(4, 110), (58, 20), (352, 42), (352, 178), (58, 200)], fill=(24, 25, 22, 255))
+dd.rectangle((80, 118, 350, 150), fill=(222, 179, 93, 255))
+dd.rectangle((105, 155, 350, 190), fill=(232, 230, 220, 255))
+for x in range(95, 340, 46):
+    dd.rectangle((x, 62, x + 16, 103), fill=(196, 142, 52, 255))
+dark_back = build_backface_approximation(dark)
+dark_median = visible_median_rgb(dark_back)
+assert float(np.mean(dark_median)) < 70, (
+    f"dark substrate must not turn into a muddy bright/brown backface: {dark_median}"
+)
+assert high_frequency_energy(dark_back) < high_frequency_energy(dark) * 0.30, (
+    "dark regression backface must not preserve blurred artwork ghosts"
+)
 print(
     "PASS: approximated backface removes high-frequency artwork while preserving material colour and alpha"
 )
