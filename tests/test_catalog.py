@@ -217,6 +217,8 @@ VAPOR_S_PROFILE=[[0.00,0.00],[0.10,0.24],[0.28,0.72],[0.56,1.00],[0.82,0.90],[1.
 # canonical fin envelope comes from the verified flight family.
 for product,preset_id,expected_name,expected_profile in (
     ('clemens-95k','clemens-95k-23','No.6',NO6_PROFILE),
+    ('aspinall-95k','aspinall-95k-22','No.2',NO2_PROFILE),
+    ('bunting-95k','bunting-95k-23','No.2',NO2_PROFILE),
     ('humphries-prestige','humphries-prestige-22','Standard',STANDARD_PROFILE),
 ):
     qa=author.get(product,{}).get('flightApproximation') or {}
@@ -229,13 +231,11 @@ for product,preset_id,expected_name,expected_profile in (
 
 check(c['rearSystems']['mandalorian-kflex-short'].get('planeProfile')==NO6_PROFILE,'mandalorian: renderer plane profile is not canonical No.6')
 
-# V1.4 Batch 2E: these four designs remain HEURISTIC artwork reconstructions,
-# but their physical flight family is web-verified and must stay independent of
-# the reconstruction artwork.
+# V1.4 Batch 2E legacy reconstructions that have not yet been upgraded to
+# source-grounded artwork. Aspinall/Bunting intentionally moved out of this set
+# in V1.4.1b because real product pixels are now extracted.
 for product,preset_id,component_group,component_id,expected_shape,expected_profile in (
     ('cross-95k','cross-95k-23','rearSystems','cross-95k-kflex-no6-short','No.6',NO6_PROFILE),
-    ('aspinall-95k','aspinall-95k-22','rearSystems','aspinall-95k-kflex-no2-short','No.2',NO2_PROFILE),
-    ('bunting-95k','bunting-95k-23','rearSystems','bunting-95k-kflex-no2-short','No.2',NO2_PROFILE),
     ('mvg-signature','mvg-signature-22','flights','mvg-signature-no2','No.2',NO2_PROFILE),
 ):
     info=author.get(product,{})
