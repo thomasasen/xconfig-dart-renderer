@@ -454,6 +454,14 @@ async function renderAll() {
         jointMetrics: orthogonal.jointMetrics,
         jointSprite: orthogonal.jointSprite,
       },
+      // Backward-compatible key for existing QA consumers. It now represents the
+      // source-match comparison view rather than a hard-coded Roll 0° view.
+      orthogonal: {
+        tipDriftPx: orthogonal.tipDriftPx,
+        axisYErrorPx: orthogonal.canonicalAxisYErrorPx,
+        jointMetrics: orthogonal.jointMetrics,
+        jointSprite: orthogonal.jointSprite,
+      },
       posed: {
         tipDriftPx: posed.tipDriftPx,
         axisYErrorPx: posed.canonicalAxisYErrorPx,
@@ -476,6 +484,11 @@ async function renderAll() {
       pose: { screenRotationDeg: screenRotation, incidenceDeg: incidence, rollDeg: roll },
       sourceComparison: {
         pose: comparisonPose,
+        tipDriftPx: orthogonal.tipDriftPx,
+        jointMetrics: orthogonal.jointMetrics,
+        jointSprite: orthogonal.jointSprite,
+      },
+      ortho: {
         tipDriftPx: orthogonal.tipDriftPx,
         jointMetrics: orthogonal.jointMetrics,
         jointSprite: orthogonal.jointSprite,
