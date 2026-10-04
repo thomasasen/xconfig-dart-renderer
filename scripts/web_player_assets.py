@@ -77,6 +77,7 @@ SOURCE_GROUNDED_SPECS = {
         # tail/body span ratio is ~1.43, just below the generic 1.45 close-up gate.
         'tailSpanRatioMin': 1.38,
         'allowManualTailReview': True,
+        'requireFullSignature': True,
         'sources': [
             # Same steel-tip product sheet used in the manual review: one complete
             # assembled dart plus an independent barrel close-up on white.
@@ -93,6 +94,7 @@ SOURCE_GROUNDED_SPECS = {
         'visibleHalfFins': True,
         'flightMaterialAlpha': 0.58,
         'allowManualTailReview': True,
+        'requireFullSignature': True,
         'sources': [
             # Exact review-style product sheet: portrait, one complete assembled dart
             # and a separate barrel close-up. The elongated-object gate extracts only
@@ -165,7 +167,7 @@ def _foreground_mask(image):
     mask=cv2.morphologyEx(mask,cv2.MORPH_OPEN,np.ones((k,k),np.uint8))
     return mask,dist,alpha
 
-def _best_elongated_roi(image, tail_span_ratio_min=1.45):
+def _best_elongated_roi(image, tail_span_ratio_min=1.45, require_full_signature=False):
     mask,dist,source_alpha=_foreground_mask(image)
     h,w=mask.shape
     candidates=[]
@@ -283,21 +285,22 @@ def _best_elongated_roi(image, tail_span_ratio_min=1.45):
             # another panel intrudes near one end. A complete assembled dart has a much
             # stronger physical signature: thin steel point -> thicker barrel -> thinner
             # shaft -> substantially wider flight. Require all four zones.
-            if point_span > body_span*.58:
-                raise ValueError(
-                    f'front is not point-like: point {point_span:.1f}px vs body {body_span:.1f}px'
-                )
-            if shaft_span > body_span*.82:
-                raise ValueError(
-                    f'rear connector is not shaft-like: shaft {shaft_span:.1f}px vs body {body_span:.1f}px'
-                )
+            if require_full_signature:
+                if point_span > body_span*.58:
+                    raise ValueError(
+                        f'front is not point-like: point {point_span:.1f}px vs body {body_span:.1f}px'
+                    )
+                if shaft_span > body_span*.82:
+                    raise ValueError(
+                        f'rear connector is not shaft-like: shaft {shaft_span:.1f}px vs body {body_span:.1f}px'
+                    )
+                if tail_span < point_span*3.0:
+                    raise ValueError(
+                        f'flight/point contrast too small: tail {tail_span:.1f}px vs point {point_span:.1f}px'
+                    )
             if tail_span < body_span*ratio_min:
                 raise ValueError(
                     f'tail span {tail_span:.1f}px vs body {body_span:.1f}px (need >= {ratio_min:.2f}x)'
-                )
-            if tail_span < point_span*3.0:
-                raise ValueError(
-                    f'flight/point contrast too small: tail {tail_span:.1f}px vs point {point_span:.1f}px'
                 )
             return result
         except Exception as exc:
@@ -422,7 +425,7 @@ def _split_source_grounded(key,spec):
     for candidate_url in spec['sources']:
         try:
             raw,_=_download_product_image([candidate_url])
-            candidate=_best_elongated_roi(raw,spec.get('tailSpanRatioMin',1.45))
+            candidate=_best_elongated_roi(raw,spec.get('tailSpanRatioMin',1.45),bool(spec.get('requireFullSignature')))
             dart=candidate
             source_url=candidate_url
             break
