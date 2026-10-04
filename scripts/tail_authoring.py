@@ -165,7 +165,7 @@ def _median_filter(values: np.ndarray, ksize: int = 7) -> np.ndarray:
     return np.median(windows, axis=-1).astype(np.float64)
 
 
-def analyze_axis(image: Image.Image) -> AxisAnalysis:
+def analyze_axis(image: Image.Image, x_range=None) -> AxisAnalysis:
     mask = alpha_foreground_mask(image)
     _, _, center, width = _raw_profile(mask)
     valid = np.isfinite(center) & np.isfinite(width) & (width >= 2)
@@ -175,6 +175,13 @@ def analyze_axis(image: Image.Image) -> AxisAnalysis:
     xs = np.flatnonzero(valid).astype(np.float64)
     widths = width[valid]
     centers = center[valid]
+    if x_range is not None:
+        range_start,range_end=_bounds_px(x_range,image.width)
+        in_range=(xs>=range_start)&(xs<range_end)
+        if in_range.sum()>=12:
+            xs=xs[in_range]
+            widths=widths[in_range]
+            centers=centers[in_range]
     xmin, xmax = xs.min(), xs.max()
     span = max(1.0, xmax - xmin)
     width_cut = np.percentile(widths, 68)
@@ -315,18 +322,23 @@ def detect_shaft_core(profile: SilhouetteProfile, seed_range=None, integrated: b
     ).reshape(-1) > 0
 
     root_start = None
-    if integrated and n >= 12:
-        search_start = max(int(n * 0.45), 2)
+    if n >= 12:
+        # Integrated systems may flare relatively early. Classic systems are much more
+        # conservative: only a sustained late widening is treated as slot/root leakage.
+        search_start = max(int(n * (0.45 if integrated else 0.68)), 2)
+        width_threshold = 1.16 if integrated else 1.28
+        derivative_threshold = 0.055 if integrated else 0.08
         relative_width = widths / max(1.0, baseline)
         signed_derivative = np.gradient(widths) / max(1.0, baseline)
-        opening = valid & ((relative_width >= 1.16) | (signed_derivative >= 0.055))
-        min_run = max(3, int(n * 0.055))
+        opening = valid & ((relative_width >= width_threshold) | (signed_derivative >= derivative_threshold))
+        min_run = max(3, int(n * (0.055 if integrated else 0.075)))
         candidate = _first_sustained(opening[search_start:], min_run)
         if candidate is not None:
             index = search_start + candidate
             local_end = min(n, index + max(min_run * 2, 6))
             offset = np.nanmedian(np.abs(centers[index:local_end] - center_base))
-            if offset <= max(2.0, baseline * 0.80):
+            allowed_offset = max(2.0, baseline * (0.80 if integrated else 0.35))
+            if offset <= allowed_offset:
                 root_start = start + index
 
     core_end = root_start if root_start is not None else end
@@ -358,7 +370,8 @@ def detect_rear_root(profile: SilhouetteProfile, shaft_core):
         return None
     baseline = max(1.0, float(shaft_core["baselineWidth"]))
     center_base = float(shaft_core.get("centerBase", profile.axis_y))
-    offset = float(np.median(np.abs(centers[valid] - center_base)))
+    signed_offset = float(np.median(centers[valid] - center_base))
+    offset = abs(signed_offset)
     progression = float(
         (np.percentile(widths[valid], 80) - np.percentile(widths[valid], 20)) / baseline
     )
@@ -368,9 +381,22 @@ def detect_rear_root(profile: SilhouetteProfile, shaft_core):
         "start": start,
         "end": seed_end,
         "axisOffset": offset,
+        "axisOffsetSigned": signed_offset,
         "widthProgression": progression,
         "confidence": float(np.clip(growth * 0.65 + axis_ok * 0.35, 0, 1)),
     }
+
+
+def _recenter_component_by_translation(image: Image.Image, signed_offset_px: float):
+    offset=float(signed_offset_px or 0)
+    if abs(offset)<0.5:
+        return image,0.0
+    extra=int(math.ceil(abs(offset)))+2
+    canvas=Image.new("RGBA",(image.width,image.height+extra*2),(0,0,0,0))
+    # One rigid translation only. No local warp/resampling of RGB pixels.
+    paste_y=extra-int(round(offset))
+    canvas.alpha_composite(image,(0,paste_y))
+    return canvas,float(-offset)
 
 
 def _remove_alpha_haze(arr: np.ndarray, strong_threshold: int = 180):
@@ -462,7 +488,7 @@ def measure_tail_quality(
     jump_norm = metrics["jumpMax"] / median_width
 
     status = PASS
-    if axis.confidence < 0.45 or abs(axis.angle_deg) > 6.0:
+    if abs(axis.angle_deg) > 6.0:
         status = FAIL_AXIS
     elif integrated and rear_root is None:
         status = NEEDS_MANUAL_REVIEW
@@ -470,6 +496,8 @@ def measure_tail_quality(
         status = FAIL_ROOT_INCLUDED_IN_SHAFT
     elif root_offset is not None and root_offset / median_width > 0.20:
         status = FAIL_ROOT_ALIGNMENT
+    elif axis.confidence < 0.45:
+        status = FAIL_AXIS
     elif haze_ratio > 0.12:
         status = FAIL_ALPHA_HAZE
     elif residual_norm > 0.11 or jump_norm > 0.20 or metrics["widthCV"] > 0.18:
@@ -521,19 +549,51 @@ def measure_tail_quality(
 def author_tail_components(image: Image.Image, seed_range=None, integrated: bool = False):
     source = image.convert("RGBA")
     source_axis = analyze_axis(source)
-    aligned = align_image_to_axis(source, source_axis)
-    aligned_axis = analyze_axis(aligned)
+    coarse = align_image_to_axis(source, source_axis)
+
+    # Refine the global fit using the known tail seed, but only its front/stable part.
+    # This prevents flight facets, infographic remnants and a rear flare from steering
+    # the main dart axis.
+    seed_start,seed_end=_bounds_px(seed_range,coarse.width)
+    seed_span=max(2,seed_end-seed_start)
+    fit_fraction=.64 if integrated else .72
+    refine_range=(seed_start,seed_start+max(2,int(seed_span*fit_fraction)))
+    refinement_axis=analyze_axis(coarse,refine_range)
+    aligned=align_image_to_axis(coarse,refinement_axis,max_auto_angle_deg=4.0)
+
+    final_seed_start,final_seed_end=_bounds_px(seed_range,aligned.width)
+    final_span=max(2,final_seed_end-final_seed_start)
+    final_fit_range=(
+        final_seed_start,
+        final_seed_start+max(2,int(final_span*fit_fraction)),
+    )
+    aligned_axis=analyze_axis(aligned,final_fit_range)
     profile = build_silhouette_profile(aligned, aligned_axis)
     shaft = detect_shaft_core(profile, seed_range=seed_range, integrated=integrated)
-    root = detect_rear_root(profile, shaft) if integrated else None
+    root_candidate = detect_rear_root(profile, shaft)
+    root = root_candidate if integrated else None
+
     shaft_image, shaft_haze = extract_centered_component(
         aligned, (shaft["start"], shaft["end"]), profile.axis_y
     )
     root_image, root_haze = None, 0.0
+    root_translation=0.0
+    root_source_offset=None
+    root_for_quality=root
     if root:
         root_image, root_haze = extract_centered_component(
             aligned, (root["start"], root["end"]), profile.axis_y
         )
+        root_source_offset=float(root.get("axisOffset",0))
+        signed=float(root.get("axisOffsetSigned",0))
+        ratio=root_source_offset/max(1.0,float(shaft.get("baselineWidth") or 1))
+        # A modest photographic/perspective offset may be canonicalized by one rigid
+        # translation of the whole root component. Large offsets remain a hard QA fail.
+        if ratio <= .30:
+            root_image,root_translation=_recenter_component_by_translation(root_image,signed)
+            root_for_quality=dict(root)
+            root_for_quality["axisOffset"]=0.0
+
     legacy_bounds = _bounds_px(seed_range, aligned.width)
     legacy_image, legacy_haze = extract_centered_component(aligned, legacy_bounds, profile.axis_y)
     haze = max(shaft_haze, root_haze, legacy_haze)
@@ -541,13 +601,14 @@ def author_tail_components(image: Image.Image, seed_range=None, integrated: bool
         profile,
         aligned_axis,
         shaft,
-        rear_root=root,
+        rear_root=root_for_quality,
         haze_ratio=haze,
         integrated=integrated,
     )
     return {
         "alignedImage": aligned,
         "axisSource": source_axis,
+        "axisRefinement": refinement_axis,
         "axisAligned": aligned_axis,
         "profile": profile,
         "shaftCore": shaft_image,
@@ -557,7 +618,16 @@ def author_tail_components(image: Image.Image, seed_range=None, integrated: bool
         "tailSegmentation": {
             "shaftCorePx": [int(shaft["start"]), int(shaft["end"])],
             "rearRootPx": [int(root["start"]), int(root["end"])] if root else None,
+            "classicRootTrimPx": (
+                [int(root_candidate["start"]), int(root_candidate["end"])]
+                if root_candidate and not integrated else None
+            ),
+            "rootSourceAxisOffsetPx": (
+                round(root_source_offset,4) if root_source_offset is not None else None
+            ),
+            "rootCanonicalTranslationYPx": round(root_translation,4),
             "method": "AXIS_WIDTH_PROFILE_V1",
             "confidence": round(float(analysis.confidence), 4),
         },
     }
+
