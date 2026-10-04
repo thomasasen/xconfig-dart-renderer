@@ -637,9 +637,19 @@ export class SharedDartComponentRenderer {
     const ranked = this.planeMeshes.map((mesh) => {
       mesh.geometry.computeBoundingSphere();
       const center = mesh.geometry.boundingSphere.center.clone().applyMatrix4(mesh.matrixWorld);
+      const normal = new THREE.Vector3(0, 0, 1)
+        .applyQuaternion(mesh.getWorldQuaternion(new THREE.Quaternion()))
+        .normalize();
+      const facing = Math.abs(normal.z);
+      // A mathematically edge-on transparent plane has zero projected area. Keeping it
+      // active can produce unstable giant raster fragments on some WebGL drivers when
+      // its triangles collapse numerically. Hide only the degenerate limit, not normal
+      // narrow fins.
+      mesh.visible = facing > 1e-4;
       return {
         mesh,
         distance: this.camera.position.distanceTo(center),
+        facing,
       };
     });
     ranked.sort((a, b) => b.distance - a.distance);
