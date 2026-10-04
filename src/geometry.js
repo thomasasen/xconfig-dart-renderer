@@ -9,13 +9,44 @@ export function normalizeCoverage(value, fallback = 1) {
 }
 
 /**
- * Resolve a visually continuous barrel -> shaft/rear seam.
- *
- * Component textures are alpha-trimmed product-image extracts. Their visible silhouette
- * does not necessarily occupy the full texture height at the join edge. Therefore using
- * only nominal component diameters can create an artificial step. We choose the smaller
- * source-supported visible diameter and derive transparent mesh envelopes for both sides
- * so that the *visible* silhouette meets at the same thickness.
+ * Resolve two alpha-textured physical bodies to the same visible diameter at a join.
+ * The nominal mesh envelopes may differ because transparent padding is ignored.
+ */
+export function resolveVisibleJoin({
+  leftNominalDiameterMm,
+  rightNominalDiameterMm,
+  leftCoverage = 1,
+  rightCoverage = 1,
+  targetVisibleDiameterMm = null,
+} = {}) {
+  const leftDiameter = Math.max(0.2, Number(leftNominalDiameterMm) || 0.2);
+  const rightDiameter = Math.max(0.2, Number(rightNominalDiameterMm) || 0.2);
+  const lCoverage = normalizeCoverage(leftCoverage);
+  const rCoverage = normalizeCoverage(rightCoverage);
+  const requested = Number(targetVisibleDiameterMm);
+  const visibleDiameterMm = Number.isFinite(requested) && requested > 0
+    ? requested
+    : rightDiameter;
+  const leftEnvelopeMm = visibleDiameterMm / lCoverage;
+  const rightEnvelopeMm = visibleDiameterMm / rCoverage;
+  return {
+    visibleDiameterMm,
+    leftEnvelopeMm,
+    rightEnvelopeMm,
+    leftCoverage: lCoverage,
+    rightCoverage: rCoverage,
+    leftVisibleAtJoinMm: leftEnvelopeMm * lCoverage,
+    rightVisibleAtJoinMm: rightEnvelopeMm * rCoverage,
+    visibleDeltaMm: Math.abs(
+      leftEnvelopeMm * lCoverage - rightEnvelopeMm * rCoverage
+    ),
+    sourceVisibleLeftMm: leftDiameter * lCoverage,
+    sourceVisibleRightMm: rightDiameter * rCoverage,
+  };
+}
+
+/**
+ * Backward-compatible barrel -> rear seam wrapper.
  */
 export function resolveBarrelRearSeam({
   barrelDiameterMm,
@@ -24,35 +55,22 @@ export function resolveBarrelRearSeam({
   rearFrontCoverage = 1,
   targetVisibleDiameterMm = null,
 } = {}) {
-  const barrelDiameter = Math.max(0.2, Number(barrelDiameterMm) || 0.2);
-  const rearDiameter = Math.max(0.2, Number(rearDiameterMm) || 0.2);
-  const bCoverage = normalizeCoverage(barrelRearCoverage);
-  const rCoverage = normalizeCoverage(rearFrontCoverage);
-
-  const sourceVisibleBarrel = barrelDiameter * bCoverage;
-  const sourceVisibleRear = rearDiameter * rCoverage;
-  const requestedTarget = Number(targetVisibleDiameterMm);
-  // At the physical rear connection the visible barrel neck and the visible shaft/rear
-  // should meet at the rear component's nominal outside diameter. The mesh envelopes
-  // may be wider because transparent padding in source-grounded textures is ignored.
-  const visibleDiameterMm = Number.isFinite(requestedTarget) && requestedTarget > 0
-    ? requestedTarget
-    : rearDiameter;
-
-  const barrelEndEnvelopeMm = visibleDiameterMm / bCoverage;
-  const rearStartEnvelopeMm = visibleDiameterMm / rCoverage;
-
+  const join = resolveVisibleJoin({
+    leftNominalDiameterMm: barrelDiameterMm,
+    rightNominalDiameterMm: rearDiameterMm,
+    leftCoverage: barrelRearCoverage,
+    rightCoverage: rearFrontCoverage,
+    targetVisibleDiameterMm,
+  });
   return {
-    visibleDiameterMm,
-    barrelEndEnvelopeMm,
-    rearStartEnvelopeMm,
-    barrelRearCoverage: bCoverage,
-    rearFrontCoverage: rCoverage,
-    barrelVisibleAtJoinMm: barrelEndEnvelopeMm * bCoverage,
-    rearVisibleAtJoinMm: rearStartEnvelopeMm * rCoverage,
-    visibleDeltaMm: Math.abs(
-      barrelEndEnvelopeMm * bCoverage - rearStartEnvelopeMm * rCoverage
-    ),
+    visibleDiameterMm: join.visibleDiameterMm,
+    barrelEndEnvelopeMm: join.leftEnvelopeMm,
+    rearStartEnvelopeMm: join.rightEnvelopeMm,
+    barrelRearCoverage: join.leftCoverage,
+    rearFrontCoverage: join.rightCoverage,
+    barrelVisibleAtJoinMm: join.leftVisibleAtJoinMm,
+    rearVisibleAtJoinMm: join.rightVisibleAtJoinMm,
+    visibleDeltaMm: join.visibleDeltaMm,
   };
 }
 
@@ -127,6 +145,40 @@ export function buildSmoothJoinProfile({
     }
   }
   return deduped;
+}
+
+export function buildSmoothBridgeProfile({
+  frontDiameterMm,
+  rearDiameterMm,
+  lengthMm,
+  flatFrontMm = 0.35,
+  flatRearMm = 0.35,
+  samples = 12,
+} = {}) {
+  const length = Math.max(0.1, Number(lengthMm) || 0.1);
+  const front = Math.max(0.2, Number(frontDiameterMm) || 0.2);
+  const rear = Math.max(0.2, Number(rearDiameterMm) || front);
+  const frontFlat = clampNumber(flatFrontMm, 0, length * 0.35, 0);
+  const rearFlat = clampNumber(flatRearMm, 0, length * 0.35, 0);
+  const transitionStart = frontFlat / length;
+  const transitionEnd = Math.max(
+    transitionStart,
+    Math.min(1, (length - rearFlat) / length)
+  );
+  if (Math.abs(front - rear) < 1e-9 || transitionEnd <= transitionStart + 1e-9) {
+    return [[0, front], [1, rear]];
+  }
+  const count = Math.max(4, Math.min(32, Math.round(Number(samples) || 12)));
+  const points = [[0, front]];
+  if (transitionStart > 0) points.push([transitionStart, front]);
+  for (let index = 1; index < count; index += 1) {
+    const t = index / count;
+    const u = transitionStart + (transitionEnd - transitionStart) * t;
+    points.push([u, front + (rear - front) * smoothstep01(t)]);
+  }
+  points.push([transitionEnd, rear]);
+  if (transitionEnd < 1) points.push([1, rear]);
+  return points;
 }
 
 export function profileEndpointSlope(profile, lengthMm, side = 'rear') {
