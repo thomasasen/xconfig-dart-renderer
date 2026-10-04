@@ -121,6 +121,10 @@ SOURCE_GROUNDED_SPECS = {
         'splits': [0.20, 0.54, 0.73],
         'officialPage': 'https://winmau.com/en-de/products/mvg-signature-edition',
         'sources': [
+            # This product sheet contains a complete assembled dart as a separate,
+            # narrow object; the oversized barrel detail is rejected by the full-dart
+            # tail signature.
+            'https://www.thedartdepot.co.nz/cdn/shop/files/MVGSignatureDart_1.png?v=1765523864',
             'https://www.bullydarts.co.uk/cdn/shop/files/1550_MVG_Signature_22g_image1.jpg?v=1765467371&width=4472',
         ],
     },
