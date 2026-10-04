@@ -182,19 +182,23 @@ A later production comparison may evaluate a smaller renderer such as OGL agains
 
 Flights are not treated as flat sprite decorations.
 
-The reference geometry consists of two complete planes intersecting on the dart axis at 90 degrees:
+The reference geometry starts from two perpendicular flight planes, but transparent
+rendering does **not** keep them as two whole intersecting draw objects. Each plane is
+split on the shared dart axis into two half-fins:
 
 ```text
-Plane A
-   │
-───┼───
-   │
-Plane B
+        B+
+         │
+A- ──────┼────── A+
+         │
+        B-
 ```
 
-Together they represent the four physical fins of a standard flight.
+The four half-fins meet only on the physical dart axis. They are sorted back-to-front
+individually in camera space, avoiding the invalid whole-plane ordering that can make
+one transparent fin look like a dark blade cutting through the other.
 
-Roll rotates this complete structure around the dart axis.
+Roll rotates the complete four-fin structure around the dart axis.
 
 Where possible, visible flight artwork is derived from actual source material.
 
