@@ -203,7 +203,7 @@ def _rectify_half(
     *,
     canonical_envelope: np.ndarray | None = None,
     source_outer_trim_fraction: float = 0.12,
-    source_tail_trim_fraction: float = 0.025,
+    source_tail_trim_fraction: float = 0.05,
 ) -> Image.Image:
     width = max(2, face_end - face_start + 1)
     local_spans = []
@@ -352,6 +352,10 @@ def author_visible_half_fins(
     top_back = _material_only_backface(top_source, material_alpha)
     bottom_back = _material_only_backface(bottom_source, material_alpha)
 
+    material_rgb = _dominant_material_rgb(base)
+    material_rgb_list = [int(round(float(v))) for v in material_rgb]
+    spine_opacity = min(0.96, max(0.72, float(material_alpha or 0.78) + 0.20))
+
     metadata = {
         "mode": "REFERENCE_PLANE_SOURCE_SAMPLES",
         "sourceLabel": source_label,
@@ -371,7 +375,7 @@ def author_visible_half_fins(
         "canonicalProfileApplied": bool(canonical_profile),
         "edgePolicy": "APPROXIMATED_SOURCE_BOUNDARY_INSET_AND_MATTE_DECONTAMINATION",
         "sourceOuterTrimFraction": 0.12,
-        "sourceTailTrimFraction": 0.025,
+        "sourceTailTrimFraction": 0.05,
         "mirroringUsed": False,
         "visibleSourceFinCount": 2,
         "hiddenFinCount": 2,
@@ -382,6 +386,14 @@ def author_visible_half_fins(
             else "SOURCE_ALPHA"
         ),
         "materialAlpha": material_alpha,
+        "materialColorRgb": material_rgb_list,
+        "spineMaterial": {
+            "provenance": "APPROXIMATED_SOURCE_DERIVED_MATERIAL",
+            "colorRgb": material_rgb_list,
+            "opacity": round(spine_opacity, 4),
+            "diameterMm": 1.0,
+            "diameterProvenance": "HEURISTIC",
+        },
     }
     return HalfFinAuthoring(
         top=top,
