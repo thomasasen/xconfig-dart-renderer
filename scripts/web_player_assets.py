@@ -235,17 +235,22 @@ def _best_elongated_roi(image, tail_span_ratio_min=1.45, require_full_signature=
             # the central x-range, then discard off-axis foreground before per-column
             # silhouette filling. This keeps the real flight while preventing a second
             # product row from turning into a rectangular alpha bridge.
-            x_body0=max(0,int(cmask.shape[1]*.18))
-            x_body1=max(x_body0+1,int(cmask.shape[1]*.72))
-            row_score=(cmask[:,x_body0:x_body1]>0).sum(axis=1)
-            if row_score.max()>0:
-                axis_row=int(np.argmax(row_score))
-                corridor_half=max(12,int(round(cmask.shape[0]*.32)))
-                ylo=max(0,axis_row-corridor_half)
-                yhi=min(cmask.shape[0],axis_row+corridor_half+1)
-                corridor=np.zeros_like(cmask)
-                corridor[ylo:yhi,:]=255
-                cmask=np.where(corridor>0,cmask,0).astype(np.uint8)
+            # Multi-panel generic sources need an axis corridor to reject nearby
+            # spare components. Strict candidates are already narrow isolated full-dart
+            # strips; applying the same corridor would clip the wide flight and destroy
+            # the very tail signature used to validate them.
+            if not require_full_signature:
+                x_body0=max(0,int(cmask.shape[1]*.18))
+                x_body1=max(x_body0+1,int(cmask.shape[1]*.72))
+                row_score=(cmask[:,x_body0:x_body1]>0).sum(axis=1)
+                if row_score.max()>0:
+                    axis_row=int(np.argmax(row_score))
+                    corridor_half=max(12,int(round(cmask.shape[0]*.32)))
+                    ylo=max(0,axis_row-corridor_half)
+                    yhi=min(cmask.shape[0],axis_row+corridor_half+1)
+                    corridor=np.zeros_like(cmask)
+                    corridor[ylo:yhi,:]=255
+                    cmask=np.where(corridor>0,cmask,0).astype(np.uint8)
 
             silhouette=np.zeros_like(cmask)
             for xcol in range(cmask.shape[1]):
