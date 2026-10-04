@@ -7,9 +7,9 @@ from __future__ import annotations
 # - supplied broadside product images for the normalized outline progression
 #
 # These are NOT manufacturer CAD profiles. The family dimensions are reference values
-# and the normalized outlines are calibrated approximations. The No.2 outline is
-# deliberately smooth/dense enough to avoid the previous coarse polygon 'axe head'
-# silhouette seen on integrated K-Flex designs such as Prodigy. Product artwork remains
+# and the normalized outlines are calibrated approximations. The No.2 outline keeps the broad rear edge and smooth shoulder progression visible
+# on standard/Target K-Flex No.2 references. A narrow pointed rear edge is explicitly
+# avoided because it creates the incorrect 'axe head' / leaf silhouette seen on Prodigy. Product artwork remains
 # independent source evidence.
 
 NO6_PROFILE = [
@@ -35,38 +35,30 @@ NO6_PROFILE = [
 NO2_PROFILE = [
     [0.00,  0.00],
     [0.04,  0.08],
-    [0.08,  0.17],
-    [0.13,  0.28],
-    [0.19,  0.40],
-    [0.26,  0.54],
-    [0.35,  0.70],
-    [0.46,  0.84],
-    [0.57,  0.93],
-    [0.66,  0.98],
-    [0.73,  1.00],
-    [0.79,  0.99],
-    [0.85,  0.94],
-    [0.90,  0.86],
-    [0.94,  0.75],
-    [0.97,  0.61],
-    [0.99,  0.48],
-    [1.00,  0.40],
-    [1.00, -0.40],
-    [0.99, -0.48],
-    [0.97, -0.61],
-    [0.94, -0.75],
-    [0.90, -0.86],
-    [0.85, -0.94],
-    [0.79, -0.99],
-    [0.73, -1.00],
-    [0.66, -0.98],
-    [0.57, -0.93],
-    [0.46, -0.84],
-    [0.35, -0.70],
-    [0.26, -0.54],
-    [0.19, -0.40],
-    [0.13, -0.28],
-    [0.08, -0.17],
+    [0.08,  0.18],
+    [0.14,  0.30],
+    [0.22,  0.46],
+    [0.32,  0.64],
+    [0.44,  0.82],
+    [0.56,  0.94],
+    [0.66,  1.00],
+    [0.74,  0.99],
+    [0.82,  0.96],
+    [0.90,  0.90],
+    [0.96,  0.82],
+    [1.00,  0.74],
+    [1.00, -0.74],
+    [0.96, -0.82],
+    [0.90, -0.90],
+    [0.82, -0.96],
+    [0.74, -0.99],
+    [0.66, -1.00],
+    [0.56, -0.94],
+    [0.44, -0.82],
+    [0.32, -0.64],
+    [0.22, -0.46],
+    [0.14, -0.30],
+    [0.08, -0.18],
     [0.04, -0.08],
 ]
 
