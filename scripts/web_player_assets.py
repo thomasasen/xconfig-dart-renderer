@@ -72,13 +72,48 @@ SOURCE_GROUNDED_SPECS = {
         'splits': [0.22, 0.51, 0.72],
         'officialPage': 'https://winmau.com/en-de/products/luke-humphries-prestige-darts',
         'sources': [
-            # Retail copy of the official Red Dragon media sheet. It contains one long,
-            # clean horizontal assembled dart; the elongated-object gate extracts only
-            # that dart and discards the surrounding packaging/component panels.
             'https://www.reddragondarts.com/cdn/shop/files/2823_LUKEH_Prestige22gImage_5.jpg?v=1734084563&width=2667',
-            # Angled fallback. The geometry gate will reject it if it is not sufficiently
-            # broadside for component extraction.
             'https://aviddarts.com.au/cdn/shop/files/LukeHumphries-Prestige-3.jpg?v=1734126420&width=1500',
+        ],
+    },
+    'cross-95k': {
+        'integrated': True,
+        'shape': 'No.6',
+        'profile': None,
+        'splits': [0.19, 0.55, 0.69],
+        'officialPage': 'https://www.target-darts.co.uk/rob-cross-95k-sp',
+        'sources': [
+            'https://www.thedartdepot.co.nz/cdn/shop/files/RobCross95kDart_1_1024x.png?v=1733949037',
+        ],
+    },
+    'aspinall-95k': {
+        'integrated': True,
+        'shape': 'No.2',
+        'profile': None,
+        'splits': [0.19, 0.55, 0.69],
+        'officialPage': 'https://www.target-darts.co.uk/nathan-aspinall-95k-sp',
+        'sources': [
+            'https://www.180darts.nl/images/show/product/target-nathan-aspinall-95k-swiss-point-95-dartpijlen.jpg',
+        ],
+    },
+    'bunting-95k': {
+        'integrated': True,
+        'shape': 'No.2',
+        'profile': None,
+        'splits': [0.19, 0.54, 0.68],
+        'officialPage': 'https://www.target-darts.co.uk/stephen-bunting-95k-sp',
+        'sources': [
+            'https://www.dartswarehouse.nl/media/catalog/product/cache/f20831aa4fe732f409bd1d4a248f932d/image/32443219e/target-stephen-bunting-95k-95-swiss.jpg',
+        ],
+    },
+    'mvg-signature': {
+        'integrated': False,
+        'shape': 'No.2',
+        'profile': None,
+        'splits': [0.20, 0.54, 0.73],
+        'officialPage': 'https://winmau.com/en-de/products/mvg-signature-edition',
+        'sources': [
+            'https://www.bullydarts.co.uk/cdn/shop/files/1550_MVG_Signature_22g_image1.jpg?v=1765467371&width=4472',
         ],
     },
 }
@@ -487,6 +522,10 @@ STD = NO2
 SOURCE_GROUNDED_SPECS['clemens-g2']['profile']=NO6
 SOURCE_GROUNDED_SPECS['clemens-95k']['profile']=NO6
 SOURCE_GROUNDED_SPECS['humphries-prestige']['profile']=STD
+SOURCE_GROUNDED_SPECS['cross-95k']['profile']=NO6
+SOURCE_GROUNDED_SPECS['aspinall-95k']['profile']=NO2
+SOURCE_GROUNDED_SPECS['bunting-95k']['profile']=NO2
+SOURCE_GROUNDED_SPECS['mvg-signature']['profile']=NO2
 
 def font(size=24, bold=False):
     paths = ['/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf' if bold else '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf']
