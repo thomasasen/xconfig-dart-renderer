@@ -79,6 +79,10 @@ SOURCE_GROUNDED_SPECS = {
         'flightPointRatioMin': 2.30,
         'allowManualTailReview': True,
         'requireFullSignature': True,
+        # This recorded product sheet contains the complete dart vertically; the
+        # neighbouring barrel close-up is a different panel. This is a source-layout
+        # constraint, not an assumption about the dart's real pose.
+        'requiredCandidateOrientation': 'vertical',
         'sources': [
             # Same steel-tip product sheet used in the manual review: one complete
             # assembled dart plus an independent barrel close-up on white.
@@ -96,6 +100,9 @@ SOURCE_GROUNDED_SPECS = {
         'flightMaterialAlpha': 0.58,
         'allowManualTailReview': True,
         'requireFullSignature': True,
+        # The complete assembled dart is vertical in this exact recorded sheet; use
+        # that layout fact to reject the adjacent barrel detail panel.
+        'requiredCandidateOrientation': 'vertical',
         'sources': [
             # Exact review-style product sheet: portrait, one complete assembled dart
             # and a separate barrel close-up. The elongated-object gate extracts only
@@ -168,7 +175,7 @@ def _foreground_mask(image):
     mask=cv2.morphologyEx(mask,cv2.MORPH_OPEN,np.ones((k,k),np.uint8))
     return mask,dist,alpha
 
-def _best_elongated_roi(image, tail_span_ratio_min=1.45, require_full_signature=False, flight_point_ratio_min=3.0):
+def _best_elongated_roi(image, tail_span_ratio_min=1.45, require_full_signature=False, flight_point_ratio_min=3.0, required_orientation=None):
     mask,dist,source_alpha=_foreground_mask(image)
     h,w=mask.shape
     candidates=[]
@@ -209,6 +216,10 @@ def _best_elongated_roi(image, tail_span_ratio_min=1.45, require_full_signature=
     errors=[]
     for score,x,y,cw,ch,orientation in sorted(candidates,key=lambda item:item[0],reverse=True):
         try:
+            if required_orientation and orientation != required_orientation:
+                raise ValueError(
+                    f'source-layout orientation {orientation!r} does not match required {required_orientation!r}'
+                )
             # Product sheets place a large barrel close-up immediately beside the
             # complete vertical dart. The generic 20% pad can therefore pull foreign
             # panel pixels into the point/shaft silhouette. Strict full-dart candidates
@@ -297,14 +308,17 @@ def _best_elongated_roi(image, tail_span_ratio_min=1.45, require_full_signature=
             # stronger physical signature: thin steel point -> thicker barrel -> thinner
             # shaft -> substantially wider flight. Require all four zones.
             if require_full_signature:
-                if point_span > body_span*.58:
+                # Once a recorded product sheet supplies a unique source-layout
+                # orientation, only reject an obviously barrel-like "point". A tighter
+                # generic point/flight ratio proved brittle for low-resolution K-Flex
+                # catalogues and is unnecessary when the neighbouring close-up has
+                # already been excluded by source layout.
+                point_ratio_limit=.95 if required_orientation else .58
+                if point_span > body_span*point_ratio_limit:
                     raise ValueError(
                         f'front is not point-like: point {point_span:.1f}px vs body {body_span:.1f}px'
                     )
-                # Integrated K-Flex stems can be nearly barrel-thick in low-resolution
-                # catalogue imagery, so shaft/body width is not a reliable hard gate.
-                # Point-vs-body and flight-vs-point remain the robust complete-dart cues.
-                if tail_span < point_span*float(flight_point_ratio_min):
+                if not required_orientation and tail_span < point_span*float(flight_point_ratio_min):
                     raise ValueError(
                         f'flight/point contrast too small: tail {tail_span:.1f}px vs point {point_span:.1f}px '
                         f'(need >= {float(flight_point_ratio_min):.2f}x)'
@@ -441,6 +455,7 @@ def _split_source_grounded(key,spec):
                 spec.get('tailSpanRatioMin',1.45),
                 bool(spec.get('requireFullSignature')),
                 spec.get('flightPointRatioMin',3.0),
+                spec.get('requiredCandidateOrientation'),
             )
             dart=candidate
             source_url=candidate_url
