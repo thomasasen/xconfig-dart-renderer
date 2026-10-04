@@ -47,6 +47,56 @@ function canonicalRadialFinProfile(profile) {
   return points;
 }
 
+function flightEnvelopeAt(profile, u) {
+  const points = Array.isArray(profile) ? profile : [];
+  const x = clamp(u, 0, 1);
+  const values = [];
+  for (let index = 0; index < points.length; index += 1) {
+    const a = points[index];
+    const b = points[(index + 1) % points.length];
+    const x0 = Number(a?.[0]);
+    const y0 = Number(a?.[1]);
+    const x1 = Number(b?.[0]);
+    const y1 = Number(b?.[1]);
+    if (![x0, y0, x1, y1].every(Number.isFinite)) continue;
+    if (x < Math.min(x0, x1) - 1e-9 || x > Math.max(x0, x1) + 1e-9) continue;
+    const dx = x1 - x0;
+    if (Math.abs(dx) < 1e-9) {
+      if (Math.abs(x - x0) < 1e-7) values.push(Math.abs(y0), Math.abs(y1));
+      continue;
+    }
+    const t = (x - x0) / dx;
+    if (t >= -1e-7 && t <= 1 + 1e-7) {
+      values.push(Math.abs(y0 + (y1 - y0) * t));
+    }
+  }
+  return values.length ? Math.max(...values) : 0;
+}
+
+function resolveFlightMountOverlapMm(profile, flightLengthMm, flightRadiusMm, shaftExitRadiusMm) {
+  const length = Math.max(.1, Number(flightLengthMm) || .1);
+  const radius = Math.max(.1, Number(flightRadiusMm) || .1);
+  const target = Math.max(.1, Number(shaftExitRadiusMm) || .1);
+  const targetNormalized = Math.min(1, target / radius);
+
+  let previousU = 0;
+  let previousY = flightEnvelopeAt(profile, 0);
+  const steps = 240;
+  for (let step = 1; step <= steps; step += 1) {
+    const u = step / steps;
+    const y = flightEnvelopeAt(profile, u);
+    if (y >= targetNormalized) {
+      const span = Math.max(1e-9, y - previousY);
+      const mix = clamp((targetNormalized - previousY) / span, 0, 1);
+      const hitU = previousU + (u - previousU) * mix;
+      return clamp(hitU * length, .5, Math.min(8, length * .24));
+    }
+    previousU = u;
+    previousY = y;
+  }
+  return clamp(length * .08, .5, Math.min(8, length * .24));
+}
+
 function deg(value) {
   return Number(value) * Math.PI / 180;
 }
@@ -639,8 +689,27 @@ export class SharedDartComponentRenderer {
     const tail = assembly.rearSystem || assembly.flight;
     const flightLength = Number(tail.renderFlightLengthMm || tail.renderLengthMm || 42);
     const flightRadius = Number(tail.renderFlightRadiusMm || tail.renderRadiusMm || 18);
-    const flightRootOverlapMm = Number(tail.flightRootOverlapMm ?? 1.5);
-    const flightRoot = x - flightRootOverlapMm;
+    const lastBodyProfile = bodyDefinitions[bodyDefinitions.length - 1]?.profile || [[0, 4.8], [1, 4.8]];
+    const shaftExitDiameterMm = Number(lastBodyProfile[lastBodyProfile.length - 1]?.[1] || 4.8);
+    const shaftExitRadiusMm = Math.max(.1, shaftExitDiameterMm / 2);
+    const flightMountOverlapMm = resolveFlightMountOverlapMm(
+      tail.planeProfile,
+      flightLength,
+      flightRadius,
+      shaftExitRadiusMm
+    );
+    const flightRoot = x - flightMountOverlapMm;
+    const attachmentU = clamp(flightMountOverlapMm / Math.max(.001, flightLength), 0, 1);
+    const attachmentRadiusMm = flightEnvelopeAt(tail.planeProfile, attachmentU) * flightRadius;
+    this.flightMountMetrics = {
+      shaftEndXmm: x,
+      flightRootXmm: flightRoot,
+      overlapMm: flightMountOverlapMm,
+      shaftExitRadiusMm,
+      attachmentRadiusMm,
+      radialGapMm: Math.max(0, shaftExitRadiusMm - attachmentRadiusMm),
+      model: 'PROFILE_DERIVED_INSERTION_OR_INTEGRATED_OVERLAP',
+    };
     const halfProfiles = splitFlightProfile(tail.planeProfile);
 
     this.flightGroup = new THREE.Group();
@@ -938,6 +1007,7 @@ export class SharedDartComponentRenderer {
       flightSurfaceMeshCount: this.flightSurfaceMeshes?.length || 0,
       flightFacing: this.#flightFacing(),
       flightSpine: this.flightSpineMeta || { present: false },
+      flightMount: this.flightMountMetrics,
       flightRenderOrder: (this.flightFins || []).map((fin) => ({
         name: fin.key,
         plane: fin.plane,
@@ -1003,6 +1073,8 @@ export class SharedDartComponentRenderer {
         this.planeMeshes?.length === 4 &&
         this.flightSurfaceMeshes?.length === 8 &&
         this.flightFins?.every((fin, index) => fin.azimuthDeg === FIN_AZIMUTH_DEG[index]) &&
+        Number(this.flightMountMetrics?.overlapMm || 0) > 0 &&
+        Number(this.flightMountMetrics?.radialGapMm || 0) < 0.08 &&
         (!this.assembly?.rearSystem?.finFaceAuthoring?.spineMaterial || Boolean(this.flightSpineMesh)),
       maxTipDriftPx: maxTip,
       maxCanonicalAxisYErrorPx: maxAxis,
@@ -1014,6 +1086,7 @@ export class SharedDartComponentRenderer {
       flightMeshCount: this.planeMeshes?.length || 0,
       flightSurfaceMeshCount: this.flightSurfaceMeshes?.length || 0,
       flightSpine: this.flightSpineMeta || { present: false },
+      flightMount: this.flightMountMetrics,
       flightTopology: 'FOUR_EXPLICIT_RADIAL_FINS_0_90_180_270_WITH_SEPARATE_FACE_SURFACES',
       flightFacingSamples,
     };
