@@ -519,7 +519,7 @@ for key,spec in SPECS.items():
         'overallConfidence':tail_analysis['confidence'],
         'status':tail_status,
       },
-      'rootAuthored':bool(spec['rear'] and tail_result.get('rearRootImage') is not None),
+      'rootAuthored':bool(spec['rear'] and tail_status in ('PASS','NEEDS_MANUAL_REVIEW') and tail_result.get('rearRootImage') is not None),
       'authoringStatus':(
         'SOURCE-GROUNDED axis/width-profile tail authoring; '
         + tail_status
