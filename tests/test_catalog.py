@@ -147,6 +147,7 @@ check((ROOT/'assets/source/web-mandalorian-kflex-frontal-source-grounded.png').e
 check((mandalorian_author.get('flightApproximation') or {}).get('design')=='MANDALORIAN_BLUE_SOURCE_ARTWORK','mandalorian: dedicated flight source is not tagged as blue Mandalorian artwork')
 check((mandalorian_author.get('flightApproximation') or {}).get('canonicalProfile')=='NO6_SUPPLIED_INFOGRAPHIC','mandalorian: dedicated flight is not masked to supplied No.6 profile')
 check((mandalorian_author.get('flightApproximation') or {}).get('profileMaskApplied') is True,'mandalorian: No.6 profile mask was not applied')
+check((mandalorian_author.get('flightApproximation') or {}).get('geometrySource')=='KNOWN_FLIGHT_SHAPE','mandalorian: geometry source must be canonical No.6')
 mando_rear=c['rearSystems'].get('mandalorian-kflex-short',{})
 check(mando_rear.get('flightShape')=='No.6',f"mandalorian: mounted flight shape must follow supplied infographic No.6, got {mando_rear.get('flightShape')}")
 check(abs(float(mando_rear.get('renderFlightLengthMm',0))-41.5)<1e-9,'mandalorian: No.6 render length must be 41.5 mm')
@@ -180,6 +181,22 @@ check(c['flights']['clemens-g2-no6'].get('planeProfile')==NO6_PROFILE,'clemens-g
 
 STANDARD_PROFILE=[[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[1.00,-0.45],[0.90,-0.82],[0.60,-1.00],[0.18,-0.96],[0.06,-0.34]]
 VAPOR_S_PROFILE=[[0.00,0.00],[0.10,0.24],[0.28,0.72],[0.56,1.00],[0.82,0.90],[1.00,0.48],[1.00,-0.48],[0.82,-0.90],[0.56,-1.00],[0.28,-0.72],[0.10,-0.24]]
+
+# V1.4 Batch 2D: source-grounded side views may supply artwork pixels, but the
+# canonical fin envelope comes from the verified flight family.
+for product,preset_id,expected_name,expected_profile in (
+    ('clemens-95k','clemens-95k-23','No.6',NO6_PROFILE),
+    ('humphries-prestige','humphries-prestige-22','Standard',STANDARD_PROFILE),
+):
+    qa=author.get(product,{}).get('flightApproximation') or {}
+    check(qa.get('profileMaskApplied') is True,f'{product}: canonical profile mask not applied')
+    check(qa.get('geometrySource')=='KNOWN_FLIGHT_SHAPE',f'{product}: geometry still derived from photographed silhouette')
+    check(qa.get('canonicalProfile')==expected_name,f'{product}: wrong canonical profile tag {qa.get("canonicalProfile")}')
+    preset=cat['presets'][preset_id]
+    tail=c['rearSystems'][preset['rearSystemId']] if preset.get('rearSystemId') else c['flights'][preset['flightId']]
+    check(tail.get('planeProfile')==expected_profile,f'{product}: renderer plane profile is not canonical {expected_name}')
+
+check(c['rearSystems']['mandalorian-kflex-short'].get('planeProfile')==NO6_PROFILE,'mandalorian: renderer plane profile is not canonical No.6')
 
 for product,preset_id,expected_name,expected_profile,expected_source in (
     ('world','world-champion','NO6',NO6_PROFILE,'KNOWN_FLIGHT_SHAPE'),
