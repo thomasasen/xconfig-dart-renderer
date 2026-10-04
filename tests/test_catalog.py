@@ -178,6 +178,22 @@ check(g2_qa.get('profileMaskApplied') is True,'clemens-g2: flat flight is not ma
 check(g2_qa.get('geometrySource')=='KNOWN_FLIGHT_SHAPE','clemens-g2: geometry source must be the known No.6 shape')
 check(c['flights']['clemens-g2-no6'].get('planeProfile')==NO6_PROFILE,'clemens-g2: renderer plane profile is not canonical No.6')
 
+STANDARD_PROFILE=[[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[1.00,-0.45],[0.90,-0.82],[0.60,-1.00],[0.18,-0.96],[0.06,-0.34]]
+VAPOR_S_PROFILE=[[0.00,0.00],[0.10,0.24],[0.28,0.72],[0.56,1.00],[0.82,0.90],[1.00,0.48],[1.00,-0.48],[0.82,-0.90],[0.56,-1.00],[0.28,-0.72],[0.10,-0.24]]
+
+for product,preset_id,expected_name,expected_profile,expected_source in (
+    ('world','world-champion','NO6',NO6_PROFILE,'KNOWN_FLIGHT_SHAPE'),
+    ('gary','gary-phase6','STANDARD',STANDARD_PROFILE,'KNOWN_FLIGHT_SHAPE'),
+    ('chrono','chrono','VAPOR_S',VAPOR_S_PROFILE,'HEURISTIC_FLIGHT_SHAPE'),
+):
+    qa=author.get(product,{}).get('flightApproximation') or {}
+    check(qa.get('canonicalProfile')==expected_name,f'{product}: canonical profile not recorded')
+    check(qa.get('profileMaskApplied') is True,f'{product}: canonical flight alpha mask not applied')
+    check(qa.get('geometrySource')==expected_source,f'{product}: wrong geometry source {qa.get("geometrySource")}')
+    preset=cat['presets'][preset_id]
+    tail=c['rearSystems'][preset['rearSystemId']] if preset.get('rearSystemId') else c['flights'][preset['flightId']]
+    check(tail.get('planeProfile')==expected_profile,f'{product}: renderer plane profile is not canonical {expected_name}')
+
 check(k95_author.get('flightExtractionMode')=='PRIMARY_FACE_DEOCCLUDED','clemens-95k: composite K-Flex face must be de-occluded')
 check((k95_author.get('flightApproximation') or {}).get('deocclusionMethod')=='STRIP_COLLAPSE_RESAMPLE','clemens-95k: wrong de-occlusion method')
 check((k95_author.get('componentProvenance') or {}).get('flight-plane-a')=='SOURCE-GROUNDED+APPROXIMATED-OCCLUSION','clemens-95k: Plane A provenance must disclose approximated occlusion strip')
