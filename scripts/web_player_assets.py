@@ -9,6 +9,7 @@ import cv2
 from tail_authoring import author_tail_components
 from flight_backface import build_backface_approximation
 from flight_fin_authoring import author_visible_half_fins
+from flight_geometry_reference import NO6_PROFILE, NO2_PROFILE, STANDARD_PROFILE
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'assets' / 'components'
@@ -552,7 +553,7 @@ def _split_source_grounded(key,spec):
             'approximatedPixelFraction':0.0,
             'canonicalProfile':spec.get('shape'),
             'profileMaskApplied':True,
-            'geometrySource':'KNOWN_FLIGHT_SHAPE',
+            'geometrySource':'KNOWN_FLIGHT_FAMILY+REFERENCE_CONTOUR_APPROXIMATION',
         }
     else:
         # A side-view classic/integrated flight can contain the same photographed
@@ -564,7 +565,7 @@ def _split_source_grounded(key,spec):
         flight_qc.update({
             'canonicalProfile':spec.get('shape'),
             'profileMaskApplied':True,
-            'geometrySource':'KNOWN_FLIGHT_SHAPE',
+            'geometrySource':'KNOWN_FLIGHT_FAMILY+REFERENCE_CONTOUR_APPROXIMATION',
         })
 
     fin_authoring=None
@@ -699,9 +700,9 @@ def _split_source_grounded(key,spec):
 # They are locally authored from inspected product images so the POC stays self-contained.
 # Physical dimensions are kept separately in catalog.json and are not inferred from these drawings.
 
-NO6 = [[0.00,0.00],[0.08,0.30],[0.22,0.90],[0.68,1.00],[0.94,0.72],[1.00,0.35],[1.00,-0.35],[0.94,-0.72],[0.68,-1.00],[0.22,-0.90],[0.08,-0.30]]
-NO2 = [[0.00,0.00],[0.06,0.34],[0.18,0.96],[0.60,1.00],[0.90,0.82],[1.00,0.45],[1.00,-0.45],[0.90,-0.82],[0.60,-1.00],[0.18,-0.96],[0.06,-0.34]]
-STD = NO2
+NO6 = NO6_PROFILE
+NO2 = NO2_PROFILE
+STD = STANDARD_PROFILE
 SOURCE_GROUNDED_SPECS['clemens-g2']['profile']=NO6
 SOURCE_GROUNDED_SPECS['clemens-95k']['profile']=NO6
 SOURCE_GROUNDED_SPECS['aspinall-95k']['profile']=NO2
