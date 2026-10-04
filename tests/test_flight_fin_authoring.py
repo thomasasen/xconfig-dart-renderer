@@ -38,4 +38,18 @@ assert int(((bottom[:, :, 0] < 80) & (bottom[:, :, 1] > 170) & (bottom[:, :, 2] 
 assert np.max(top[:, :, 3]) < 255, "material alpha reconstruction should keep moulded plastic translucent"
 assert np.max(bottom[:, :, 3]) < 255, "material alpha reconstruction should keep moulded plastic translucent"
 
-print("PASS: photographed composite flight is split into two distinct, unmirrored visible fin textures")
+# Reverse surfaces are unseen source information. They must not contain a readable/
+# mirrored copy of the source artwork. Material-only backfaces should therefore have
+# near-zero RGB texture energy while preserving the authored alpha silhouette.
+def rgb_energy(arr):
+    rgb=arr[:, :, :3].astype(np.float32)
+    return float(np.abs(np.diff(rgb,axis=0)).mean()+np.abs(np.diff(rgb,axis=1)).mean())
+
+top_back=np.asarray(result.top_back)
+bottom_back=np.asarray(result.bottom_back)
+assert rgb_energy(top_back) < 0.15, f"top reverse still contains artwork detail: {rgb_energy(top_back):.3f}"
+assert rgb_energy(bottom_back) < 0.15, f"bottom reverse still contains artwork detail: {rgb_energy(bottom_back):.3f}"
+assert np.array_equal(top[:, :, 3], top_back[:, :, 3]), "top reverse must preserve source-derived alpha"
+assert np.array_equal(bottom[:, :, 3], bottom_back[:, :, 3]), "bottom reverse must preserve source-derived alpha"
+
+print("PASS: composite flight yields distinct source faces, clean alpha edges and detail-free reverse surfaces")
