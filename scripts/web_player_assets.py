@@ -76,6 +76,7 @@ SOURCE_GROUNDED_SPECS = {
         # The exact review image has a narrow No.2 flight in perspective; its measured
         # tail/body span ratio is ~1.43, just below the generic 1.45 close-up gate.
         'tailSpanRatioMin': 1.38,
+        'flightPointRatioMin': 2.30,
         'allowManualTailReview': True,
         'requireFullSignature': True,
         'sources': [
@@ -167,7 +168,7 @@ def _foreground_mask(image):
     mask=cv2.morphologyEx(mask,cv2.MORPH_OPEN,np.ones((k,k),np.uint8))
     return mask,dist,alpha
 
-def _best_elongated_roi(image, tail_span_ratio_min=1.45, require_full_signature=False):
+def _best_elongated_roi(image, tail_span_ratio_min=1.45, require_full_signature=False, flight_point_ratio_min=3.0):
     mask,dist,source_alpha=_foreground_mask(image)
     h,w=mask.shape
     candidates=[]
@@ -293,9 +294,10 @@ def _best_elongated_roi(image, tail_span_ratio_min=1.45, require_full_signature=
                 # Integrated K-Flex stems can be nearly barrel-thick in low-resolution
                 # catalogue imagery, so shaft/body width is not a reliable hard gate.
                 # Point-vs-body and flight-vs-point remain the robust complete-dart cues.
-                if tail_span < point_span*3.0:
+                if tail_span < point_span*float(flight_point_ratio_min):
                     raise ValueError(
-                        f'flight/point contrast too small: tail {tail_span:.1f}px vs point {point_span:.1f}px'
+                        f'flight/point contrast too small: tail {tail_span:.1f}px vs point {point_span:.1f}px '
+                        f'(need >= {float(flight_point_ratio_min):.2f}x)'
                     )
             if tail_span < body_span*ratio_min:
                 raise ValueError(
@@ -424,7 +426,12 @@ def _split_source_grounded(key,spec):
     for candidate_url in spec['sources']:
         try:
             raw,_=_download_product_image([candidate_url])
-            candidate=_best_elongated_roi(raw,spec.get('tailSpanRatioMin',1.45),bool(spec.get('requireFullSignature')))
+            candidate=_best_elongated_roi(
+                raw,
+                spec.get('tailSpanRatioMin',1.45),
+                bool(spec.get('requireFullSignature')),
+                spec.get('flightPointRatioMin',3.0),
+            )
             dart=candidate
             source_url=candidate_url
             break
