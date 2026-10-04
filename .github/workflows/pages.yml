@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - v1.4.1-flight-depth-backface
+      - v1.4.1b-flight-source-fidelity
   pull_request:
     branches:
       - main
@@ -87,7 +88,7 @@ jobs:
 
   deploy:
     name: Deploy GitHub Pages
-    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v1.4.1-flight-depth-backface')
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v1.4.1-flight-depth-backface' || github.ref == 'refs/heads/v1.4.1b-flight-source-fidelity')
     needs: validate
     runs-on: ubuntu-latest
 
