@@ -21,8 +21,8 @@ SPECS={
  'gary': dict(file='unicorn-w-c-gary-anderson-phase-6-90_1.webp', rotate=True, bg='white', splits=[0.1857,0.5214,0.7214], rear=False, canonicalFlight=True, canonicalProfile='STANDARD'),
  'chrono': dict(file='target-phil-taylor-power-chrono-sp-steeltip-95_3.webp', rotate=True, bg='white', splits=[0.2286,0.5714,0.7786], rear=False, canonicalFlight=True, canonicalProfile='VAPOR_S'),
  'world': dict(file='target-luke-littler-world-champion-90-swiss-23-gram_3.webp', rotate=True, bg='white', splits=[0.20625,0.55,0.7375], rear=True, canonicalFlight=True, canonicalProfile='NO6'),
- 'auro': dict(file='shot-alchemy-auro-90_3.webp', rotate=True, bg='white', splits=[0.20,0.53125,0.73125], rear=False, canonicalFlight=True),
- 'supa': dict(file='PW2022_SupaVenom_Steel_LEFT.webp', rotate=False, bg='alpha', splits=[0.15,0.525,0.7625], rear=False, canonicalFlight=True),
+ 'auro': dict(file='shot-alchemy-auro-90_3.webp', rotate=True, bg='white', splits=[0.20,0.53125,0.73125], rear=False, canonicalFlight=True, canonicalProfile='NO6'),
+ 'supa': dict(file='PW2022_SupaVenom_Steel_LEFT.webp', rotate=False, bg='alpha', splits=[0.15,0.525,0.7625], rear=False, canonicalFlight=True, canonicalProfile='STANDARD'),
  'mandalorian': dict(
    file='190840STARWARSMANDALORIAN95_STEElTIP_GALLERY_DE_PT01.webp',
    rotate=False, bg='dark-roi', roi=(38,175,765,350),
@@ -37,7 +37,7 @@ SPECS={
       'https://arrowheadz.co.uk/cdn/shop/files/mandalorian95.png?v=1776884701&width=1500',
    ],
 ),
- 'atat': dict(file='190843-STARWARSAT-AT90_STEELTIP_GALLERY_DE_PT01.webp', rotate=False, bg='dark-roi', roi=(35,180,765,350), splits=[0.19,0.54,0.73], rear=False, canonicalFlight=True),
+ 'atat': dict(file='190843-STARWARSAT-AT90_STEELTIP_GALLERY_DE_PT01.webp', rotate=False, bg='dark-roi', roi=(35,180,765,350), splits=[0.19,0.54,0.73], rear=False, canonicalFlight=True, canonicalProfile='NO6'),
  'edge': dict(file='PT02_ffd9f2ed-6a52-43e8-9f62-027742ec8be4.webp', rotate=False, bg='dark-roi', roi=(34,175,766,352), splits=[0.19,0.56,0.73], rear=True, canonicalFlight=True),
  'vader': dict(file='PT01_a83f80b3-c589-4f2e-85c1-7cf911048504.webp', rotate=False, bg='dark-roi', roi=(35,175,765,352), splits=[0.19,0.56,0.73], rear=True, canonicalFlight=True),
 }
