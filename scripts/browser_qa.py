@@ -117,6 +117,7 @@ try:
         max_tip=0.0
         max_visible_delta=0.0
         max_slope_delta=0.0
+        max_shaft_root_delta=0.0
         self_tests=[]
 
         for pid in preset_ids:
@@ -132,9 +133,11 @@ try:
             )
             visible=abs(float(metrics.get('visibleDeltaMm',0)))
             slope=abs(float(metrics.get('joinSlopeDeltaMmPerMm',0)))
+            root_delta=abs(float(metrics.get('shaftRootVisibleDeltaMm',0)))
             max_tip=max(max_tip,tip)
             max_visible_delta=max(max_visible_delta,visible)
             max_slope_delta=max(max_slope_delta,slope)
+            max_shaft_root_delta=max(max_shaft_root_delta,root_delta)
             self_test=page.evaluate('window.__RENDERER__.selfTest()')
             self_tests.append({'presetId':pid,**self_test})
             results.append({
@@ -143,6 +146,8 @@ try:
                 'tipDriftPx':tip,
                 'visibleDeltaMm':visible,
                 'joinSlopeDeltaMmPerMm':slope,
+                'shaftRootVisibleDeltaMm':root_delta,
+                'rootPresent':bool(metrics.get('rootPresent')),
                 'selfTestPassed':bool(self_test.get('passed')),
             })
             if pid in REVIEW_PRESETS:
@@ -217,6 +222,7 @@ try:
             no_js_errors and
             max_tip < 1e-8 and
             max_visible_delta < 1e-8 and
+            max_shaft_root_delta < 1e-8 and
             max_slope_delta < 1e-8
         )
 
@@ -228,6 +234,7 @@ try:
             'maxTipDriftPx':max_tip,
             'maxJointVisibleDeltaMm':max_visible_delta,
             'maxJoinSlopeDeltaMmPerMm':max_slope_delta,
+            'maxShaftRootVisibleDeltaMm':max_shaft_root_delta,
             'poseControlChecks':[pose_changed,pose_changed_2],
             'controlsOk':controls_ok,
             'seamOk':seam_ok,
