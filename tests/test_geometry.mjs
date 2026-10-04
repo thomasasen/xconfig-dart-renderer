@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { buildSmoothJoinProfile, profileEndpointSlope, resolveBarrelRearSeam, rotatePointAroundPivot } from '../src/geometry.js';
+import { buildSmoothBridgeProfile, buildSmoothJoinProfile, profileEndpointSlope, resolveBarrelRearSeam, resolveVisibleJoin, rotatePointAroundPivot } from '../src/geometry.js';
 
 const seam = resolveBarrelRearSeam({
   barrelDiameterMm: 6.5,
@@ -64,6 +64,34 @@ const alreadyMatched = buildSmoothJoinProfile({
 });
 assert.deepEqual(alreadyMatched, [[0, 5.2], [1, 5.2]], 'matching connector diameters must not create an artificial taper');
 
+
+
+const genericJoin = resolveVisibleJoin({
+  leftNominalDiameterMm: 4.8,
+  rightNominalDiameterMm: 4.8,
+  leftCoverage: .72,
+  rightCoverage: .64,
+  targetVisibleDiameterMm: 4.8,
+});
+assert.ok(genericJoin.visibleDeltaMm < 1e-10, `generic join visible mismatch ${genericJoin.visibleDeltaMm}`);
+
+const rootBridge = buildSmoothBridgeProfile({
+  frontDiameterMm: 4.8,
+  rearDiameterMm: 6.2,
+  lengthMm: 2.5,
+  flatFrontMm: .4,
+  flatRearMm: .4,
+  samples: 12,
+});
+assert.ok(rootBridge.length >= 8);
+assert.equal(rootBridge[0][1], 4.8);
+assert.equal(rootBridge[rootBridge.length - 1][1], 6.2);
+assert.ok(Math.abs(profileEndpointSlope(rootBridge, 2.5, 'front')) < 1e-10, 'root front tangent must be flat');
+assert.ok(Math.abs(profileEndpointSlope(rootBridge, 2.5, 'rear')) < 1e-10, 'root rear tangent must be flat');
+for (let i = 1; i < rootBridge.length; i += 1) {
+  assert.ok(rootBridge[i][1] + 1e-10 >= rootBridge[i - 1][1], 'root bridge must not pinch while widening');
+}
+
 const pivot = { x: 0, y: 212 };
 for (const angle of [-75, -30, 0, 30, 75]) {
   const rotatedPivot = rotatePointAroundPivot(pivot, angle, pivot);
@@ -72,4 +100,4 @@ for (const angle of [-75, -30, 0, 30, 75]) {
 const p = rotatePointAroundPivot({ x: 100, y: 212 }, 90, pivot);
 assert.ok(Math.abs(p.x) < 1e-9);
 assert.ok(Math.abs(p.y - 312) < 1e-9);
-console.log('PASS: seam thickness and tangent continuity hold across representative joins; screen rotation preserves the tip pivot');
+console.log('PASS: seam/root thickness and tangent continuity hold; screen rotation preserves the tip pivot');
