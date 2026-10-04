@@ -130,10 +130,24 @@ for pid in critical_fin_presets:
     check(set(fins)=={'A-positive','A-negative','B-positive','B-negative'},f'{pid}: missing explicit four-fin face map')
     meta_face=tail.get('finFaceAuthoring') or {}
     check(meta_face.get('mirroringUsed') is False,f'{pid}: source fin authoring must not mirror artwork')
-    check(meta_face.get('visibleSourceFinCount')==2,f'{pid}: expected exactly two source-grounded broadside half-fins')
+    check(meta_face.get('geometryModel')=='FOUR_RADIAL_FINS_0_90_180_270',f'{pid}: canonical four-fin geometry contract missing')
+    check(meta_face.get('geometryInferenceFromPhoto') is False,f'{pid}: product photo must not be treated as recovered flight geometry')
+    check(meta_face.get('sourceAppearanceSampleCount')==2,f'{pid}: expected two source appearance samples')
+    check(meta_face.get('referencePlane')=='A' and meta_face.get('referenceRollDeg')==0,f'{pid}: source samples must be calibrated to the reference plane only')
+    check(meta_face.get('referencePlaneCalibration')=='PLAUSIBLE_BROADSIDE_NOT_EXACT_RECONSTRUCTION',f'{pid}: photo-roll uncertainty not disclosed')
+    check(meta_face.get('visibleSourceFinCount')==2,f'{pid}: compatibility source sample count changed')
     check(meta_face.get('hiddenFinCount')==2,f'{pid}: expected two unobserved perpendicular half-fins')
+    expected_layout={
+        'A-positive':(0,'FRONT'),
+        'B-positive':(90,'FRONT'),
+        'A-negative':(180,'BACK'),
+        'B-negative':(270,'BACK'),
+    }
     for key in ('A-positive','A-negative','B-positive','B-negative'):
         face=fins.get(key) or {}
+        expected_azimuth,expected_front_side=expected_layout[key]
+        check(face.get('azimuthDeg')==expected_azimuth,f'{pid}/{key}: wrong radial fin azimuth {face.get("azimuthDeg")}')
+        check(face.get('frontSide')==expected_front_side,f'{pid}/{key}: wrong physical source-face side {face.get("frontSide")}')
         front=face.get('front'); back=face.get('back')
         check(bool(front) and (ROOT/front.replace('./','')).exists(),f'{pid}/{key}: missing front texture')
         check(bool(back) and (ROOT/back.replace('./','')).exists(),f'{pid}/{key}: missing back texture')
