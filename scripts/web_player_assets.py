@@ -573,6 +573,7 @@ def _split_source_grounded(key,spec):
             raw_flight_composite,
             material_alpha=spec.get('flightMaterialAlpha'),
             source_label=source_url,
+            canonical_profile=spec.get('profile'),
         )
         parts['flight-fin-a-positive-front']=authored_fins.top
         parts['flight-fin-a-negative-front']=authored_fins.bottom
