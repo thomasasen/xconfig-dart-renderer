@@ -209,7 +209,12 @@ def _best_elongated_roi(image, tail_span_ratio_min=1.45, require_full_signature=
     errors=[]
     for score,x,y,cw,ch,orientation in sorted(candidates,key=lambda item:item[0],reverse=True):
         try:
-            pad=max(4,round(min(cw,ch)*0.20))
+            # Product sheets place a large barrel close-up immediately beside the
+            # complete vertical dart. The generic 20% pad can therefore pull foreign
+            # panel pixels into the point/shaft silhouette. Strict full-dart candidates
+            # use only a narrow antialias safety margin around the detected object.
+            pad_fraction=0.04 if require_full_signature else 0.20
+            pad=max(2,round(min(cw,ch)*pad_fraction))
             x0=max(0,x-pad); y0=max(0,y-pad); x1=min(w,x+cw+pad); y1=min(h,y+ch+pad)
             crop=image.crop((x0,y0,x1,y1)).convert('RGBA')
             if crop.height > crop.width:
