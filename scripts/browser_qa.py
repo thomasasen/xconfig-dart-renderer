@@ -78,7 +78,13 @@ def _foreground_mask(im):
     sample=np.concatenate([rgb[:band,:],rgb[-band:,:]],axis=0)
     bg=np.median(sample.reshape(-1,3),axis=0)
     dist=np.linalg.norm(rgb-bg[None,None,:],axis=2)
-    return dist>18
+    mask=dist>18
+    # Opaque offline reconstruction cards contain title/provenance text above the
+    # actual dart and a source URL below it. Those annotations are not dart pixels
+    # and must not enter silhouette QA. Transparent normalized sources bypass this.
+    top=int(mask.shape[0]*.20); bottom=int(mask.shape[0]*.86)
+    mask[:top,:]=False; mask[bottom:,:]=False
+    return mask
 
 def _silhouette_metrics(im):
     mask=_foreground_mask(im)
@@ -205,7 +211,8 @@ try:
             source_image=Image.open(ROOT/source_path).convert('RGBA')
             reference_image=canvas_image(page,'#orthogonal')
             visual=_visual_delta(source_image,reference_image)
-            visual_checks.append({'presetId':pid,**visual})
+            visual_provenance='HEURISTIC_REFERENCE_ONLY' if preset.get('sourceType')=='WEB-REFERENCED-RECONSTRUCTION' else 'SOURCE_COMPARISON'
+            visual_checks.append({'presetId':pid,'provenance':visual_provenance,**visual})
             results.append({
                 'presetId':pid,
                 'visibleName':visible_names.get(pid),
@@ -216,6 +223,7 @@ try:
                 'rootPresent':bool(metrics.get('rootPresent')),
                 'selfTestPassed':bool(self_test.get('passed')),
                 'sourceVisualPassed':bool(visual.get('passed')),
+                'sourceVisualProvenance':visual_provenance,
                 'sourceVisual':visual,
             })
             if pid in REVIEW_PRESETS:
