@@ -7,6 +7,7 @@ from urllib.request import Request, urlopen
 import numpy as np
 import cv2
 from tail_authoring import author_tail_components
+from flight_backface import build_backface_approximation
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'assets' / 'components'
@@ -650,17 +651,9 @@ def draw_flight(style,shape='No.6'):
     return im
 
 def backface(front):
-    # Unknown reverse faces keep only low-frequency colour identity. This avoids the
-    # V1.3 failure where readable front-side logos/text reappeared on Plane B.
-    base=front.convert('RGBA')
-    w,h=base.size
-    sw=max(6,min(18,max(1,w//18))); sh=max(6,min(18,max(1,h//18)))
-    low=base.convert('RGB').resize((sw,sh),Image.Resampling.BOX).resize((w,h),Image.Resampling.BILINEAR)
-    low=ImageEnhance.Color(low).enhance(.45)
-    low=ImageEnhance.Brightness(low).enhance(.68)
-    out=low.convert('RGBA')
-    out.putalpha(base.getchannel('A'))
-    return out
+    # Unknown reverse faces remain APPROXIMATED. Preserve material colour and source
+    # alpha while deliberately suppressing readable source-specific artwork.
+    return build_backface_approximation(front)
 
 def draw_integrated_shaft(style):
     w,h=500,120; im=canvas(w,h); d=ImageDraw.Draw(im)
