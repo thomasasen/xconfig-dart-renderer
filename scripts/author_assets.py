@@ -523,36 +523,39 @@ for key,spec in SPECS.items():
             source_label=spec['file'],
         )
         crops['flight-fin-a-positive-front']=authored_fins.top
-        crops['flight-fin-b-positive-front']=authored_fins.bottom
-        crops['flight-fin-a-approx']=authored_fins.top_back
-        crops['flight-fin-b-approx']=authored_fins.bottom_back
+        crops['flight-fin-a-negative-front']=authored_fins.bottom
+        crops['flight-fin-a-positive-approx']=authored_fins.top_back
+        crops['flight-fin-a-negative-approx']=authored_fins.bottom_back
         fin_authoring={
             **authored_fins.metadata,
             'textures':{
+                # A broadside product photo exposes the two halves of ONE physical
+                # plane around the dart axis. The perpendicular B plane is edge-on and
+                # therefore has no recoverable artwork surface in this source.
                 'A-positive':{
                     'front':'flight-fin-a-positive-front',
-                    'back':'flight-fin-a-approx',
+                    'back':'flight-fin-a-positive-approx',
                     'frontProvenance':'SOURCE-GROUNDED+APPROXIMATED-ALPHA',
                     'backProvenance':'APPROXIMATED',
                     'vAtAxis':1,
                 },
                 'A-negative':{
-                    'front':'flight-fin-a-approx',
-                    'back':'flight-fin-a-approx',
-                    'frontProvenance':'APPROXIMATED',
-                    'backProvenance':'APPROXIMATED',
-                    'vAtAxis':0,
-                },
-                'B-positive':{
-                    'front':'flight-fin-b-positive-front',
-                    'back':'flight-fin-b-approx',
+                    'front':'flight-fin-a-negative-front',
+                    'back':'flight-fin-a-negative-approx',
                     'frontProvenance':'SOURCE-GROUNDED+APPROXIMATED-ALPHA',
                     'backProvenance':'APPROXIMATED',
                     'vAtAxis':0,
                 },
+                'B-positive':{
+                    'front':'flight-fin-a-positive-approx',
+                    'back':'flight-fin-a-positive-approx',
+                    'frontProvenance':'APPROXIMATED',
+                    'backProvenance':'APPROXIMATED',
+                    'vAtAxis':1,
+                },
                 'B-negative':{
-                    'front':'flight-fin-b-approx',
-                    'back':'flight-fin-b-approx',
+                    'front':'flight-fin-a-negative-approx',
+                    'back':'flight-fin-a-negative-approx',
                     'frontProvenance':'APPROXIMATED',
                     'backProvenance':'APPROXIMATED',
                     'vAtAxis':0,
@@ -600,7 +603,7 @@ for key,spec in SPECS.items():
         'SOURCE-GROUNDED axis/width-profile tail authoring; '
         + tail_status
         + '; dedicated frontal flight sources are preferred over photographed composite side views; '
-        + ('two distinct visible source half-fins are rectified without mirroring; ' if fin_authoring else '')
+        + ('two source-grounded halves of the broadside A-plane are rectified without mirroring; perpendicular B-plane remains approximated; ' if fin_authoring else '')
         + 'only explicitly recorded occlusion/reverse/hidden surfaces are approximated'
       ),
     }
