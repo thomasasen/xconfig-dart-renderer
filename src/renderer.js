@@ -11,7 +11,41 @@ export const XCONFIG_SPRITE_CONTRACT = Object.freeze({
   tip: { x: 0, y: 212 },
 });
 
-const PLANE_ORIENTATION_DEG = Object.freeze([0, 90]);
+const FIN_AZIMUTH_DEG = Object.freeze([0, 90, 180, 270]);
+
+const FIN_LAYOUT = Object.freeze([
+  { key: 'A-positive', half: 'positive', plane: 'A', azimuthDeg: 0, defaultFrontSide: 'FRONT' },
+  { key: 'B-positive', half: 'positive', plane: 'B', azimuthDeg: 90, defaultFrontSide: 'FRONT' },
+  { key: 'A-negative', half: 'negative', plane: 'A', azimuthDeg: 180, defaultFrontSide: 'BACK' },
+  { key: 'B-negative', half: 'negative', plane: 'B', azimuthDeg: 270, defaultFrontSide: 'BACK' },
+]);
+
+function canonicalRadialFinProfile(profile) {
+  const raw = Array.isArray(profile) ? profile : [];
+  const points = [];
+  for (const pair of raw) {
+    const x = Number(pair?.[0]);
+    const y = Math.abs(Number(pair?.[1]));
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    const point = [x, y < 1e-9 ? 0 : y];
+    const previous = points[points.length - 1];
+    if (
+      previous &&
+      Math.abs(previous[0] - point[0]) < 1e-9 &&
+      Math.abs(previous[1] - point[1]) < 1e-9
+    ) continue;
+    points.push(point);
+  }
+  if (
+    points.length > 2 &&
+    Math.abs(points[0][0] - points[points.length - 1][0]) < 1e-9 &&
+    Math.abs(points[0][1] - points[points.length - 1][1]) < 1e-9
+  ) points.pop();
+  if (points.length < 3) {
+    throw new Error('flight half-fin must produce a valid radial contour');
+  }
+  return points;
+}
 
 function deg(value) {
   return Number(value) * Math.PI / 180;
@@ -620,98 +654,103 @@ export class SharedDartComponentRenderer {
     this.flightFins = [];
     this.flightSurfaceMeshes = [];
     this.planeMeshes = [];
-    const halfDefinitions = [
-      ['negative', halfProfiles.negative],
-      ['positive', halfProfiles.positive],
-    ];
 
-    for (let planeIndex = 0; planeIndex < 2; planeIndex += 1) {
-      const planeName = planeIndex ? 'B' : 'A';
-      for (let halfIndex = 0; halfIndex < halfDefinitions.length; halfIndex += 1) {
-        const [halfName, halfProfile] = halfDefinitions[halfIndex];
-        const finKey = `${planeName}-${halfName}`;
-        const authoredFace = tail.finTextures?.[finKey] || null;
-        const halfTexture = Boolean(authoredFace);
-        const vAtAxis = Number(authoredFace?.vAtAxis ?? .5);
+    for (let stableIndex = 0; stableIndex < FIN_LAYOUT.length; stableIndex += 1) {
+      const definition = FIN_LAYOUT[stableIndex];
+      const sourceHalfProfile = definition.half === 'positive'
+        ? halfProfiles.positive
+        : halfProfiles.negative;
+      const radialProfile = canonicalRadialFinProfile(sourceHalfProfile);
+      const authoredFace = tail.finTextures?.[definition.key] || null;
+      const halfTexture = Boolean(authoredFace);
+      const vAtAxis = Number(authoredFace?.vAtAxis ?? .5);
+      const authoredFrontSide = String(
+        authoredFace?.frontSide || definition.defaultFrontSide
+      ).toUpperCase();
+      const frontSide = authoredFrontSide === 'BACK'
+        ? THREE.BackSide
+        : THREE.FrontSide;
+      const backSide = authoredFrontSide === 'BACK'
+        ? THREE.FrontSide
+        : THREE.BackSide;
 
-        // Explicit face authoring never lets a readable source texture bleed through
-        // the reverse side. Legacy designs conservatively use Plane A only on the
-        // camera-facing side of plane A; every reverse/perpendicular surface uses the
-        // already-labelled Plane-B approximation.
-        const defaultFrontUrl = planeIndex === 0
-          ? tail.planeATexture
-          : (tail.planeBTexture || tail.planeATexture);
-        const frontUrl = authoredFace?.front || defaultFrontUrl;
-        const backUrl = authoredFace?.back || tail.planeBTexture || tail.planeATexture;
-        const frontTexture = frontUrl === tail.planeATexture
-          ? planeATexture
-          : frontUrl === tail.planeBTexture
-            ? planeBTexture
-            : await this.#texture(frontUrl);
-        const backTexture = backUrl === tail.planeATexture
-          ? planeATexture
-          : backUrl === tail.planeBTexture
-            ? planeBTexture
-            : await this.#texture(backUrl);
-        if (generation !== this.assemblyGeneration) return this;
+      // Product photography supplies appearance evidence, not flight geometry. Each
+      // physical fin therefore uses canonical radial geometry. Source samples are bound
+      // only to the explicitly calibrated face side; unseen faces stay approximated.
+      const defaultFrontUrl = definition.plane === 'A'
+        ? tail.planeATexture
+        : (tail.planeBTexture || tail.planeATexture);
+      const frontUrl = authoredFace?.front || defaultFrontUrl;
+      const backUrl = authoredFace?.back || tail.planeBTexture || tail.planeATexture;
+      const frontTexture = frontUrl === tail.planeATexture
+        ? planeATexture
+        : frontUrl === tail.planeBTexture
+          ? planeBTexture
+          : await this.#texture(frontUrl);
+      const backTexture = backUrl === tail.planeATexture
+        ? planeATexture
+        : backUrl === tail.planeBTexture
+          ? planeBTexture
+          : await this.#texture(backUrl);
+      if (generation !== this.assemblyGeneration) return this;
 
-        const frontGeometry = makeFlightGeometry(
-          halfProfile,
-          flightRoot,
-          flightLength,
-          flightRadius,
-          { halfTexture, vAtAxis }
-        );
-        const backGeometry = frontGeometry.clone();
-        const stableIndex = planeIndex * 2 + halfIndex;
+      const frontGeometry = makeFlightGeometry(
+        radialProfile,
+        flightRoot,
+        flightLength,
+        flightRadius,
+        { halfTexture, vAtAxis }
+      );
+      const backGeometry = frontGeometry.clone();
 
-        const frontMesh = new THREE.Mesh(
-          frontGeometry,
-          this.#mat(frontTexture, { flight: true, side: THREE.FrontSide })
-        );
-        frontMesh.rotation.x = deg(PLANE_ORIENTATION_DEG[planeIndex]);
-        frontMesh.name = `flight-fin-${finKey}-front`;
+      const frontMesh = new THREE.Mesh(
+        frontGeometry,
+        this.#mat(frontTexture, { flight: true, side: frontSide })
+      );
+      frontMesh.rotation.x = deg(definition.azimuthDeg);
+      frontMesh.name = `flight-fin-${definition.key}-front`;
 
-        const backMesh = new THREE.Mesh(
-          backGeometry,
-          this.#mat(backTexture, { flight: true, side: THREE.BackSide })
-        );
-        backMesh.rotation.x = deg(PLANE_ORIENTATION_DEG[planeIndex]);
-        backMesh.name = `flight-fin-${finKey}-back`;
+      const backMesh = new THREE.Mesh(
+        backGeometry,
+        this.#mat(backTexture, { flight: true, side: backSide })
+      );
+      backMesh.rotation.x = deg(definition.azimuthDeg);
+      backMesh.name = `flight-fin-${definition.key}-back`;
 
-        for (const mesh of [frontMesh, backMesh]) {
-          mesh.userData.flightPlane = planeName;
-          mesh.userData.flightHalf = halfName;
-          mesh.userData.flightStableIndex = stableIndex;
-          this.flightGroup.add(mesh);
-          this.flightSurfaceMeshes.push(mesh);
-        }
-
-        frontMesh.userData.flightFace = 'front';
-        backMesh.userData.flightFace = 'back';
-
-        const fin = {
-          key: finKey,
-          plane: planeName,
-          half: halfName,
-          stableIndex,
-          frontMesh,
-          backMesh,
-          frontUrl,
-          backUrl,
-          frontProvenance: authoredFace?.frontProvenance
-            || (planeIndex === 0 ? tail.planeAProvenance : tail.planeBProvenance)
-            || 'UNKNOWN',
-          backProvenance: authoredFace?.backProvenance
-            || tail.planeBProvenance
-            || 'APPROXIMATED',
-          halfTexture,
-          vAtAxis,
-        };
-        this.flightFins.push(fin);
-        // Backwards-compatible physical-fin handle used by facing/self-test code.
-        this.planeMeshes.push(frontMesh);
+      for (const mesh of [frontMesh, backMesh]) {
+        mesh.userData.flightPlane = definition.plane;
+        mesh.userData.flightHalf = definition.half;
+        mesh.userData.flightAzimuthDeg = definition.azimuthDeg;
+        mesh.userData.flightStableIndex = stableIndex;
+        this.flightGroup.add(mesh);
+        this.flightSurfaceMeshes.push(mesh);
       }
+
+      frontMesh.userData.flightFace = 'front';
+      backMesh.userData.flightFace = 'back';
+
+      const fin = {
+        key: definition.key,
+        plane: definition.plane,
+        half: definition.half,
+        azimuthDeg: definition.azimuthDeg,
+        stableIndex,
+        frontMesh,
+        backMesh,
+        frontUrl,
+        backUrl,
+        frontSide: authoredFrontSide,
+        frontProvenance: authoredFace?.frontProvenance
+          || (definition.plane === 'A' ? tail.planeAProvenance : tail.planeBProvenance)
+          || 'UNKNOWN',
+        backProvenance: authoredFace?.backProvenance
+          || tail.planeBProvenance
+          || 'APPROXIMATED',
+        halfTexture,
+        vAtAxis,
+      };
+      this.flightFins.push(fin);
+      this.planeMeshes.push(frontMesh);
     }
 
     this.totalLength = x + flightLength;
@@ -849,7 +888,7 @@ export class SharedDartComponentRenderer {
       tipDriftPx: tipDrift,
       canonicalAxisYErrorPx: axisYError,
       contract: XCONFIG_SPRITE_CONTRACT,
-      flightPlaneModel: 'FOUR_HALF_FINS_WITH_EXPLICIT_FRONT_BACK_FACES_SHARED_AXIS_90_DEG',
+      flightPlaneModel: 'FOUR_EXPLICIT_RADIAL_FINS_0_90_180_270_WITH_SEPARATE_FACE_SURFACES',
       flightMeshCount: this.planeMeshes?.length || 0,
       flightSurfaceMeshCount: this.flightSurfaceMeshes?.length || 0,
       flightFacing: this.#flightFacing(),
@@ -857,6 +896,8 @@ export class SharedDartComponentRenderer {
         name: fin.key,
         plane: fin.plane,
         half: fin.half,
+        azimuthDeg: fin.azimuthDeg,
+        frontSide: fin.frontSide,
         cameraDepth: Number(fin.cameraDepth || 0),
         renderOrder: fin.frontMesh.renderOrder,
         visible: fin.frontMesh.visible,
@@ -914,17 +955,18 @@ export class SharedDartComponentRenderer {
         Number(this.jointMetrics?.shaftRootVisibleDeltaMm || 0) < 1e-8 &&
         Number(this.jointMetrics?.joinSlopeDeltaMmPerMm || 0) < 1e-8 &&
         this.planeMeshes?.length === 4 &&
-        this.flightSurfaceMeshes?.length === 8,
+        this.flightSurfaceMeshes?.length === 8 &&
+        this.flightFins?.every((fin, index) => fin.azimuthDeg === FIN_AZIMUTH_DEG[index]),
       maxTipDriftPx: maxTip,
       maxCanonicalAxisYErrorPx: maxAxis,
       jointVisibleDeltaMm: Number(this.jointMetrics?.visibleDeltaMm || 0),
       jointSlopeDeltaMmPerMm: Number(this.jointMetrics?.joinSlopeDeltaMmPerMm || 0),
       shaftRootVisibleDeltaMm: Number(this.jointMetrics?.shaftRootVisibleDeltaMm || 0),
       rootPresent: Boolean(this.jointMetrics?.rootPresent),
-      planeOrientationDeg: [...PLANE_ORIENTATION_DEG],
+      finAzimuthDeg: [...FIN_AZIMUTH_DEG],
       flightMeshCount: this.planeMeshes?.length || 0,
       flightSurfaceMeshCount: this.flightSurfaceMeshes?.length || 0,
-      flightTopology: 'FOUR_HALF_FINS_WITH_EXPLICIT_FRONT_BACK_FACES_SHARED_AXIS_90_DEG',
+      flightTopology: 'FOUR_EXPLICIT_RADIAL_FINS_0_90_180_270_WITH_SEPARATE_FACE_SURFACES',
       flightFacingSamples,
     };
   }
