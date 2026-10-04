@@ -89,7 +89,7 @@ jobs:
 
   deploy:
     name: Deploy GitHub Pages
-    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v1.4.1-flight-depth-backface' || github.ref == 'refs/heads/v1.4.1b-flight-source-fidelity')
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v1.4.1-flight-depth-backface' || github.ref == 'refs/heads/v1.4.1b-flight-source-fidelity' || github.ref == 'refs/heads/v1.4.2-canonical-flight-material')
     needs: validate
     runs-on: ubuntu-latest
 
