@@ -1,4 +1,4 @@
-import { buildSmoothJoinProfile, profileEndpointSlope, resolveBarrelRearSeam } from './geometry.js';
+import { buildSmoothBridgeProfile, buildSmoothJoinProfile, profileEndpointSlope, resolveBarrelRearSeam, resolveVisibleJoin } from './geometry.js';
 
 let THREE = null;
 const THREE_VERSION = '0.180.0';
@@ -429,14 +429,22 @@ export class SharedDartComponentRenderer {
     const rearTextureUrl = assembly.rearSystem
       ? assembly.rearSystem.shaftTexture
       : assembly.shaft?.texture;
+    const rootDefinition = assembly.rearSystem?.rootTexture
+      && Number(assembly.rearSystem?.renderRootLengthMm) > 0
+      ? assembly.rearSystem
+      : null;
 
     const pointTexture = await this.#texture(assembly.point?.texture);
     const barrelTexture = await this.#texture(assembly.barrel?.texture);
     const rearTexture = await this.#texture(rearTextureUrl);
+    const rootTexture = rootDefinition
+      ? await this.#texture(rootDefinition.rootTexture)
+      : null;
     if (generation !== this.assemblyGeneration) return this;
 
     const barrelRearCoverage = this.#measureEdgeCoverage(barrelTexture, 'right');
     const rearFrontCoverage = this.#measureEdgeCoverage(rearTexture, 'left');
+    const rearRearCoverage = this.#measureEdgeCoverage(rearTexture, 'right');
     const barrelBodyCoverage = this.#measureBodyCoverage(barrelTexture);
     const rearBodyCoverage = this.#measureBodyCoverage(rearTexture);
 
@@ -492,9 +500,55 @@ export class SharedDartComponentRenderer {
       policy: 'INTERNAL_ALPHA_BAND + SMOOTHSTEP + FLAT_TANGENT_JOIN',
     };
 
+    let rootProfile = null;
+    this.rootMetrics = null;
+    if (rootDefinition && rootTexture) {
+      const rootLength = Math.max(.1, Number(rootDefinition.renderRootLengthMm) || .1);
+      const rootFrontDiameter = Math.max(
+        .2,
+        Number(rootDefinition.renderRootFrontDiameterMm) || rearDiameterSafe
+      );
+      const rootRearDiameter = Math.max(
+        rootFrontDiameter,
+        Number(rootDefinition.renderRootRearDiameterMm) || rootFrontDiameter
+      );
+      const rootFrontCoverage = this.#measureEdgeCoverage(rootTexture, 'left');
+      const rootRearCoverage = this.#measureEdgeCoverage(rootTexture, 'right');
+      const shaftVisibleAtRoot = rearBodyEnvelopeMm * rearRearCoverage;
+      const rootJoin = resolveVisibleJoin({
+        leftNominalDiameterMm: rearDiameterSafe,
+        rightNominalDiameterMm: rootFrontDiameter,
+        leftCoverage: rearRearCoverage,
+        rightCoverage: rootFrontCoverage,
+        targetVisibleDiameterMm: shaftVisibleAtRoot,
+      });
+      const rootRearEnvelopeMm = rootRearDiameter / Math.max(.15, rootRearCoverage);
+      rootProfile = buildSmoothBridgeProfile({
+        frontDiameterMm: rootJoin.rightEnvelopeMm,
+        rearDiameterMm: rootRearEnvelopeMm,
+        lengthMm: rootLength,
+        flatFrontMm: Math.min(.55, rootLength * .18),
+        flatRearMm: Math.min(.55, rootLength * .18),
+        samples: 12,
+      });
+      this.rootMetrics = {
+        present: true,
+        visibleDeltaMm: rootJoin.visibleDeltaMm,
+        shaftRearCoverage: rearRearCoverage,
+        rootFrontCoverage,
+        rootRearCoverage,
+        rootFrontSlopeMmPerMm: profileEndpointSlope(rootProfile, rootLength, 'front'),
+        rootRearSlopeMmPerMm: profileEndpointSlope(rootProfile, rootLength, 'rear'),
+        catalogTailAuthoringStatus: rootDefinition.tailAuthoringStatus || null,
+        sourceRootAxisOffsetPx: Number(rootDefinition.tailAuthoring?.rootAxisOffsetPx || 0),
+        sourceShaftAxisResidualP95Px: Number(rootDefinition.tailAuthoring?.shaftAxisResidualP95Px || 0),
+        sourceShaftCenterJumpMaxPx: Number(rootDefinition.tailAuthoring?.shaftCenterJumpMaxPx || 0),
+        policy: 'CENTERED_SOURCE_TEXTURE + VISIBLE_JOIN + SMOOTH_ROOT_BRIDGE',
+      };
+    }
+
     let x = 0;
     this.bodyMeshes = [];
-
     const bodyDefinitions = [
       {
         name: 'point',
@@ -512,7 +566,7 @@ export class SharedDartComponentRenderer {
         profile: barrelProfile,
       },
       {
-        name: assembly.rearSystem ? 'rear-shaft' : 'shaft',
+        name: rootDefinition ? 'rear-shaft-core' : (assembly.rearSystem ? 'rear-shaft' : 'shaft'),
         length: rearLengthSafe,
         texture: rearTexture,
         profile: rearProfile,
@@ -533,10 +587,25 @@ export class SharedDartComponentRenderer {
       x += definition.length;
     }
 
+    this.rootJoinX = null;
+    if (rootDefinition && rootTexture && rootProfile) {
+      this.rootJoinX = x;
+      const rootLength = Math.max(.1, Number(rootDefinition.renderRootLengthMm) || .1);
+      const geometry = makeProfiledRibbonGeometry(x, x + rootLength, rootProfile);
+      const mesh = new THREE.Mesh(geometry, this.#mat(rootTexture));
+      mesh.name = 'body-rear-root';
+      mesh.renderOrder = 11;
+      this.root.add(mesh);
+      this.bodyMeshes.push(mesh);
+      x += rootLength;
+    }
+
     const tail = assembly.rearSystem || assembly.flight;
     const flightLength = Number(tail.renderFlightLengthMm || tail.renderLengthMm || 42);
     const flightRadius = Number(tail.renderFlightRadiusMm || tail.renderRadiusMm || 18);
-    const flightRoot = x - 1.5;
+    const flightOverlap = Math.max(0, Number(tail.flightRootOverlapMm ?? 1.5));
+    const flightRoot = x - flightOverlap;
+    this.flightRootX = flightRoot;
     const flightGeometry = makeFlightGeometry(
       tail.planeProfile,
       flightRoot,
@@ -565,7 +634,7 @@ export class SharedDartComponentRenderer {
     }
     flightGeometry.dispose();
 
-    this.totalLength = x + flightLength;
+    this.totalLength = Math.max(x, flightRoot + flightLength);
     this.scene.updateMatrixWorld(true);
     return this;
   }
