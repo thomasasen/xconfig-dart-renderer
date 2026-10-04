@@ -44,6 +44,44 @@ for pid,p in cat['presets'].items():
         if shaft and barrel:check(shaft['rearThread']==barrel['rearThread'],f'{pid}: shaft/barrel thread mismatch')
         if shaft and flight:check(shaft['flightMount']==flight['flightMount'],f'{pid}: shaft/flight mount mismatch')
 
+# V1.4.2 P5: No.2 must read as a dart flight, not an axe head.
+# The contour must widen gradually from the shaft, reach maximum width only in the
+# rear-middle region, then taper smoothly to a narrower trailing edge.
+def positive_envelope(profile):
+    return [(float(x), abs(float(y))) for x,y in profile if float(y) >= -1e-9]
+
+no2_pos=positive_envelope(NO2_PROFILE)
+check(len(NO2_PROFILE) >= 30, f'No.2 contour too coarse: {len(NO2_PROFILE)} points')
+check(abs(NO2_PROFILE[0][1]) < 1e-9, 'No.2 root must start on the dart axis')
+check(abs(NO2_PROFILE[-1][1]) < .10, 'No.2 mirrored root must return close to the dart axis')
+peak=max(no2_pos,key=lambda p:p[1])
+check(.68 <= peak[0] <= .78 and abs(peak[1]-1.0)<1e-9, f'No.2 peak in wrong place: {peak}')
+
+def env_at(profile,u):
+    pts=[(float(x),abs(float(y))) for x,y in profile if float(y)>=-1e-9]
+    pts=sorted(pts,key=lambda p:p[0])
+    for (x0,y0),(x1,y1) in zip(pts,pts[1:]):
+        if x0 <= u <= x1 and x1>x0:
+            t=(u-x0)/(x1-x0)
+            return y0+(y1-y0)*t
+    return pts[-1][1] if pts else 0
+
+check(env_at(NO2_PROFILE,.20) <= .43, f'No.2 flares too early near shaft: {env_at(NO2_PROFILE,.20):.3f}')
+check(.80 <= env_at(NO2_PROFILE,.50) <= .92, f'No.2 shoulder progression implausible: {env_at(NO2_PROFILE,.50):.3f}')
+check(.36 <= env_at(NO2_PROFILE,1.0) <= .44, f'No.2 trailing edge too wide/narrow: {env_at(NO2_PROFILE,1.0):.3f}')
+
+# Positive upper envelope is monotone rising to peak and monotone falling afterwards.
+upper=sorted({(float(x),abs(float(y))) for x,y in NO2_PROFILE if float(y)>=-1e-9},key=lambda p:p[0])
+peak_idx=max(range(len(upper)),key=lambda i:upper[i][1])
+check(all(upper[i+1][1] >= upper[i][1]-1e-9 for i in range(peak_idx)), 'No.2 front shoulder contains an inward notch')
+check(all(upper[i+1][1] <= upper[i][1]+1e-9 for i in range(peak_idx,len(upper)-1)), 'No.2 rear shoulder contains an outward notch')
+
+# Prodigy is the regression preset that exposed the axe-head silhouette.
+prodigy=cat['presets']['prodigy-23']
+prodigy_rear=c['rearSystems'][prodigy['rearSystemId']]
+check(prodigy_rear.get('flightShape')=='No.2','prodigy: expected No.2 K-Flex family')
+check(prodigy_rear.get('planeProfile')==NO2_PROFILE,'prodigy: must use the canonical smooth No.2 contour')
+
 # V1.3.3 tail authoring metadata is a hard contract for every source-grounded
 # product image that passed through the shared analyzer.
 tail_statuses={'PASS','NEEDS_MANUAL_REVIEW','FAIL_AXIS','FAIL_ROOT_INCLUDED_IN_SHAFT','FAIL_ROOT_ALIGNMENT','FAIL_ALPHA_HAZE','FAIL_SOURCE_UNSUITABLE'}
