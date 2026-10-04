@@ -109,7 +109,7 @@ SOURCE_GROUNDED_SPECS = {
         'requiredCandidateOrientation': 'vertical',
         # Normalized ROI of the complete assembled dart in the recorded primary
         # product sheet; the large barrel detail remains outside this window.
-        'primarySourceRoi': [0.53, 0.00, 0.83, 1.00],
+        'primarySourceRoi': [0.40, 0.00, 0.74, 1.00],
         'sources': [
             # Exact review-style product sheet: portrait, one complete assembled dart
             # and a separate barrel close-up. The elongated-object gate extracts only
