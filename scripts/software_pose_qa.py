@@ -41,12 +41,15 @@ def render(a,inc=35,roll=0):
     else:
         s=a['shaft'];L=s['renderLengthMm'];D=s.get('renderDiameterMm',4.8);T=s['texture']
     bodies.append((x,x+L,D,T));x+=L
+    if a['rearSystem'] and a['rearSystem'].get('rootTexture'):
+        r=a['rearSystem'];L=float(r['renderRootLengthMm']);D=max(float(r['renderRootFrontDiameterMm']),float(r['renderRootRearDiameterMm']));T=r['rootTexture']
+        bodies.append((x,x+L,D,T));x+=L
     for x0,x1,d,tpath in bodies:
         tex=load_rgba(tpath);h,w=tex.shape[:2]
         src=[[0,h-1],[w-1,h-1],[w-1,0],[0,0]]
         dst=[project(local(axis,ey,ez,x0,-d/2)),project(local(axis,ey,ez,x1,-d/2)),project(local(axis,ey,ez,x1,d/2)),project(local(axis,ey,ez,x0,d/2))]
         warp_quad(canvas,tex,src,dst)
-    tail=a['rearSystem'] or a['flight']; fl=float(tail.get('renderFlightLengthMm',tail.get('renderLengthMm',42))); rad=float(tail.get('renderFlightRadiusMm',tail.get('renderRadiusMm',18)));root=x-1.5
+    tail=a['rearSystem'] or a['flight']; fl=float(tail.get('renderFlightLengthMm',tail.get('renderLengthMm',42))); rad=float(tail.get('renderFlightRadiusMm',tail.get('renderRadiusMm',18)));root=x-float(tail.get('flightRootOverlapMm',1.5))
     phi=math.radians(roll)
     planes=[]
     for idx,extra in enumerate([0,math.pi/2]):
@@ -59,6 +62,14 @@ def render(a,inc=35,roll=0):
         tex=load_rgba(tail['planeATexture'] if idx==0 else tail.get('planeBTexture',tail['planeATexture']));h,w=tex.shape[:2]
         src=[[0,h-1],[w-1,h-1],[w-1,0],[0,0]]
         dst=[project(local(axis,ey,ez,root)-fin*rad), project(local(axis,ey,ez,root+fl)-fin*rad), project(local(axis,ey,ez,root+fl)+fin*rad), project(local(axis,ey,ez,root)+fin*rad)]
+        # Exactly edge-on flight planes have zero projected area. OpenCV's homography
+        # becomes singular in that limit and can fill the entire QA frame with texture
+        # colour. The production renderer correctly has zero visible area there, so the
+        # software reference must skip the same degenerate case.
+        poly=np.asarray(dst,dtype=np.float32)
+        area=abs(float(cv2.contourArea(poly)))
+        if area < 0.5:
+            continue
         warp_quad(canvas,tex,src,dst)
     # hard invariant marker, only debug metadata: projected local origin is exactly TIP by formula.
     drift=float(np.linalg.norm(project(np.zeros(3))-TIP))

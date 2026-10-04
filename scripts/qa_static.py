@@ -31,14 +31,23 @@ def render_assembly(a,scale=4.2):
     p=a['point']; b=a['barrel']; tail=a['rearSystem'] or a['flight'];
     entries=[(p,p['renderLengthMm'],p['renderDiameterMm'],p['texture']),(b,b['renderLengthMm'],b['renderDiameterMm'],b['texture'])]
     if a['rearSystem']:
-        r=a['rearSystem'];entries.append((r,r['renderShaftLengthMm'],r['renderShaftDiameterMm'],r['shaftTexture']))
+        r=a['rearSystem']
+        entries.append((r,r['renderShaftLengthMm'],r['renderShaftDiameterMm'],r['shaftTexture']))
+        if r.get('rootTexture'):
+            entries.append((
+                r,
+                r['renderRootLengthMm'],
+                max(r.get('renderRootFrontDiameterMm',r['renderShaftDiameterMm']),r.get('renderRootRearDiameterMm',r['renderShaftDiameterMm'])),
+                r['rootTexture'],
+            ))
     else:
         s=a['shaft'];entries.append((s,s['renderLengthMm'],s.get('renderDiameterMm',4.8),s['texture']))
     for obj,L,D,t in entries:
         lp=L*scale; hp=max(4,D*scale); ci=cropfit(t,lp,hp); y=int(tip[1]-ci.height/2); out.alpha_composite(ci,(int(x),y)); x+=lp
     fl=tail.get('renderFlightLengthMm',tail.get('renderLengthMm',42))*scale; fr=tail.get('renderFlightRadiusMm',tail.get('renderRadiusMm',18))*scale
-    fi=img(tail['planeATexture']);bbox=fi.getbbox();fi=fi.crop(bbox) if bbox else fi;fi=fi.resize((max(1,int(fl)),max(1,int(fr*2))),Image.Resampling.LANCZOS);out.alpha_composite(fi,(max(0,int(x-1.5*scale)),int(tip[1]-fi.height/2)))
-    return out, {'tip':[0,212],'componentEndX':x,'flightEndX':x+fl-1.5*scale,'gapPx':0.0}
+    overlap=float(tail.get('flightRootOverlapMm',1.5))
+    fi=img(tail['planeATexture']);bbox=fi.getbbox();fi=fi.crop(bbox) if bbox else fi;fi=fi.resize((max(1,int(fl)),max(1,int(fr*2))),Image.Resampling.LANCZOS);out.alpha_composite(fi,(max(0,int(x-overlap*scale)),int(tip[1]-fi.height/2)))
+    return out, {'tip':[0,212],'componentEndX':x,'flightEndX':x+fl-overlap*scale,'gapPx':0.0,'flightRootOverlapMm':overlap}
 
 def composite_compare(preset_id,p):
     src=fit(img(p['sourceImage']),(520,420)); build,meta=render_assembly(assembly_for(p)); buildpanel=fit(build,(820,420),(25,29,37,255))
@@ -68,6 +77,49 @@ def center_ridge_score(im):
     expected=(gray[y0]+gray[y1])*.5
     residual=np.abs(gray[cy]-expected)[valid]
     return float(np.mean(residual))
+
+def tail_texture_audit(pid,p):
+    a=assembly_for(p)
+    tail=a['rearSystem']
+    if not tail:
+        return None
+    source=fit(img(p['sourceImage']),(500,320),(245,245,245,255))
+    shaft=fit(img(tail['shaftTexture']),(500,320),(25,29,37,255))
+    if tail.get('rootTexture'):
+        root=fit(img(tail['rootTexture']),(500,320),(25,29,37,255))
+        root_label='Rear root · source-derived'
+    else:
+        root=Image.new('RGBA',(500,320),(25,29,37,255))
+        ImageDraw.Draw(root).text((18,145),'No explicit rear-root; canonical shaft-core remains active',fill='white')
+        root_label='Rear root · absent / shaft-core active'
+    plane_a=fit(img(tail['planeATexture']),(500,320),(25,29,37,255))
+    plane_b=fit(img(tail['planeBTexture']),(500,320),(25,29,37,255))
+    assembly,_=render_assembly(a); assembly=fit(assembly,(500,320),(25,29,37,255))
+    panels=[
+        ('Original/source',source),
+        ('Shaft core',shaft),
+        (root_label,root),
+        ('Flight Plane A',plane_a),
+        ('Flight Plane B',plane_b),
+        ('Assembly',assembly),
+    ]
+    sheet=Image.new('RGBA',(1500,720),(13,16,22,255)); d=ImageDraw.Draw(sheet)
+    for i,(label,panel) in enumerate(panels):
+        x=(i%3)*500; y=(i//3)*360
+        d.text((x+12,y+10),f'{p["name"]} · {label}',fill='white')
+        sheet.alpha_composite(panel,(x,y+36))
+    tq=tail.get('tailQa') or {}
+    m=(tq.get('tailMetrics') or {})
+    d.text((12,695),f"status={((tq.get('tailAuthoring') or {}).get('status','legacy'))} · axisResidual={m.get('shaftAxisResidual','n/a')} · widthCV={m.get('shaftWidthCV','n/a')} · rootOffset={m.get('rootAxisOffset','n/a')} · haze={m.get('tailAlphaHaze','n/a')}",fill=(180,195,215))
+    sheet.convert('RGB').save(OUT/'qa'/f'tail-components-{pid}.png')
+    return {
+        'rootPresent':bool(tail.get('rootTexture')),
+        'shaftTexture':tail.get('shaftTexture'),
+        'rootTexture':tail.get('rootTexture'),
+        'renderShaftLengthMm':tail.get('renderShaftLengthMm'),
+        'renderRootLengthMm':tail.get('renderRootLengthMm'),
+        'tailQa':tq,
+    }
 
 def flight_texture_audit(pid,p):
     a=assembly_for(p); tail=a['rearSystem'] or a['flight']
@@ -104,13 +156,16 @@ def flight_texture_audit(pid,p):
       'qaSource':source_path,
     }
 
-qa={'presets':{},'freeCombinations':[],'flightTextureQA':{}}
+qa={'presets':{},'freeCombinations':[],'flightTextureQA':{},'tailTextureQA':{}}
 for pid,p in CAT['presets'].items():
     qa['presets'][pid]=composite_compare(pid,p)
 
 REVIEW_PRESETS=tuple(pid for pid,p in CAT['presets'].items() if p.get('sourceType')!='WEB-REFERENCED-RECONSTRUCTION')
 for pid in REVIEW_PRESETS:
     qa['flightTextureQA'][pid]=flight_texture_audit(pid,CAT['presets'][pid])
+    tail_audit=tail_texture_audit(pid,CAT['presets'][pid])
+    if tail_audit is not None:
+        qa['tailTextureQA'][pid]=tail_audit
 
 def comparison_contact_sheet(preset_ids, output_name, cols=2):
     cards=[]
