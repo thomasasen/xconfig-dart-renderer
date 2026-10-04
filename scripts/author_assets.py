@@ -359,6 +359,7 @@ def prepare_dedicated_flight_face(spec):
         'design':'MANDALORIAN_BLUE_SOURCE_ARTWORK',
         'canonicalProfile':'NO6_SUPPLIED_INFOGRAPHIC',
         'profileMaskApplied':True,
+        'geometrySource':'KNOWN_FLIGHT_SHAPE',
     })
     save_component(horizontal,SRC/'web-mandalorian-kflex-frontal-source-grounded.png')
     return clean,qc
@@ -526,7 +527,12 @@ for key,spec in SPECS.items():
       'normalizedWidth':im.width,'normalizedHeight':im.height,
       'splitsPx':[p1,p2,p3],
       'splitFractions':spec['splits'],
-      'flightProfile':canonical_profile if canonical_profile is not None else flight_profile(flight),
+      'flightProfile':(
+          NO6_PROFILE
+          if key=='mandalorian'
+          else canonical_profile if canonical_profile is not None
+          else flight_profile(flight)
+      ),
       'rearIntegrated':spec['rear'],
       'flightExtractionMode':(flight_qc or {}).get('mode','DIRECT_SOURCE_FACE'),
       'flightPlaneAProvenance':'SOURCE-GROUNDED+APPROXIMATED-OCCLUSION' if flight_qc and (flight_qc.get('mode') in ('PRIMARY_FACE_DEOCCLUDED','DEDICATED_FRONTAL_KFLEX_SOURCE')) else 'SOURCE-GROUNDED',
