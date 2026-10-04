@@ -185,6 +185,9 @@ for product,preset_id,expected_name,expected_profile,expected_source in (
     ('world','world-champion','NO6',NO6_PROFILE,'KNOWN_FLIGHT_SHAPE'),
     ('gary','gary-phase6','STANDARD',STANDARD_PROFILE,'KNOWN_FLIGHT_SHAPE'),
     ('chrono','chrono','VAPOR_S',VAPOR_S_PROFILE,'HEURISTIC_FLIGHT_SHAPE'),
+    ('auro','auro','NO6',NO6_PROFILE,'KNOWN_FLIGHT_SHAPE'),
+    ('supa','supa-venom','STANDARD',STANDARD_PROFILE,'KNOWN_FLIGHT_SHAPE'),
+    ('atat','atat-23','NO6',NO6_PROFILE,'KNOWN_FLIGHT_SHAPE'),
 ):
     qa=author.get(product,{}).get('flightApproximation') or {}
     check(qa.get('canonicalProfile')==expected_name,f'{product}: canonical profile not recorded')
