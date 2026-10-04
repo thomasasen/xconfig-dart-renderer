@@ -464,36 +464,39 @@ def _split_source_grounded(key,spec):
             source_label=source_url,
         )
         parts['flight-fin-a-positive-front']=authored_fins.top
-        parts['flight-fin-b-positive-front']=authored_fins.bottom
-        parts['flight-fin-a-approx']=authored_fins.top_back
-        parts['flight-fin-b-approx']=authored_fins.bottom_back
+        parts['flight-fin-a-negative-front']=authored_fins.bottom
+        parts['flight-fin-a-positive-approx']=authored_fins.top_back
+        parts['flight-fin-a-negative-approx']=authored_fins.bottom_back
         fin_authoring={
             **authored_fins.metadata,
             'textures':{
+                # Broadside source: top/bottom are the two physical halves of the
+                # same face-on A plane. The perpendicular B plane is only visible as a
+                # narrow centre ridge, so its full surfaces remain APPROXIMATED.
                 'A-positive':{
                     'front':'flight-fin-a-positive-front',
-                    'back':'flight-fin-a-approx',
+                    'back':'flight-fin-a-positive-approx',
                     'frontProvenance':'SOURCE-GROUNDED+APPROXIMATED-ALPHA',
                     'backProvenance':'APPROXIMATED',
                     'vAtAxis':1,
                 },
                 'A-negative':{
-                    'front':'flight-fin-a-approx',
-                    'back':'flight-fin-a-approx',
-                    'frontProvenance':'APPROXIMATED',
-                    'backProvenance':'APPROXIMATED',
-                    'vAtAxis':0,
-                },
-                'B-positive':{
-                    'front':'flight-fin-b-positive-front',
-                    'back':'flight-fin-b-approx',
+                    'front':'flight-fin-a-negative-front',
+                    'back':'flight-fin-a-negative-approx',
                     'frontProvenance':'SOURCE-GROUNDED+APPROXIMATED-ALPHA',
                     'backProvenance':'APPROXIMATED',
                     'vAtAxis':0,
                 },
+                'B-positive':{
+                    'front':'flight-fin-a-positive-approx',
+                    'back':'flight-fin-a-positive-approx',
+                    'frontProvenance':'APPROXIMATED',
+                    'backProvenance':'APPROXIMATED',
+                    'vAtAxis':1,
+                },
                 'B-negative':{
-                    'front':'flight-fin-b-approx',
-                    'back':'flight-fin-b-approx',
+                    'front':'flight-fin-a-negative-approx',
+                    'back':'flight-fin-a-negative-approx',
                     'frontProvenance':'APPROXIMATED',
                     'backProvenance':'APPROXIMATED',
                     'vAtAxis':0,
