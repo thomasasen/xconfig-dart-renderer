@@ -63,8 +63,8 @@ def build_backface_approximation(front: Image.Image) -> Image.Image:
     delta = (np.asarray(low, dtype=np.float32) - mean_luma) * 0.055
     delta = np.clip(delta, -7.0, 7.0)
 
-    base = material[None, None, :] * 0.94
-    mixed = np.clip(base + delta[:, :, None], 0, 255).astype(np.uint8)
+    base_rgb = material[None, None, :] * 0.94
+    mixed = np.clip(base_rgb + delta[:, :, None], 0, 255).astype(np.uint8)
     out = Image.fromarray(mixed, "RGB").convert("RGBA")
 
     # Preserve the authored front-face alpha exactly. For transparent flights this keeps
