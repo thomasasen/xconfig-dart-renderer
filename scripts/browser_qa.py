@@ -8,7 +8,7 @@ ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'outputs'/'qa'
 OUT.mkdir(parents=True,exist_ok=True)
 CAT=json.loads((ROOT/'data'/'catalog.json').read_text())
-REVIEW_PRESETS=tuple(pid for pid,p in CAT['presets'].items() if p.get('sourceType')!='WEB-REFERENCED-RECONSTRUCTION')
+REVIEW_PRESETS=tuple(CAT['presets'].keys())
 out={'status':'NOT_RUN','notes':[]}
 server=None
 
@@ -65,15 +65,18 @@ def _panel(im,title,width=789,height=365):
 
 def save_runtime_review(page,pid):
     preset=CAT['presets'][pid]
-    source=Image.open(ROOT/preset['sourceImage'].replace('./','')).convert('RGBA')
+    source_path=preset.get('comparisonSourceImage') or preset['sourceImage']
+    source=Image.open(ROOT/source_path.replace('./','')).convert('RGBA')
     orthogonal=Image.open(BytesIO(page.locator('#orthogonal').screenshot(type='png'))).convert('RGBA')
     posed=Image.open(BytesIO(page.locator('#posed').screenshot(type='png'))).convert('RGBA')
     c=CAT['components']
     tail=c['rearSystems'][preset['rearSystemId']] if preset.get('rearSystemId') else c['flights'][preset['flightId']]
+    source_pose=preset.get('sourceComparisonPose') or {}
+    source_kind=preset.get('sourceType','UNKNOWN')
     titles=[
-        f'Original/source · {preset["name"]}',
-        f'Orthogonal runtime · {tail.get("flightExtractionMode","DIRECT_SOURCE_FACE")}',
-        f'Posed runtime · Plane B {tail.get("planeBProvenance",tail.get("faceEvidence",{}).get("planeB"))}',
+        f'Comparison source · {preset["name"]} · {source_kind}',
+        f'Source-match runtime · roll={source_pose.get("rollDeg",0)}° · canonical flight geometry',
+        f'Board-pose runtime · Plane B {tail.get("planeBProvenance",tail.get("faceEvidence",{}).get("planeB"))}',
     ]
     cards=[_panel(source,titles[0]),_panel(orthogonal,titles[1]),_panel(posed,titles[2])]
     sheet=Image.new('RGB',(789*3,365),(10,13,18))
@@ -148,6 +151,13 @@ try:
                 'joinSlopeDeltaMmPerMm':slope,
                 'shaftRootVisibleDeltaMm':root_delta,
                 'rootPresent':bool(metrics.get('rootPresent')),
+                'sourceComparisonPose':CAT['presets'][pid].get('sourceComparisonPose'),
+                'planeProfileProvenance':(
+                    (CAT['components']['rearSystems'][CAT['presets'][pid]['rearSystemId']]
+                     if CAT['presets'][pid].get('rearSystemId')
+                     else CAT['components']['flights'][CAT['presets'][pid]['flightId']])
+                    .get('planeProfileProvenance')
+                ),
                 'selfTestPassed':bool(self_test.get('passed')),
             })
             if pid in REVIEW_PRESETS:
