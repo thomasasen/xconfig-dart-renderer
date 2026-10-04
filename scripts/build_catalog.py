@@ -127,9 +127,11 @@ def preset_weight_g(name):
  return int(value) if value.is_integer() else value
 
 SOURCE_REFERENCE_ROLL_DEG={
- 'prodigy-23':40,'shift':38,'world-champion':40,'chrono':42,'gary-phase6':42,'auro':40,'supa-venom':38,
- 'mandalorian-24':34,'atat-23':38,'clemens-g2-23':42,'clemens-95k-23':38,'cross-95k-23':38,
- 'aspinall-95k-22':38,'bunting-95k-23':38,'mvg-signature-22':40,'humphries-prestige-22':40,
+ # Calibrated against each source silhouette. This is a view-matching heuristic only,
+ # not a claim that the photographed product's physical roll is reconstructable.
+ 'prodigy-23':19,'shift':11,'world-champion':19,'chrono':45,'gary-phase6':31,'auro':23,'supa-venom':33,
+ 'mandalorian-24':38,'atat-23':31,'clemens-g2-23':0,'clemens-95k-23':35,'cross-95k-23':45,
+ 'aspinall-95k-22':45,'bunting-95k-23':45,'mvg-signature-22':45,'humphries-prestige-22':33,
 }
 DEFAULT_PREVIEW_ROLL_DEG={
  'prodigy-23':7,'shift':-6,'world-champion':6,'chrono':8,'gary-phase6':-8,'auro':7,'supa-venom':-7,
