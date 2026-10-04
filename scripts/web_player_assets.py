@@ -6,6 +6,7 @@ from io import BytesIO
 from urllib.request import Request, urlopen
 import numpy as np
 import cv2
+from tail_authoring import author_tail_components
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'assets' / 'components'
@@ -382,6 +383,19 @@ def _split_source_grounded(key,spec):
         if bbox: part=part.crop(bbox)
         parts[name]=part
 
+    tail_result=author_tail_components(
+        dart,
+        shaft_seed_range=(p2,p3),
+        flight_start_px=p3,
+        integrated=bool(spec['integrated']),
+    )
+    tail_analysis=tail_result['analysis'].to_dict()
+    tail_name='rear-shaft' if spec['integrated'] else 'shaft'
+    if tail_analysis['status'] in ('PASS','NEEDS_MANUAL_REVIEW'):
+        parts[tail_name]=tail_result['shaftCoreImage']
+        if spec['integrated'] and tail_result.get('rearRootImage') is not None:
+            parts['rear-root']=tail_result['rearRootImage']
+
     flight_texture,flight_source_url=_prepare_flat_flight_texture(spec)
     flight_qc=None
     if flight_texture is not None:
@@ -435,6 +449,18 @@ def _split_source_grounded(key,spec):
         'rearIntegrated':spec['integrated'],
         'flightExtractionMode':(flight_qc or {}).get('mode','DIRECT_SOURCE_FACE'),
         'flightApproximation':flight_qc,
+        'axisAuthoring':tail_result['axisAuthoring'],
+        'tailSegmentation':tail_result['tailSegmentation'],
+        'tailMetrics':tail_result['tailMetrics'],
+        'tailAuthoring':{
+            'axisConfidence':tail_result['axisAuthoring']['confidence'],
+            'shaftCoreConfidence':tail_result['tailSegmentation']['confidence'],
+            'rootBoundaryConfidence':tail_result['tailSegmentation']['confidence'] if spec['integrated'] else 1.0,
+            'flightSourceConfidence':1.0 if flight_qc and flight_qc.get('mode')=='FLAT_FLIGHT_SOURCE' else 0.9,
+            'overallConfidence':tail_analysis['confidence'],
+            'status':tail_analysis['status'],
+        },
+        'rootAuthored':bool(spec['integrated'] and tail_result.get('rearRootImage') is not None),
         'componentProvenance':{
             'point':'SOURCE-GROUNDED',
             'barrel':'SOURCE-GROUNDED',
