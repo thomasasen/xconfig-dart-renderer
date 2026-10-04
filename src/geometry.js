@@ -17,6 +17,35 @@ export function normalizeCoverage(value, fallback = 1) {
  * source-supported visible diameter and derive transparent mesh envelopes for both sides
  * so that the *visible* silhouette meets at the same thickness.
  */
+export function resolveVisibleJoin({
+  leftNominalDiameterMm,
+  rightNominalDiameterMm,
+  leftCoverage = 1,
+  rightCoverage = 1,
+  targetVisibleDiameterMm = null,
+} = {}) {
+  const leftDiameter = Math.max(0.2, Number(leftNominalDiameterMm) || 0.2);
+  const rightDiameter = Math.max(0.2, Number(rightNominalDiameterMm) || 0.2);
+  const lCoverage = normalizeCoverage(leftCoverage);
+  const rCoverage = normalizeCoverage(rightCoverage);
+  const requestedTarget = Number(targetVisibleDiameterMm);
+  const visibleDiameterMm = Number.isFinite(requestedTarget) && requestedTarget > 0
+    ? requestedTarget
+    : Math.min(leftDiameter, rightDiameter);
+  const leftEnvelopeMm = visibleDiameterMm / lCoverage;
+  const rightEnvelopeMm = visibleDiameterMm / rCoverage;
+  return {
+    visibleDiameterMm,
+    leftEnvelopeMm,
+    rightEnvelopeMm,
+    leftCoverage: lCoverage,
+    rightCoverage: rCoverage,
+    leftVisibleAtJoinMm: leftEnvelopeMm * lCoverage,
+    rightVisibleAtJoinMm: rightEnvelopeMm * rCoverage,
+    visibleDeltaMm: Math.abs(leftEnvelopeMm * lCoverage - rightEnvelopeMm * rCoverage),
+  };
+}
+
 export function resolveBarrelRearSeam({
   barrelDiameterMm,
   rearDiameterMm,
@@ -24,35 +53,23 @@ export function resolveBarrelRearSeam({
   rearFrontCoverage = 1,
   targetVisibleDiameterMm = null,
 } = {}) {
-  const barrelDiameter = Math.max(0.2, Number(barrelDiameterMm) || 0.2);
   const rearDiameter = Math.max(0.2, Number(rearDiameterMm) || 0.2);
-  const bCoverage = normalizeCoverage(barrelRearCoverage);
-  const rCoverage = normalizeCoverage(rearFrontCoverage);
-
-  const sourceVisibleBarrel = barrelDiameter * bCoverage;
-  const sourceVisibleRear = rearDiameter * rCoverage;
-  const requestedTarget = Number(targetVisibleDiameterMm);
-  // At the physical rear connection the visible barrel neck and the visible shaft/rear
-  // should meet at the rear component's nominal outside diameter. The mesh envelopes
-  // may be wider because transparent padding in source-grounded textures is ignored.
-  const visibleDiameterMm = Number.isFinite(requestedTarget) && requestedTarget > 0
-    ? requestedTarget
-    : rearDiameter;
-
-  const barrelEndEnvelopeMm = visibleDiameterMm / bCoverage;
-  const rearStartEnvelopeMm = visibleDiameterMm / rCoverage;
-
+  const join = resolveVisibleJoin({
+    leftNominalDiameterMm: barrelDiameterMm,
+    rightNominalDiameterMm: rearDiameter,
+    leftCoverage: barrelRearCoverage,
+    rightCoverage: rearFrontCoverage,
+    targetVisibleDiameterMm: targetVisibleDiameterMm ?? rearDiameter,
+  });
   return {
-    visibleDiameterMm,
-    barrelEndEnvelopeMm,
-    rearStartEnvelopeMm,
-    barrelRearCoverage: bCoverage,
-    rearFrontCoverage: rCoverage,
-    barrelVisibleAtJoinMm: barrelEndEnvelopeMm * bCoverage,
-    rearVisibleAtJoinMm: rearStartEnvelopeMm * rCoverage,
-    visibleDeltaMm: Math.abs(
-      barrelEndEnvelopeMm * bCoverage - rearStartEnvelopeMm * rCoverage
-    ),
+    visibleDiameterMm: join.visibleDiameterMm,
+    barrelEndEnvelopeMm: join.leftEnvelopeMm,
+    rearStartEnvelopeMm: join.rightEnvelopeMm,
+    barrelRearCoverage: join.leftCoverage,
+    rearFrontCoverage: join.rightCoverage,
+    barrelVisibleAtJoinMm: join.leftVisibleAtJoinMm,
+    rearVisibleAtJoinMm: join.rightVisibleAtJoinMm,
+    visibleDeltaMm: join.visibleDeltaMm,
   };
 }
 
@@ -127,6 +144,34 @@ export function buildSmoothJoinProfile({
     }
   }
   return deduped;
+}
+
+export function buildSmoothBridgeProfile({
+  frontDiameterMm,
+  rearDiameterMm,
+  lengthMm,
+  flatFrontMm = 0.35,
+  flatRearMm = 0.35,
+  samples = 10,
+} = {}) {
+  const length = Math.max(0.1, Number(lengthMm) || 0.1);
+  const front = Math.max(0.2, Number(frontDiameterMm) || 0.2);
+  const rear = Math.max(0.2, Number(rearDiameterMm) || front);
+  const frontFlat = clampNumber(flatFrontMm, 0, length * 0.35, 0.35);
+  const rearFlat = clampNumber(flatRearMm, 0, length * 0.35, 0.35);
+  const usable = Math.max(1e-6, length - frontFlat - rearFlat);
+  const count = Math.max(4, Math.min(32, Math.round(Number(samples) || 10)));
+  const points = [[0, front]];
+  if (frontFlat > 0) points.push([frontFlat / length, front]);
+  for (let i = 1; i < count; i += 1) {
+    const t = i / count;
+    const u = (frontFlat + usable * t) / length;
+    const diameter = front + (rear - front) * smoothstep01(t);
+    points.push([u, diameter]);
+  }
+  if (rearFlat > 0) points.push([(length - rearFlat) / length, rear]);
+  points.push([1, rear]);
+  return points;
 }
 
 export function profileEndpointSlope(profile, lengthMm, side = 'rear') {
