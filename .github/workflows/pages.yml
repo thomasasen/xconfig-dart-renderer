@@ -60,11 +60,11 @@ jobs:
       - name: Run browser and WebGL QA
         run: python scripts/browser_qa.py
 
-      - name: Upload V1.3.3 QA artifact
-        if: github.event_name == 'pull_request'
+      - name: Upload renderer QA artifact
+        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/v1.4.1b-flight-source-fidelity'
         uses: actions/upload-artifact@v4
         with:
-          name: v1.3.3-renderer-qa
+          name: v1.4.1b-renderer-qa
           if-no-files-found: error
           path: |
             data/catalog.json
