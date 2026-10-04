@@ -135,6 +135,12 @@ for pid in critical_fin_presets:
     check(meta_face.get('sourceAppearanceSampleCount')==2,f'{pid}: expected two source appearance samples')
     check(meta_face.get('referencePlane')=='A' and meta_face.get('referenceRollDeg')==0,f'{pid}: source samples must be calibrated to the reference plane only')
     check(meta_face.get('referencePlaneCalibration')=='PLAUSIBLE_BROADSIDE_NOT_EXACT_RECONSTRUCTION',f'{pid}: photo-roll uncertainty not disclosed')
+    spine=meta_face.get('spineMaterial') or {}
+    check(spine.get('provenance')=='APPROXIMATED_SOURCE_DERIVED_MATERIAL',f'{pid}: integrated flight spine provenance missing')
+    check(spine.get('diameterProvenance')=='HEURISTIC',f'{pid}: spine diameter must remain explicitly heuristic')
+    check(abs(float(spine.get('diameterMm',0))-1.0)<1e-9,f'{pid}: unexpected spine diameter {spine.get("diameterMm")}')
+    check(len(spine.get('colorRgb') or [])==3,f'{pid}: source-derived spine material colour missing')
+    check(.72 <= float(spine.get('opacity',0)) <= .96,f'{pid}: spine opacity implausible')
     check(meta_face.get('visibleSourceFinCount')==2,f'{pid}: compatibility source sample count changed')
     check(meta_face.get('hiddenFinCount')==2,f'{pid}: expected two unobserved perpendicular half-fins')
     expected_layout={
